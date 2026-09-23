@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Panel docente</title>
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<main class="envoltura">
+
+  <section id="pantalla-clave">
+    <p class="materia">Acceso del docente</p>
+    <h1>Resultados del diagnóstico</h1>
+    <div class="hoja">
+      <label for="clave">Clave del docente</label>
+      <input id="clave" type="password" autocomplete="current-password">
+      <div class="acciones">
+        <button id="btn-entrar">Entrar</button>
+      </div>
+      <p class="error" id="error-clave"></p>
+    </div>
+  </section>
+
+  <section id="pantalla-panel" class="oculto">
+    <div id="aviso-clave" class="aviso oculto">
+      No definiste la variable CLAVE_DOCENTE en Render, así que el panel está abierto con la clave por defecto.
+    </div>
+
+    <div class="barra-superior">
+      <div>
+        <p class="materia" id="materia">Cómputo en la Nube</p>
+        <h1 style="margin:0">Diagnóstico del grupo</h1>
+      </div>
+      <div class="filtro">
+        <label for="grupo" style="margin:0">Grupo</label>
+        <select id="grupo"><option value="">Todos</option></select>
+      </div>
+    </div>
+
+    <div class="hoja" id="tarjeta-promedio"></div>
+
+    <h3>Cómo se reparte el grupo</h3>
+    <div id="distribucion"></div>
+
+    <h3>Dominio por tema, de más débil a más fuerte</h3>
+    <div id="temas"></div>
+    <p class="sutil" id="recomendacion"></p>
+
+    <h3>Pregunta por pregunta</h3>
+    <div class="tabla-scroll">
+      <table>
+        <thead><tr>
+          <th>Pregunta</th><th>Tema</th><th class="num">Acierto</th><th class="num">En blanco</th>
+        </tr></thead>
+        <tbody id="tabla-preguntas"></tbody>
+      </table>
+    </div>
+
+    <h3>Resultados por alumno</h3>
+    <div class="tabla-scroll">
+      <table>
+        <thead><tr>
+          <th>Alumno</th><th>Matrícula</th><th class="num">Aciertos</th><th class="num">%</th><th class="num">Min</th>
+        </tr></thead>
+        <tbody id="tabla-alumnos"></tbody>
+      </table>
+    </div>
+
+    <div class="acciones">
+      <button id="btn-pdf">Descargar PDF</button>
+      <button class="secundario" id="btn-csv">Descargar CSV</button>
+      <button class="secundario" id="btn-recargar">Actualizar</button>
+    </div>
+    <div class="acciones">
+      <button class="peligro" id="btn-borrar">Borrar intentos del grupo</button>
+    </div>
+    <p class="error" id="error-panel"></p>
+  </section>
+
+</main>
+<script src="docente.js"></script>
+</body>
+</html>

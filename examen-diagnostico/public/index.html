@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Examen diagnóstico</title>
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<main class="envoltura">
+
+  <!-- Registro -->
+  <section id="pantalla-inicio">
+    <p class="materia" id="materia">Cómputo en la Nube</p>
+    <h1>Examen diagnóstico de fundamentos</h1>
+    <p>Son 20 preguntas de opción múltiple sobre computadoras, redes y programación básica. No cuenta para tu calificación: sirve para saber de dónde partimos y ajustar la clase.</p>
+    <p class="sutil">Toma entre 10 y 15 minutos. Contesta con lo que sepas, sin buscar en Internet.</p>
+
+    <div class="hoja" style="margin-top:22px">
+      <label for="nombre">Nombre completo</label>
+      <input id="nombre" autocomplete="name" placeholder="Como aparece en la lista">
+
+      <label for="matricula">Matrícula</label>
+      <input id="matricula" inputmode="numeric" autocomplete="off" placeholder="Opcional">
+
+      <label for="grupo">Grupo</label>
+      <input id="grupo" autocomplete="off" placeholder="Por ejemplo SC03S">
+
+      <div class="acciones">
+        <button id="btn-comenzar">Comenzar examen</button>
+      </div>
+      <p class="error" id="error-inicio"></p>
+    </div>
+  </section>
+
+  <!-- Preguntas -->
+  <section id="pantalla-examen" class="oculto">
+    <div class="regla" id="regla"></div>
+    <div class="conteo">
+      <span id="posicion">Pregunta 1 de 20</span>
+      <span id="pendientes"></span>
+    </div>
+
+    <div class="hoja">
+      <p class="tema-pregunta" id="tema"></p>
+      <p class="enunciado" id="enunciado"></p>
+      <pre id="codigo" class="oculto"></pre>
+      <div class="opciones" id="opciones"></div>
+    </div>
+
+    <div class="acciones">
+      <button class="secundario" id="btn-anterior">Anterior</button>
+      <button id="btn-siguiente">Siguiente</button>
+    </div>
+  </section>
+
+  <!-- Revisión antes de entregar -->
+  <section id="pantalla-revision" class="oculto">
+    <h1>Antes de entregar</h1>
+    <p id="texto-revision"></p>
+    <div class="hoja">
+      <div class="regla" id="regla-revision"></div>
+      <p class="sutil" style="margin-top:10px">Toca cualquier marca para regresar a esa pregunta.</p>
+    </div>
+    <div class="acciones">
+      <button class="secundario" id="btn-volver">Seguir contestando</button>
+      <button id="btn-entregar">Entregar examen</button>
+    </div>
+    <p class="error" id="error-entrega"></p>
+  </section>
+
+  <!-- Resultado -->
+  <section id="pantalla-fin" class="oculto">
+    <p class="materia">Examen entregado</p>
+    <h1>Listo, gracias</h1>
+    <div id="resultado"></div>
+  </section>
+
+</main>
+<script src="examen.js"></script>
+</body>
+</html>

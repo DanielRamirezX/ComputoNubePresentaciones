@@ -1,0 +1,23 @@
+{
+  "name": "examen-diagnostico-nube",
+  "version": "1.0.0",
+  "description": "Examen diagnóstico de fundamentos para la materia de Cómputo en la Nube, con panel docente y reporte en PDF",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "express": "^4.21.2",
+    "pdfkit": "^0.15.1",
+    "pg": "^8.13.1"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true
+  }
+}

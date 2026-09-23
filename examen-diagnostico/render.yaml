@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: examen-diagnostico-nube
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /salud
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: MATERIA
+        value: Cómputo en la Nube
+      # Clave del panel docente. sync: false = Render te la pide al desplegar
+      # y no queda escrita en el repositorio.
+      - key: CLAVE_DOCENTE
+        sync: false
+      # Opcionales:
+      # - key: DOCENTE
+      #   value: Daniel
+      # - key: RETROALIMENTACION
+      #   value: resumen        # resumen | completo | nada
+      # Si creas un Postgres en Render, descomenta esto y apunta al servicio.
+      # Con DATABASE_URL definida, los intentos sobreviven a los reinicios.
+      # - key: DATABASE_URL
+      #   fromDatabase:
+      #     name: examen-diagnostico-db
+      #     property: connectionString
+
+# databases:
+#   - name: examen-diagnostico-db
+#     plan: free
+#     region: oregon
