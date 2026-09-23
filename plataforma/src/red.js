@@ -38,10 +38,25 @@ export function direccionesLan(puerto) {
 }
 
 /**
- * La dirección que va en el QR. Si no hay red (laptop sin Wi-Fi), regresa
- * localhost para que al menos tú puedas trabajar.
+ * Si la plataforma está desplegada, su dirección pública. En Render llega sola
+ * por RENDER_EXTERNAL_URL; en otro proveedor, define URL_PUBLICA a mano.
+ *
+ * Sin esto, en la nube el QR apuntaría a la IP interna del contenedor
+ * (algo como 10.28.134.228), que no alcanza nadie.
+ */
+export function urlPublica() {
+  const dada = process.env.URL_PUBLICA || process.env.RENDER_EXTERNAL_URL || '';
+  return dada.trim().replace(/\/+$/, '') || null;
+}
+
+/**
+ * La dirección que va en el QR: la pública si está desplegada, si no la de la
+ * red local. Si no hay ninguna (laptop sin Wi-Fi), localhost para que al menos
+ * tú puedas trabajar.
  */
 export function direccionPrincipal(puerto) {
+  const publica = urlPublica();
+  if (publica) return publica;
   const [primera] = direccionesLan(puerto);
   return primera?.url ?? `http://localhost:${puerto}`;
 }

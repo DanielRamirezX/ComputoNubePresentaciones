@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 
 import { CURSO } from './curso.js';
 import { montarModulos, BASE_MODULOS } from './src/montar.js';
-import { direccionesLan, direccionPrincipal } from './src/red.js';
+import { direccionesLan, direccionPrincipal, urlPublica } from './src/red.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -41,14 +41,19 @@ const modulos = await montarModulos(app, CURSO, __dirname);
 
 app.get('/api/curso', (req, res) => {
   registrarVisita(req);
-  res.json({ materia: MATERIA, docente: DOCENTE, grupo: GRUPO, modulos });
+  // `publica` le dice al navegador donde esta corriendo esto, para no afirmar
+  // que vive en la laptop del docente cuando ya esta desplegado.
+  res.json({ materia: MATERIA, docente: DOCENTE, grupo: GRUPO, modulos, publica: Boolean(urlPublica()) });
 });
 
 app.get('/api/red', (req, res) => {
+  const publica = urlPublica();
   res.json({
     puerto: PUERTO,
     principal: direccionPrincipal(PUERTO),
-    direcciones: direccionesLan(PUERTO),
+    // Desplegado no hay direcciones alternas que ofrecer: solo la publica.
+    direcciones: publica ? [] : direccionesLan(PUERTO),
+    publica: Boolean(publica),
     conectados: conectados()
   });
 });
@@ -91,13 +96,16 @@ app.use((err, req, res, _next) => {
 // laptop. Sin esto, el QR apunta a un servidor que nadie más alcanza.
 app.listen(PUERTO, '0.0.0.0', () => {
   const direcciones = direccionesLan(PUERTO);
+  const publica = urlPublica();
   const raya = '─'.repeat(52);
 
   console.log(`\n${raya}`);
   console.log(`  ${MATERIA}`);
   console.log(raya);
 
-  if (direcciones.length === 0) {
+  if (publica) {
+    console.log(`  Desplegado en: ${publica}`);
+  } else if (direcciones.length === 0) {
     console.log('  No detecté red. Conéctate al Wi-Fi del salón y reinicia.');
     console.log(`  Mientras tanto: http://localhost:${PUERTO}`);
   } else {
