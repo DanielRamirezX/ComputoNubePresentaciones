@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FBF8EF">
+  <title>La nube por dentro · Hilos, núcleos y máquinas virtuales</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- @styles -->
+</head>
+<body>
+  <svg class="svg-sprite" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="icon-nube" viewBox="0 0 64 48"><path d="M16 39h35a10 10 0 0 0 1-20 16 16 0 0 0-30-3A12 12 0 0 0 16 39Z" fill="currentColor"/></symbol>
+      <symbol id="icon-servidor" viewBox="0 0 64 64"><rect x="10" y="8" width="44" height="14" rx="3"/><rect x="10" y="25" width="44" height="14" rx="3"/><rect x="10" y="42" width="44" height="14" rx="3"/><circle cx="18" cy="15" r="2"/><circle cx="18" cy="32" r="2"/><circle cx="18" cy="49" r="2"/><path d="M27 15h17M27 32h17M27 49h17"/></symbol>
+      <symbol id="icon-base-datos" viewBox="0 0 64 64"><ellipse cx="32" cy="14" rx="20" ry="8"/><path d="M12 14v30c0 5 9 8 20 8s20-3 20-8V14M12 29c0 5 9 8 20 8s20-3 20-8"/></symbol>
+      <symbol id="icon-codigo" viewBox="0 0 64 64"><path d="m23 16-16 16 16 16M41 16l16 16-16 16M36 9 28 55"/></symbol>
+      <symbol id="icon-app" viewBox="0 0 64 64"><rect x="13" y="7" width="38" height="50" rx="5"/><path d="M21 17h22M21 26h22M21 35h13M29 49h6"/></symbol>
+      <symbol id="icon-usuario" viewBox="0 0 64 64"><circle cx="32" cy="21" r="10"/><path d="M13 56c2-12 10-18 19-18s17 6 19 18"/></symbol>
+      <symbol id="icon-edificio" viewBox="0 0 64 64"><path d="M13 57V15l19-8v50M32 22h19v35M21 22h4M21 31h4M21 40h4M40 31h4M40 40h4M40 49h4"/></symbol>
+      <symbol id="icon-casa" viewBox="0 0 64 64"><path d="m8 30 24-21 24 21v25H8Z"/><path d="M25 55V39h14v16"/></symbol>
+      <symbol id="icon-llave" viewBox="0 0 64 64"><circle cx="20" cy="22" r="11"/><path d="m28 30 28 28M43 45l7-7M50 52l7-7"/></symbol>
+      <symbol id="icon-candado" viewBox="0 0 64 64"><rect x="13" y="28" width="38" height="28" rx="4"/><path d="M21 28V18a11 11 0 0 1 22 0v10M32 39v7"/></symbol>
+      <symbol id="icon-globo" viewBox="0 0 64 64"><path d="M9 12h46v32H29L16 55V44H9Z"/><path d="M20 27h24M20 35h15"/></symbol>
+      <symbol id="icon-foco" viewBox="0 0 64 64"><path d="M21 41h22M24 49h16M32 7v7M13 15l5 5M51 15l-5 5M8 32h7M49 32h7M20 33a12 12 0 1 1 24 0c0 5-4 7-5 11H25c-1-4-5-6-5-11Z"/></symbol>
+      <symbol id="icon-alerta" viewBox="0 0 64 64"><path d="m32 7 25 48H7Z"/><path d="M32 23v15M32 45v2"/></symbol>
+      <symbol id="icon-engrane" viewBox="0 0 64 64"><path d="m27 7 10 0 2 8a19 19 0 0 1 5 3l8-2 5 9-6 6a18 18 0 0 1 0 6l6 6-5 9-8-2a18 18 0 0 1-5 3l-2 8H27l-2-8a18 18 0 0 1-5-3l-8 2-5-9 6-6a18 18 0 0 1 0-6l-6-6 5-9 8 2a19 19 0 0 1 5-3Z"/><circle cx="32" cy="32" r="8"/></symbol>
+      <symbol id="icon-estrella" viewBox="0 0 64 64"><path d="m32 6 8 17 18 2-14 12 4 19-16-10-16 10 4-19L6 25l18-2Z"/></symbol>
+      <symbol id="icon-pin" viewBox="0 0 64 64"><path d="M32 58S12 39 12 25a20 20 0 1 1 40 0c0 14-20 33-20 33Z"/><circle cx="32" cy="25" r="6"/></symbol>
+      <symbol id="icon-check" viewBox="0 0 64 64"><path d="m11 34 13 13 29-30"/></symbol>
+      <symbol id="icon-flecha" viewBox="0 0 64 64"><path d="M8 32h46M37 11l21 21-21 21"/></symbol>
+      <symbol id="icon-dinero" viewBox="0 0 64 64"><circle cx="32" cy="32" r="23"/><path d="M39 22c-2-3-5-4-8-4-5 0-8 3-8 7 0 10 17 5 17 14 0 4-3 7-8 7-4 0-7-2-9-5M32 11v42"/></symbol>
+      <symbol id="icon-reloj" viewBox="0 0 64 64"><circle cx="32" cy="32" r="23"/><path d="M32 18v15l10 6"/></symbol>
+      <symbol id="icon-cpu" viewBox="0 0 64 64"><rect x="17" y="17" width="30" height="30" rx="3"/><rect x="25" y="25" width="14" height="14"/><path d="M24 7v10M32 7v10M40 7v10M24 47v10M32 47v10M40 47v10M7 24h10M7 32h10M7 40h10M47 24h10M47 32h10M47 40h10"/></symbol>
+      <symbol id="icon-disco" viewBox="0 0 64 64"><path d="M10 17h44v30H10Z"/><path d="M17 24h30M17 32h20M17 40h27"/></symbol>
+      <symbol id="icon-red" viewBox="0 0 64 64"><circle cx="12" cy="32" r="6"/><circle cx="52" cy="14" r="6"/><circle cx="52" cy="50" r="6"/><path d="m18 30 28-13M18 34l28 13"/></symbol>
+      <symbol id="icon-escudo" viewBox="0 0 64 64"><path d="M32 7 52 15v17c0 14-9 22-20 26C21 54 12 46 12 32V15Z"/><path d="m22 32 7 7 14-15"/></symbol>
+      <symbol id="icon-cohete" viewBox="0 0 64 64"><path d="M34 8c13 2 19 9 22 22L42 42 22 22C25 15 28 11 34 8Z"/><path d="m22 22-9 2-5 9 14 0M42 42l-2 9-9 5V42M24 40 13 51M20 25 9 36"/><circle cx="39" cy="23" r="4"/></symbol>
+      <symbol id="icon-correo" viewBox="0 0 64 64"><rect x="8" y="15" width="48" height="34" rx="4"/><path d="m10 20 22 17 22-17"/></symbol>
+      <symbol id="icon-insignia" viewBox="0 0 64 64"><circle cx="32" cy="27" r="18"/><path d="m23 44-2 14 11-6 11 6-2-14M32 17l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z"/></symbol>
+      <symbol id="icon-libro" viewBox="0 0 64 64"><path d="M10 12h18c5 0 8 3 8 8v32c0-5-3-8-8-8H10ZM54 12H36c-5 0-8 3-8 8"/><path d="M10 44h18c5 0 8 3 8 8V20c0-5 3-8 8-8h10Z"/></symbol>
+      <symbol id="icon-mapa" viewBox="0 0 64 64"><path d="m8 13 16-6 16 6 16-6v44l-16 6-16-6-16 6Z"/><path d="M24 7v44M40 13v44"/><circle cx="32" cy="28" r="5"/></symbol>
+      <symbol id="icon-maleta" viewBox="0 0 64 64"><rect x="8" y="18" width="48" height="35" rx="4"/><path d="M23 18V11h18v7M8 32h48M28 32v6h8v-6"/></symbol>
+      <symbol id="icon-cama" viewBox="0 0 64 64"><path d="M8 47V25M8 38h48v9M56 25v22M15 38V20h17a8 8 0 0 1 8 8v10M8 53h48"/></symbol>
+      <symbol id="nubi" viewBox="0 0 160 120"><path d="M27 88h104a23 23 0 0 0 1-46 35 35 0 0 0-66-6 26 26 0 0 0-39 24 25 25 0 0 0 0 28Z" fill="#fff" stroke="#16181D" stroke-width="5"/><circle cx="67" cy="65" r="5" fill="#16181D"/><circle cx="101" cy="65" r="5" fill="#16181D"/><path d="M75 77q9 9 18 0" fill="none" stroke="#16181D" stroke-width="4" stroke-linecap="round"/><circle cx="53" cy="76" r="8" fill="#FFD23F"/><circle cx="115" cy="76" r="8" fill="#FFD23F"/></symbol>
+      <symbol id="nubi-feliz" viewBox="0 0 160 120"><path d="M27 88h104a23 23 0 0 0 1-46 35 35 0 0 0-66-6 26 26 0 0 0-39 24 25 25 0 0 0 0 28Z" fill="#fff" stroke="#16181D" stroke-width="5"/><path d="M62 65q5-8 10 0M96 65q5-8 10 0" fill="none" stroke="#16181D" stroke-width="4" stroke-linecap="round"/><path d="M72 77q10 14 20 0" fill="none" stroke="#16181D" stroke-width="4" stroke-linecap="round"/><circle cx="53" cy="76" r="8" fill="#FFD23F"/><circle cx="115" cy="76" r="8" fill="#FFD23F"/></symbol>
+      <symbol id="nubi-pensando" viewBox="0 0 160 120"><path d="M27 88h104a23 23 0 0 0 1-46 35 35 0 0 0-66-6 26 26 0 0 0-39 24 25 25 0 0 0 0 28Z" fill="#fff" stroke="#16181D" stroke-width="5"/><circle cx="67" cy="65" r="5" fill="#16181D"/><circle cx="101" cy="65" r="5" fill="#16181D"/><path d="M76 80q8-6 16 0" fill="none" stroke="#16181D" stroke-width="4" stroke-linecap="round"/><circle cx="53" cy="76" r="8" fill="#FFD23F"/><circle cx="115" cy="76" r="8" fill="#FFD23F"/></symbol>
+    </defs>
+  </svg>
+
+  <main id="slides" aria-live="polite">
+    <!-- @slides -->
+  </main>
+
+  <div class="deck-progress" aria-hidden="true"><span id="deck-progress-bar"></span></div>
+  <footer class="deck-ui" aria-label="Controles de presentación">
+    <div class="deck-ui__context">
+      <span class="deck-ui__section" data-current-section></span>
+      <span class="deck-ui__separator">·</span>
+      <span class="deck-ui__title" data-current-title></span>
+    </div>
+    <div class="deck-ui__actions">
+      <span class="deck-ui__counter" data-counter></span>
+      <button class="deck-button" type="button" data-nav="prev" aria-label="Diapositiva anterior">←</button>
+      <button class="deck-button deck-button--next" type="button" data-nav="next" aria-label="Siguiente diapositiva">→</button>
+    </div>
+  </footer>
+
+  <aside class="overlay-panel" id="notes-panel" aria-hidden="true" aria-label="Notas del docente">
+    <div class="overlay-panel__head"><span>Notas del docente</span><button type="button" class="overlay-close" data-close-overlay="notes-panel" aria-label="Cerrar notas">×</button></div>
+    <div class="overlay-panel__body" data-notes-body></div>
+  </aside>
+  <aside class="overlay-panel overlay-panel--index" id="slide-index" aria-hidden="true" aria-label="Índice de diapositivas">
+    <div class="overlay-panel__head"><span>Índice</span><button type="button" class="overlay-close" data-close-overlay="slide-index" aria-label="Cerrar índice">×</button></div>
+    <div class="overlay-panel__body" data-index-body></div>
+  </aside>
+  <aside class="overlay-panel overlay-panel--help" id="help-panel" aria-hidden="true" aria-label="Ayuda de teclas">
+    <div class="overlay-panel__head"><span>Atajos</span><button type="button" class="overlay-close" data-close-overlay="help-panel" aria-label="Cerrar ayuda">×</button></div>
+    <div class="overlay-panel__body">
+      <dl class="shortcut-list">
+        <div><dt>→ · Espacio · Enter</dt><dd>Siguiente paso o diapositiva</dd></div>
+        <div><dt>← · Retroceso</dt><dd>Paso o diapositiva anterior</dd></div>
+        <div><dt>Inicio · Fin</dt><dd>Primera o última diapositiva</dd></div>
+        <div><dt>F · N · O/Esc</dt><dd>Pantalla completa · notas · índice</dd></div>
+        <div><dt>?</dt><dd>Mostrar esta ayuda</dd></div>
+      </dl>
+    </div>
+  </aside>
+  <div class="overlay-scrim" data-close-overlay="all" hidden></div>
+
+  <!-- @scripts -->
+</body>
+</html>

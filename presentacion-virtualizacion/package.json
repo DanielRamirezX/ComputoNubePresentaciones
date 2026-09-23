@@ -1,0 +1,9 @@
+{
+  "name": "presentacion-virtualizacion",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Presentación web educativa: hilos, núcleos, virtualización y práctica con VirtualBox",
+  "scripts": {
+    "build": "node build.mjs"
+  }
+}

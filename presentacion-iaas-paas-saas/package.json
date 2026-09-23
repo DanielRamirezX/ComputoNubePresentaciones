@@ -1,0 +1,9 @@
+{
+  "name": "presentacion-iaas-paas-saas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Presentación web educativa sobre IaaS, PaaS y SaaS",
+  "scripts": {
+    "build": "node build.mjs"
+  }
+}

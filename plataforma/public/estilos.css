@@ -1,0 +1,203 @@
+/* Misma paleta que la presentación de la materia, para que se sienta un solo
+   curso. Sin fuentes de internet: en el salón puede no haber. */
+:root {
+  --paper: #fbf8ef;
+  --paper-deep: #f2ead8;
+  --ink: #16181d;
+  --muted: #4b5160;
+  --line: #d6cdbb;
+  --yellow: #ffd23f;
+  --blue: #2563eb;
+  --green: #0e9f6e;
+  --coral: #f2542d;
+  --red: #d7263d;
+  --white: #fffef9;
+  --shadow: 4px 4px 0 var(--ink);
+  --radius: 14px;
+  --sans: "Atkinson Hyperlegible", "Segoe UI", Arial, sans-serif;
+  --display: "Bricolage Grotesque", "Trebuchet MS", Arial, sans-serif;
+  --mono: "JetBrains Mono", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(22, 24, 29, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(22, 24, 29, .045) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.5;
+}
+
+.envoltura { max-width: 940px; margin: 0 auto; padding: 32px 20px 64px; }
+
+/* ------------------------------------------------------------ encabezado */
+
+.cabecera { margin-bottom: 30px; padding-bottom: 22px; border-bottom: 3px solid var(--ink); }
+
+.cabecera__etiqueta {
+  font-family: var(--mono);
+  font-size: .78rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cabecera h1 {
+  margin: 6px 0 4px;
+  font-family: var(--display);
+  font-size: clamp(1.9rem, 5vw, 2.9rem);
+  line-height: 1.05;
+}
+
+.cabecera__pie { margin: 0; color: var(--muted); font-size: .95rem; }
+
+/* --------------------------------------------------------------- tarjetas */
+
+.rejilla { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--white);
+  box-shadow: var(--shadow);
+  color: inherit;
+  text-decoration: none;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+
+a.tarjeta:hover, a.tarjeta:focus-visible {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--ink);
+  outline: none;
+}
+
+a.tarjeta:focus-visible { border-color: var(--blue); }
+
+.tarjeta__etiqueta {
+  align-self: flex-start;
+  margin-bottom: 12px;
+  padding: 3px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--yellow);
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.tarjeta h2 { margin: 0 0 8px; font-family: var(--display); font-size: 1.35rem; line-height: 1.15; }
+.tarjeta p { margin: 0; color: var(--muted); font-size: .95rem; }
+
+/* auto = se pega abajo, así los "Abrir" quedan alineados aunque un resumen
+   sea más largo que otro. */
+.tarjeta__abrir { margin-top: auto; padding-top: 16px; font-weight: 700; }
+.tarjeta__abrir::after { content: " →"; }
+
+/* Módulo que no cargó: se ve, pero avisa qué falta en lugar de desaparecer. */
+.tarjeta--error { background: var(--paper-deep); box-shadow: none; border-style: dashed; }
+.tarjeta--error .tarjeta__etiqueta { background: var(--coral); color: var(--white); }
+
+.tarjeta__detalle {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: .8rem;
+  color: var(--red);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------- pie */
+
+.pie { margin-top: 42px; padding-top: 20px; border-top: 2px dashed var(--line); color: var(--muted); font-size: .88rem; }
+.pie a { color: var(--blue); }
+
+.cargando { padding: 40px 0; color: var(--muted); font-family: var(--mono); }
+
+/* ============================ pantalla de proyección ==================== */
+
+body.proyectar {
+  background-color: var(--ink);
+  background-image:
+    linear-gradient(rgba(251, 248, 239, .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(251, 248, 239, .07) 1px, transparent 1px);
+  background-size: 34px 34px;
+  color: var(--paper);
+}
+
+.proyeccion {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(28px, 6vw, 76px);
+  flex-wrap: wrap;
+  padding: 4vh 5vw;
+  text-align: center;
+}
+
+.proyeccion__qr {
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--white);
+  box-shadow: 10px 10px 0 var(--yellow);
+  line-height: 0;
+}
+
+.proyeccion__qr svg { width: clamp(220px, 34vw, 430px); height: auto; }
+
+.proyeccion__datos { text-align: left; max-width: 680px; }
+
+.proyeccion__paso {
+  font-family: var(--mono);
+  font-size: clamp(.8rem, 1.4vw, 1rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--yellow);
+}
+
+.proyeccion__datos h1 {
+  margin: 10px 0 24px;
+  font-family: var(--display);
+  font-size: clamp(2rem, 5.4vw, 4rem);
+  line-height: 1.02;
+}
+
+.proyeccion__url {
+  display: inline-block;
+  padding: 14px 24px;
+  border: 3px solid var(--yellow);
+  border-radius: var(--radius);
+  background: rgba(255, 210, 63, .1);
+  font-family: var(--mono);
+  font-size: clamp(1.15rem, 2.9vw, 2.1rem);
+  font-weight: 700;
+  /* En el proyector la dirección va en UNA línea: hay alumnos que la copian
+     a mano y un salto a media URL se presta a errores. */
+  white-space: nowrap;
+}
+
+.proyeccion__nota { margin: 22px 0 0; color: #b9b3a3; font-size: clamp(.9rem, 1.6vw, 1.15rem); }
+
+.proyeccion__contador { margin: 14px 0 0; font-size: clamp(1rem, 2vw, 1.4rem); }
+.proyeccion__contador b { color: var(--yellow); font-size: 1.4em; }
+
+.proyeccion__alterna { margin: 18px 0 0; color: #8d8879; font-family: var(--mono); font-size: .9rem; }
+
+@media (max-width: 720px) {
+  .proyeccion { flex-direction: column; }
+  .proyeccion__datos { text-align: center; }
+  /* En un teléfono no cabe en una línea; ahí sí conviene que se parta. */
+  .proyeccion__url { white-space: normal; overflow-wrap: anywhere; }
+}

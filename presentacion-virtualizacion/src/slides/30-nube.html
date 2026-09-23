@@ -1,0 +1,134 @@
+<section class="slide s3-slide s3-misma-idea" id="s3-misma-idea" data-section="De tu laptop a la nube" data-title="Es lo mismo, a otra escala">
+  <div class="slide__inner">
+    <div class="s3-head" data-anim="fade-up">
+      <span class="eyebrow">Sección 3 · De tu laptop a la nube</span>
+      <h2 class="slide-title">Es lo mismo, a otra escala</h2>
+    </div>
+    <div class="compare-wrap s3-compare-wrap" data-anim="zoom">
+      <table class="compare-table s3-compare-table">
+        <thead>
+          <tr>
+            <th scope="col"><span class="s3-th-label">Lo que comparamos</span></th>
+            <th scope="col" class="s3-col-laptop"><span class="s3-badge s3-badge--host">Tu laptop hoy</span></th>
+            <th scope="col" class="s3-col-cloud"><span class="s3-badge s3-badge--cloud">Un servidor de AWS</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Quién virtualiza</th>
+            <td><div class="step" data-step="1"><b>VirtualBox</b><span>hipervisor de tipo 2, encima de Windows</span></div></td>
+            <td><div class="step" data-step="1"><b>Nitro</b><span>hipervisor de tipo 1, directo sobre el hardware</span></div></td>
+          </tr>
+          <tr>
+            <th scope="row">Cuántas máquinas virtuales caben</th>
+            <td><div class="step" data-step="2"><b>1 VM</b><span>con 1 vCPU y 1 GB de memoria</span></div></td>
+            <td><div class="step" data-step="2"><b>Decenas de VMs</b><span>encendidas al mismo tiempo</span></div></td>
+          </tr>
+          <tr>
+            <th scope="row">Quién vive dentro</th>
+            <td><div class="step" data-step="3"><b>Tú</b><span>eres el único inquilino</span></div></td>
+            <td><div class="step" data-step="3"><b>Decenas de clientes</b><span>que no se conocen entre sí</span></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <blockquote class="s3-frase step" data-step="4">
+      <p>“La máquina virtual que vas a crear hoy y una instancia <code>EC2</code> <span class="marker">son la misma idea</span>. Lo único que cambia es quién paga la luz.”</p>
+      <footer>la frase de la clase</footer>
+    </blockquote>
+  </div>
+  <aside class="notes">Deja la tabla en pantalla y pide que alguien lea en voz alta el renglón de en medio. La comparación funciona mejor si tú no la explicas: pregunta “¿qué renglón les sorprende más?”. La frase del final dila despacio y repítela; es la que se llevan a casa. Si en la clase pasada encendieron una instancia EC2, pídeles que recuerden cuánto tardó en estar lista.</aside>
+</section>
+
+<section class="slide s3-slide s3-inquilinos" id="s3-inquilinos" data-section="De tu laptop a la nube" data-title="Un servidor, muchos inquilinos">
+  <div class="slide__inner">
+    <div class="s3-head" data-anim="fade-up">
+      <span class="eyebrow">La respuesta a la pregunta del principio</span>
+      <h2 class="slide-title">Un servidor, muchos inquilinos</h2>
+    </div>
+    <div class="s3-tenant-layout">
+      <div class="s3-server" data-anim="zoom">
+        <div class="s3-server__head">
+          <svg class="icon" aria-hidden="true"><use href="#icon-servidor"></use></svg>
+          <span>Un servidor de centro de datos</span>
+          <b>más de 100 procesadores lógicos</b>
+        </div>
+        <div class="s3-bay" aria-label="El servidor repartido en bloques: cada bloque es un cliente distinto y cada cuadrito un procesador lógico">
+          <span class="s3-free" style="grid-area: 6 / 1 / 8 / 12">libre, esperando al siguiente cliente</span>
+          <div class="s3-tenant s3-tenant--a step" data-step="1" style="grid-area: 1 / 1 / 3 / 6; --c:5; --r:2"><span>Cliente A</span></div>
+          <div class="s3-tenant s3-tenant--b step" data-step="1" style="grid-area: 1 / 6 / 3 / 12; --c:6; --r:2"><span>Cliente B</span></div>
+          <div class="s3-tenant s3-tenant--c step" data-step="2" style="grid-area: 1 / 12 / 4 / 17; --c:5; --r:3"><span>Cliente C</span></div>
+          <div class="s3-tenant s3-tenant--d step" data-step="2" style="grid-area: 3 / 1 / 6 / 6; --c:5; --r:3"><span>Cliente D</span></div>
+          <div class="s3-tenant s3-tenant--e step" data-step="3" style="grid-area: 3 / 6 / 6 / 12; --c:6; --r:3"><span>Cliente E</span></div>
+          <div class="s3-tenant s3-tenant--f step" data-step="3" style="grid-area: 4 / 12 / 7 / 17; --c:5; --r:3"><span>Cliente F</span></div>
+        </div>
+        <p class="s3-server__legend"><i class="s3-swatch" aria-hidden="true"></i> cada cuadrito = un procesador lógico · cada bloque = un cliente que no ve a los demás</p>
+      </div>
+      <aside class="s3-tenant-panel">
+        <div class="s3-multi step" data-step="4">
+          <h3>Multi-tenancy</h3>
+          <p>El hipervisor <strong>reparte</strong> el servidor entre clientes que no se conocen, y sobre todo los <strong>separa</strong>. En español: varios inquilinos en el mismo edificio, cada quien con su llave.</p>
+        </div>
+        <div class="help-box help-box--sabias step" data-step="5">
+          <svg class="help-box__icon" aria-hidden="true"><use href="#icon-dinero"></use></svg>
+          <div>
+            <span class="help-box__label">¿Sabías que?</span>
+            <p class="help-box__text">Por eso la nube es barata: el proveedor compra un servidor carísimo <strong>una vez</strong> y lo renta en rebanadas a mucha gente a la vez.</p>
+          </div>
+        </div>
+        <div class="s3-answer step" data-step="5">
+          <span class="s3-answer__q">“¿Cómo puede una sola computadora física convertirse en treinta computadoras para treinta clientes distintos?”</span>
+          <b>Así. El hipervisor la reparte.</b>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <aside class="notes">Ésta es la diapositiva que cierra la pregunta del inicio (la del fondo negro). Vuelve a leerla en voz alta antes de revelar a los clientes. Mientras aparecen los bloques, pregunta: “¿el Cliente C puede abrir los archivos del Cliente D?”. La respuesta —no, el hipervisor no lo permite— es justo lo que hace vendible a la nube. Señala también el hueco: esa capacidad libre es lo que te venden en cuanto la pidas.</aside>
+</section>
+
+<section class="slide s3-slide s3-elastico" id="s3-elastico" data-section="De tu laptop a la nube" data-title="Cambiar de tamaño en 30 segundos">
+  <div class="slide__inner">
+    <div class="s3-head" data-anim="fade-up">
+      <span class="eyebrow">La palabra de los folletos</span>
+      <h2 class="slide-title">Cambiar de tamaño en 30 segundos</h2>
+    </div>
+    <div class="s3-elastic-layout">
+      <div class="s3-elastic-copy">
+        <ol class="step-list s3-steps">
+          <li class="step-list__item step" data-step="1"><p><b>Apagas</b> la máquina virtual.</p></li>
+          <li class="step-list__item step" data-step="2"><p><b>Cambias el número</b> de procesadores o de memoria.</p></li>
+          <li class="step-list__item step" data-step="3"><p><b>La enciendes</b> otra vez. Ya tiene otro hardware.</p></li>
+        </ol>
+        <p class="s3-lead step" data-step="4">Sin desarmar nada, sin comprar nada, sin esperar un envío. Eso es exactamente pasar de una <code>t3.micro</code> a una <code>t3.small</code>: <span class="marker">eso es la elasticidad</span>.</p>
+        <div class="help-box help-box--cuidado step" data-step="5">
+          <svg class="help-box__icon" aria-hidden="true"><use href="#icon-alerta"></use></svg>
+          <div>
+            <span class="help-box__label">Cuidado</span>
+            <p class="help-box__text">Una VM encendida consume tu RAM aunque no la estés usando. En la nube, consume <strong>tu dinero</strong>.</p>
+          </div>
+        </div>
+      </div>
+      <aside class="s3-elastic-stage" data-anim="zoom" aria-label="La configuración de la máquina virtual pasa de un procesador a dos">
+        <div class="s3-knob">
+          <span class="s3-knob__label">Procesadores</span>
+          <div class="s3-knob__values">
+            <span class="s3-knob__old">1</span>
+            <span class="s3-knob__arrow" aria-hidden="true">→</span>
+            <span class="s3-knob__new">2</span>
+          </div>
+          <span class="s3-knob__note">Configuración → Sistema → Procesador</span>
+        </div>
+        <div class="s3-sizes">
+          <span class="chip s3-size">t3.micro</span>
+          <span class="s3-sizes__arrow" aria-hidden="true">→</span>
+          <span class="chip s3-size s3-size--next">t3.small</span>
+        </div>
+        <div class="nubi s3-nubi">
+          <svg class="nubi__image" viewBox="0 0 160 120" aria-hidden="true"><use href="#nubi-feliz"></use></svg>
+          <p class="nubi__bubble">Y esto no te lo voy a contar: lo vas a hacer con tus manos en el paso 5 de la práctica.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <aside class="notes">Cronometra el experimento en clase cuando lleguen al paso 5: apagar, cambiar el número, encender. Si tarda menos de un minuto, dilo en voz alta y que lo anoten. Luego pregunta: “¿cuánto tardarías en ponerle un procesador más a tu laptop, y cuánto costaría?”. Esa diferencia —minutos contra semanas— es el negocio entero de la nube; no la expliques tú, deja que la digan ellos.</aside>
+</section>

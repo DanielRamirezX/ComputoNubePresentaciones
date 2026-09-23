@@ -1,0 +1,19 @@
+{
+  "name": "plataforma-computo-nube",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Servidor local que reúne los materiales de la materia de Cómputo en la Nube y los expone en el salón por Wi-Fi",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4"
+  }
+}

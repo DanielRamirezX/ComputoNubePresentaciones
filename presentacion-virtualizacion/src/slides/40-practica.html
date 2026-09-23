@@ -1,0 +1,395 @@
+<section class="slide s4-slide s4-intro" id="s4-practica" data-bg="amarillo" data-section="Manos a la obra" data-title="La práctica de hoy">
+  <div class="slide__inner s4-intro__inner">
+    <div class="s4-heading" data-anim="fade-up">
+      <span class="eyebrow">Práctica guiada · 1 hora · 5 pasos</span>
+      <h2 class="slide-title">Crea tu primera máquina virtual</h2>
+    </div>
+    <div class="s4-intro__layout">
+      <ol class="s4-plan" aria-label="Los cinco pasos de la práctica">
+        <li class="s4-plan__item" data-anim="slide-right" style="--d:1"><span class="s4-plan__num">1</span><span class="s4-plan__what">Instalar <strong>VirtualBox</strong></span><span class="s4-plan__min">10 min</span></li>
+        <li class="s4-plan__item" data-anim="slide-right" style="--d:2"><span class="s4-plan__num">2</span><span class="s4-plan__what">Descargar el <strong>ISO</strong> de Linux</span><span class="s4-plan__min">5 min</span></li>
+        <li class="s4-plan__item" data-anim="slide-right" style="--d:3"><span class="s4-plan__num">3</span><span class="s4-plan__what">Crear la <strong>máquina virtual</strong></span><span class="s4-plan__min">10 min</span></li>
+        <li class="s4-plan__item s4-plan__item--long" data-anim="slide-right" style="--d:4"><span class="s4-plan__num">4</span><span class="s4-plan__what">Instalar <strong>Alpine Linux</strong></span><span class="s4-plan__min">20 min</span></li>
+        <li class="s4-plan__item" data-anim="slide-right" style="--d:5"><span class="s4-plan__num">5</span><span class="s4-plan__what">Comprobar y <strong>experimentar</strong></span><span class="s4-plan__min">10 min</span></li>
+      </ol>
+      <div class="s4-intro__side">
+        <div class="s4-panel" data-anim="fade-up" style="--d:3">
+          <h3 class="s4-label">Qué necesitas en la mesa</h3>
+          <ul class="s4-needs">
+            <li><svg class="icon" aria-hidden="true"><use href="#icon-app"></use></svg><span>Una laptop con <strong>Windows</strong></span></li>
+            <li><svg class="icon" aria-hidden="true"><use href="#icon-llave"></use></svg><span>Permisos de <strong>administrador</strong></span></li>
+            <li><svg class="icon" aria-hidden="true"><use href="#icon-disco"></use></svg><span>Unos <strong>3 GB libres</strong> de disco</span></li>
+          </ul>
+        </div>
+        <div class="s4-panel s4-legend" data-anim="fade-up" style="--d:4">
+          <h3 class="s4-label">Cómo se leen estas diapositivas</h3>
+          <p class="s4-legend__row"><span class="s4-type">dhcp</span><span>esto lo <strong>escribes tú</strong>, letra por letra</span></p>
+          <p class="s4-legend__row"><span class="s4-ui">Nueva</span><span>esto es un <strong>botón o menú</strong> que pulsas</span></p>
+        </div>
+      </div>
+    </div>
+    <div class="help-box help-box--consejo s4-intro__tip" data-anim="fade-up" style="--d:5">
+      <svg class="help-box__icon" aria-hidden="true"><use href="#icon-foco"></use></svg>
+      <div><span class="help-box__label">Consejo</span><p class="help-box__text">Si algo se atora, <strong>no borres nada</strong> y levanta la mano. Casi todos los errores de esta práctica se arreglan en 30 segundos.</p></div>
+    </div>
+  </div>
+  <aside class="notes">Arranca el cronómetro aquí: es una hora exacta y el paso 4 siempre se come el tiempo de los demás. Antes de avanzar pregunta en voz alta quién NO tiene permisos de administrador en su laptop y resuélvelo ahora, no a mitad del paso 1 (ponlos en pareja con un compañero). Si las máquinas del laboratorio ya traen VirtualBox instalado, salta el paso 1 y regala esos 10 minutos al paso 4.</aside>
+</section>
+
+<section class="slide s4-slide s4-step" id="s4-paso1" data-section="Manos a la obra" data-title="Paso 1: Instalar VirtualBox">
+  <div class="slide__inner s4-step__inner">
+    <div class="s4-heading s4-heading--compact" data-anim="fade-up">
+      <span class="eyebrow">Paso 1 de 5 · 10 minutos</span>
+      <h2 class="slide-title">Instalar VirtualBox</h2>
+      <p class="s4-lead"><strong>VirtualBox</strong> es gratis y de código abierto, de Oracle. Funciona en Windows, macOS y Linux.</p>
+    </div>
+    <div class="s4-step__layout">
+      <ol class="step-list s4-steps" aria-label="Pasos para instalar VirtualBox">
+        <li class="step step-list__item s4-steps__item" data-step="1"><p>Abre <span class="s4-type">virtualbox.org</span> y entra a <span class="s4-ui">Downloads</span>.</p></li>
+        <li class="step step-list__item s4-steps__item" data-step="2"><p>Descarga la versión de <span class="s4-ui">Windows hosts</span>.</p></li>
+        <li class="step step-list__item s4-steps__item" data-step="3"><p>Ejecuta el instalador y pulsa <span class="s4-ui">Next</span> en todas las pantallas.</p></li>
+        <li class="step step-list__item s4-steps__item" data-step="4"><p>Te avisará que <strong>la red se va a desconectar un momento</strong>. Es normal: está instalando tarjetas de red virtuales. Acepta.</p></li>
+        <li class="step step-list__item s4-steps__item" data-step="5"><p>Al terminar, abre VirtualBox. Debes ver una ventana con la <strong>lista de máquinas vacía</strong>.</p></li>
+      </ol>
+      <div class="s4-win s4-win--browser" aria-label="Boceto de lo que verás en pantalla en cada paso" aria-live="polite">
+        <div class="s4-win__bar"><span class="s4-win__dot"></span><span class="s4-win__dot"></span><span class="s4-win__dot"></span><span class="s4-win__addr">tu pantalla</span></div>
+        <div class="s4-win__screen">
+          <p class="s4-win__topline"><span class="s4-win__tag">boceto</span><span>paso <b data-s4-counter>1</b> / 5</span></p>
+          <div class="s4-win__state is-current" data-s4-state="1">
+            <div class="s4-win__mock"><span class="s4-sk s4-sk--lg"></span><span class="s4-sk"></span><span class="s4-win__hl">Downloads</span></div>
+            <p class="s4-win__caption">La página de Oracle VirtualBox, con su menú arriba.</p>
+          </div>
+          <div class="s4-win__state" data-s4-state="2">
+            <div class="s4-win__mock"><span class="s4-sk s4-sk--sm"></span><span class="s4-win__hl s4-win__hl--link">Windows hosts</span><span class="s4-sk"></span><span class="s4-sk s4-sk--sm"></span></div>
+            <p class="s4-win__caption">Una lista de sistemas. Da clic en el de Windows.</p>
+          </div>
+          <div class="s4-win__state" data-s4-state="3">
+            <div class="s4-win__mock"><span class="s4-sk s4-sk--lg"></span><span class="s4-sk"></span><span class="s4-win__hl s4-win__hl--btn">Next</span></div>
+            <p class="s4-win__caption">El instalador. Siempre el mismo botón, abajo a la derecha.</p>
+          </div>
+          <div class="s4-win__state" data-s4-state="4">
+            <div class="s4-win__mock s4-win__mock--warn"><span class="s4-win__warn">La red se desconectará</span><span class="s4-sk"></span><span class="s4-win__hl s4-win__hl--btn">Aceptar</span></div>
+            <p class="s4-win__caption">El aviso de la red. Se corta unos segundos y vuelve sola.</p>
+          </div>
+          <div class="s4-win__state" data-s4-state="5">
+            <div class="s4-win__mock"><span class="s4-win__hl s4-win__hl--app">VirtualBox</span><span class="s4-win__empty">— aún no hay máquinas —</span></div>
+            <p class="s4-win__caption">VirtualBox abierto y vacío. Eso es exactamente lo correcto.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="help-box help-box--cuidado s4-step__tip" data-anim="fade-up" style="--d:2">
+      <svg class="help-box__icon" aria-hidden="true"><use href="#icon-alerta"></use></svg>
+      <div><span class="help-box__label">Cuidado</span><p class="help-box__text">Hace falta <strong>permiso de administrador</strong>. Si estás en una computadora del laboratorio y te lo niega, avísale al docente antes de seguir.</p></div>
+    </div>
+  </div>
+  <aside class="notes">Diez minutos y camina por el salón. El susto típico es la pantalla que avisa que la red se va a desconectar: varios cancelan la instalación justo ahí, así que anúncialo en voz alta ANTES de que aparezca. Si el wifi del salón es el único acceso, adviérteles que perderán conexión unos segundos y que no toquen nada. A quien le falten permisos, siéntalo en pareja ya mismo en lugar de dejarlo esperando.</aside>
+</section>
+
+<section class="slide s4-slide s4-step" id="s4-paso2" data-section="Manos a la obra" data-title="Paso 2: Descargar el Linux">
+  <div class="slide__inner s4-step__inner">
+    <div class="s4-heading s4-heading--compact" data-anim="fade-up">
+      <span class="eyebrow">Paso 2 de 5 · 5 minutos</span>
+      <h2 class="slide-title">Descargar el Linux</h2>
+      <p class="s4-lead">Vamos a usar <strong>Alpine Linux</strong>, una distribución diminuta. Ubuntu pesa varios GB y no cabría en la clase.</p>
+    </div>
+    <div class="s4-step__layout">
+      <div class="s4-step__left">
+        <div class="s4-weigh" data-anim="pop" style="--d:1">
+          <div class="s4-weigh__item s4-weigh__item--good"><span class="s4-weigh__value">60 MB</span><span class="s4-weigh__name">Alpine Linux</span></div>
+          <div class="s4-weigh__item s4-weigh__item--bad"><span class="s4-weigh__value">varios GB</span><span class="s4-weigh__name">Ubuntu</span></div>
+        </div>
+        <ol class="step-list s4-steps" aria-label="Pasos para descargar el ISO">
+          <li class="step step-list__item s4-steps__item" data-step="1"><p>Ve a la dirección que te dé el docente, o a <span class="s4-type">alpinelinux.org/downloads</span>.</p></li>
+          <li class="step step-list__item s4-steps__item" data-step="2"><p>Descarga la imagen <span class="s4-ui">VIRTUAL</span> para <span class="s4-ui">x86_64</span>. El archivo termina en <span class="s4-type">.iso</span>.</p></li>
+          <li class="step step-list__item s4-steps__item" data-step="3"><p>Guárdalo donde lo vuelvas a encontrar: la carpeta <strong>Descargas</strong> está bien.</p></li>
+        </ol>
+      </div>
+      <div class="s4-win s4-win--browser" aria-label="Boceto de la página de descargas" aria-live="polite">
+        <div class="s4-win__bar"><span class="s4-win__dot"></span><span class="s4-win__dot"></span><span class="s4-win__dot"></span><span class="s4-win__addr">tu pantalla</span></div>
+        <div class="s4-win__screen">
+          <p class="s4-win__topline"><span class="s4-win__tag">boceto</span><span>paso <b data-s4-counter>1</b> / 3</span></p>
+          <div class="s4-win__state is-current" data-s4-state="1">
+            <div class="s4-win__mock"><span class="s4-sk s4-sk--lg"></span><span class="s4-win__hl">Downloads</span><span class="s4-sk"></span></div>
+            <p class="s4-win__caption">La página de descargas de Alpine, con muchas variantes.</p>
+          </div>
+          <div class="s4-win__state" data-s4-state="2">
+            <div class="s4-win__mock"><span class="s4-sk s4-sk--sm"></span><span class="s4-win__hl s4-win__hl--link">VIRTUAL · x86_64</span><span class="s4-sk s4-sk--sm"></span></div>
+            <p class="s4-win__caption">Busca la fila que dice VIRTUAL, columna x86_64. Esa, no otra.</p>
+          </div>
+          <div class="s4-win__state" data-s4-state="3">
+            <div class="s4-win__mock"><span class="s4-win__file"><svg class="icon" aria-hidden="true"><use href="#icon-disco"></use></svg>un archivo que termina en <b>.iso</b></span><span class="s4-win__empty">Carpeta: Descargas</span></div>
+            <p class="s4-win__caption">Un solo archivo en tu carpeta Descargas. Ya está.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="help-box help-box--recuerda s4-step__tip" data-anim="fade-up" style="--d:2">
+      <svg class="help-box__icon" aria-hidden="true"><use href="#icon-foco"></use></svg>
+      <div><span class="help-box__label">Recuerda</span><p class="help-box__text">Un <strong>ISO</strong> es la copia de un disco de instalación metida en un solo archivo. Es el equivalente moderno al CD de instalación.</p></div>
+    </div>
+  </div>
+  <aside class="notes">Cinco minutos, no más. El error clásico es bajar otra variante en vez de la VIRTUAL para x86_64; pide que te enseñen el nombre del archivo antes de avanzar. Si el wifi del salón va lento, trae el .iso en una USB o en una carpeta compartida y repártelo: no vale la pena perder quince minutos aquí. Aprovecha la espera de la descarga para repasar en voz alta qué es un ISO.</aside>
+</section>
+
+<section class="slide s4-slide s4-step s4-create" id="s4-paso3" data-section="Manos a la obra" data-title="Paso 3: Crear la máquina virtual">
+  <div class="slide__inner s4-step__inner">
+    <div class="s4-heading s4-heading--compact" data-anim="fade-up">
+      <span class="eyebrow">Paso 3 de 5 · 10 minutos</span>
+      <h2 class="slide-title">Crear la máquina virtual</h2>
+      <p class="s4-lead">En VirtualBox pulsa <span class="s4-ui">Nueva</span> y ve llenando lo que te pide, en este orden.</p>
+    </div>
+    <div class="s4-step__layout">
+      <ol class="step-list s4-steps s4-steps--tight" aria-label="Datos de la máquina virtual">
+        <li class="step step-list__item s4-steps__item" data-step="1"><p><strong>Nombre:</strong> <span class="s4-type">alpine-tuapellido</span></p></li>
+        <li class="step step-list__item s4-steps__item" data-step="2"><p><strong>Tipo:</strong> <span class="s4-ui">Linux</span> · <strong>Versión:</strong> <span class="s4-ui">Other Linux (64-bit)</span></p></li>
+        <li class="step step-list__item s4-steps__item" data-step="3"><p><strong>Imagen ISO:</strong> selecciona el archivo <span class="s4-type">.iso</span> que descargaste.</p></li>
+        <li class="step step-list__item s4-steps__item" data-step="4"><p><strong>Memoria:</strong> <span class="s4-type">1024</span> MB. Es la RAM que le quitas a tu laptop.</p></li>
+        <li class="step step-list__item s4-steps__item" data-step="5"><p><strong>Procesadores:</strong> <span class="s4-type">1</span></p></li>
+        <li class="step step-list__item s4-steps__item" data-step="6"><p><strong>Disco:</strong> <span class="s4-type">2</span> GB, dejando marcado <span class="s4-ui">Reservado dinámicamente</span>.</p></li>
+        <li class="step step-list__item s4-steps__item" data-step="7"><p>Pulsa <span class="s4-ui">Finalizar</span>. La VM aparece en la lista, <strong>apagada</strong>.</p></li>
+      </ol>
+      <div class="s4-win s4-win--vbox" aria-label="Boceto de la ventana Crear máquina virtual" aria-live="polite">
+        <div class="s4-win__bar"><span class="s4-win__dot"></span><span class="s4-win__dot"></span><span class="s4-win__dot"></span><span class="s4-win__addr">Crear máquina virtual</span></div>
+        <div class="s4-win__screen">
+          <p class="s4-win__topline"><span class="s4-win__tag">boceto</span><span>campo <b data-s4-counter>1</b> / 7</span></p>
+          <dl class="s4-form">
+            <div class="s4-form__row" data-s4-row="1"><dt>Nombre</dt><dd>alpine-tuapellido</dd></div>
+            <div class="s4-form__row" data-s4-row="2"><dt>Tipo · Versión</dt><dd>Linux · Other Linux (64-bit)</dd></div>
+            <div class="s4-form__row" data-s4-row="3"><dt>Imagen ISO</dt><dd>el archivo .iso</dd></div>
+            <div class="s4-form__row s4-form__row--knob" data-s4-row="4"><dt>Memoria base</dt><dd>1024 MB</dd></div>
+            <div class="s4-form__row s4-form__row--knob" data-s4-row="5"><dt>Procesadores</dt><dd>1</dd></div>
+            <div class="s4-form__row s4-form__row--knob" data-s4-row="6"><dt>Tamaño de disco</dt><dd>2 GB · dinámico</dd></div>
+            <div class="s4-form__row s4-form__row--final" data-s4-row="7"><dt>Estado</dt><dd>Apagada</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="s4-create__lower">
+      <p class="s4-punch" data-anim="fade-up" style="--d:2"><svg class="icon" aria-hidden="true"><use href="#icon-foco"></use></svg><span>Aquí se detiene la clase: cada número que acabas de escribir es <span class="marker">una de las perillas</span> de la sección 2. Acabas de <strong>especificar una computadora</strong>.</span></p>
+      <div class="help-box help-box--cuidado" data-anim="fade-up" style="--d:3">
+        <svg class="help-box__icon" aria-hidden="true"><use href="#icon-alerta"></use></svg>
+        <div><span class="help-box__label">Cuidado</span><p class="help-box__text">No le des <strong>más memoria que la mitad</strong> de la que tiene tu laptop.</p></div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Diez minutos. Detente de verdad en el campo 5: pregunta "¿cuántos procesadores lógicos anotaste en la sección 1?" y que lo comparen con el 1 que acaban de teclear. Camina revisando dos cosas concretas: que nadie haya puesto 4096 MB de memoria (su Windows se arrastrará el resto de la hora) y que la versión diga 64-bit; si solo aparecen opciones de 32 bits, es VT-x apagado y va directo a la diapositiva de problemas.</aside>
+</section>
+
+<section class="slide s4-slide s4-alpine" id="s4-paso4" data-section="Manos a la obra" data-title="Paso 4: Instalar Alpine">
+  <div class="slide__inner s4-alpine__inner">
+    <div class="s4-alpine__head">
+      <div class="s4-alpine__intro">
+        <div class="s4-heading s4-heading--compact" data-anim="fade-up">
+          <span class="eyebrow">Paso 4 de 5 · 20 minutos</span>
+          <h2 class="slide-title">Instalar Alpine</h2>
+          <p class="s4-lead">Selecciona la VM, pulsa <span class="s4-ui">Iniciar</span> y arranca desde el ISO. A partir de ahí solo se contesta.</p>
+        </div>
+        <div class="help-box help-box--cuidado s4-alpine__warn">
+          <svg class="help-box__icon" aria-hidden="true"><use href="#icon-alerta"></use></svg>
+          <div><span class="help-box__label">Cuidado</span><p class="help-box__text">El orden de las preguntas cambia un poco entre versiones de Alpine. Si sale una que no está aquí, acepta lo que propone con <span class="s4-type">Enter</span>.</p></div>
+        </div>
+      </div>
+      <div class="s4-win s4-win--term" aria-label="Consola de la máquina virtual" aria-live="polite">
+        <div class="s4-win__bar s4-win__bar--dark"><span class="s4-win__dot"></span><span class="s4-win__dot"></span><span class="s4-win__dot"></span><span class="s4-win__addr">consola de la VM</span></div>
+        <div class="s4-term">
+          <p class="s4-term__line"><span class="s4-term__prompt">localhost login:</span> <span class="s4-type s4-type--term">root</span> <span class="s4-term__hint">no pide contraseña</span></p>
+          <p class="s4-term__line"><span class="s4-term__prompt">localhost:~#</span> <span class="s4-type s4-type--term">setup-alpine</span></p>
+          <div class="s4-term__tape">
+            <p class="s4-term__tapehead">Bloque <b data-s4-counter>1</b> / 7 · lo que tecleas</p>
+            <div class="s4-term__state is-current" data-s4-state="1"><span class="s4-type s4-type--term">us</span><span class="s4-type s4-type--term">us</span><span class="s4-type s4-type--term">Enter</span></div>
+            <div class="s4-term__state" data-s4-state="2"><span class="s4-type s4-type--term">eth0</span><span class="s4-type s4-type--term">dhcp</span><span class="s4-type s4-type--term">n</span></div>
+            <div class="s4-term__state" data-s4-state="3"><span class="s4-type s4-type--term">•••••</span><span class="s4-type s4-type--term">•••••</span><span class="s4-type s4-type--term">America/Mexico_City</span></div>
+            <div class="s4-term__state" data-s4-state="4"><span class="s4-type s4-type--term">none</span><span class="s4-type s4-type--term">Enter</span><span class="s4-type s4-type--term">f</span></div>
+            <div class="s4-term__state" data-s4-state="5"><span class="s4-type s4-type--term">Enter</span><span class="s4-type s4-type--term">openssh</span></div>
+            <div class="s4-term__state" data-s4-state="6"><span class="s4-type s4-type--term">sda</span><span class="s4-type s4-type--term">sys</span><span class="s4-type s4-type--term">y</span></div>
+            <div class="s4-term__state" data-s4-state="7"><span class="s4-type s4-type--term">reboot</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="s4-answers" aria-label="Qué contestar en cada bloque de preguntas">
+      <article class="s4-ans" data-s4-group="1">
+        <h3 class="s4-ans__head"><span class="s4-ans__num">1</span>Teclado y nombre</h3>
+        <ul class="s4-ans__rows">
+          <li><span class="s4-ans__q">Teclado</span><span class="s4-type">us</span></li>
+          <li><span class="s4-ans__q">Y otra vez</span><span class="s4-type">us</span></li>
+          <li><span class="s4-ans__q">Hostname · el que propone</span><span class="s4-type">Enter</span></li>
+        </ul>
+      </article>
+      <article class="s4-ans" data-s4-group="2">
+        <h3 class="s4-ans__head"><span class="s4-ans__num">2</span>Red</h3>
+        <ul class="s4-ans__rows">
+          <li><span class="s4-ans__q">Interfaz de red</span><span class="s4-type">eth0</span></li>
+          <li><span class="s4-ans__q">Dirección</span><span class="s4-type">dhcp</span></li>
+          <li><span class="s4-ans__q">¿Configuración manual?</span><span class="s4-type">n</span></li>
+        </ul>
+      </article>
+      <article class="s4-ans" data-s4-group="3">
+        <h3 class="s4-ans__head"><span class="s4-ans__num">3</span>Contraseña y hora</h3>
+        <ul class="s4-ans__rows">
+          <li><span class="s4-ans__q">Contraseña de root · dos veces</span><span class="s4-type">la tuya</span></li>
+          <li><span class="s4-ans__q">Zona horaria</span><span class="s4-type">America/Mexico_City</span></li>
+        </ul>
+        <p class="s4-ans__note">Al teclearla <strong>no se ve nada</strong>. Es normal.</p>
+      </article>
+      <article class="s4-ans" data-s4-group="4">
+        <h3 class="s4-ans__head"><span class="s4-ans__num">4</span>Internet</h3>
+        <ul class="s4-ans__rows">
+          <li><span class="s4-ans__q">Proxy</span><span class="s4-type">none</span></li>
+          <li><span class="s4-ans__q">Servidor NTP</span><span class="s4-type">Enter</span></li>
+          <li><span class="s4-ans__q">Repositorio · el más rápido</span><span class="s4-type">f</span></li>
+        </ul>
+      </article>
+      <article class="s4-ans" data-s4-group="5">
+        <h3 class="s4-ans__head"><span class="s4-ans__num">5</span>Usuario y acceso</h3>
+        <ul class="s4-ans__rows">
+          <li><span class="s4-ans__q">Usuario nuevo · omitir</span><span class="s4-type">Enter</span></li>
+          <li><span class="s4-ans__q">Servidor SSH</span><span class="s4-type">openssh</span></li>
+        </ul>
+      </article>
+      <article class="s4-ans s4-ans--danger" data-s4-group="6">
+        <h3 class="s4-ans__head"><span class="s4-ans__num">6</span>Disco</h3>
+        <ul class="s4-ans__rows">
+          <li><span class="s4-ans__q">Disco</span><span class="s4-type">sda</span></li>
+          <li><span class="s4-ans__q">Uso</span><span class="s4-type">sys</span></li>
+          <li><span class="s4-ans__q">¿Borrar el disco?</span><span class="s4-type">y</span></li>
+        </ul>
+        <p class="s4-ans__note"><strong>sda</strong> es el disco virtual, <strong>no tu laptop</strong>.</p>
+      </article>
+    </div>
+    <article class="s4-ans s4-ans--final" data-s4-group="7">
+      <h3 class="s4-ans__head"><span class="s4-ans__num">7</span>Al terminar</h3>
+      <ul class="s4-ans__rows s4-ans__rows--wide">
+        <li><span class="s4-ans__q">Escribe</span><span class="s4-type">reboot</span></li>
+        <li><span class="s4-ans__q">Quita el ISO · si no, reinstalas</span><span class="s4-ui">Dispositivos → Unidades ópticas → Eliminar disco</span></li>
+      </ul>
+    </article>
+    <span class="step s4-alpine__cue" data-step="1" aria-hidden="true"></span>
+    <span class="step s4-alpine__cue" data-step="2" aria-hidden="true"></span>
+    <span class="step s4-alpine__cue" data-step="3" aria-hidden="true"></span>
+    <span class="step s4-alpine__cue" data-step="4" aria-hidden="true"></span>
+    <span class="step s4-alpine__cue" data-step="5" aria-hidden="true"></span>
+    <span class="step s4-alpine__cue" data-step="6" aria-hidden="true"></span>
+    <span class="step s4-alpine__cue" data-step="7" aria-hidden="true"></span>
+  </div>
+  <aside class="notes">Veinte minutos: es el paso largo y el que decide si terminan a tiempo. Avanza bloque por bloque con la flecha (la consola de arriba marca cuál toca) y espera a que la mayoría alcance el bloque antes de seguir. Los dos atorones garantizados: la contraseña que no se ve al teclearla —dilo dos veces, antes y durante— y olvidar quitar el ISO al final, que los manda a instalar de nuevo. Deja esta diapositiva proyectada TODO el paso; no avances a la siguiente aunque tú ya hayas terminado.</aside>
+</section>
+
+<section class="slide s4-slide s4-check" id="s4-paso5" data-section="Manos a la obra" data-title="Paso 5: Compruébalo con tus manos">
+  <div class="slide__inner s4-check__inner">
+    <div class="s4-heading s4-heading--compact" data-anim="fade-up">
+      <span class="eyebrow">Paso 5 de 5 · 10 minutos</span>
+      <h2 class="slide-title">Compruébalo con tus manos</h2>
+      <p class="s4-lead">Entra como <span class="s4-type">root</span> con tu contraseña y escribe estos comandos, uno por uno.</p>
+    </div>
+    <div class="s4-check__layout">
+      <ol class="s4-cmds" aria-label="Comandos para comprobar la máquina virtual">
+        <li class="s4-cmds__row" data-anim="slide-right" style="--d:1"><code class="s4-cmd">nproc</code><span class="s4-cmds__what">cuántos <strong>vCPU</strong> le prestaste</span></li>
+        <li class="s4-cmds__row" data-anim="slide-right" style="--d:2"><code class="s4-cmd">free -m</code><span class="s4-cmds__what">la <strong>RAM</strong> que le quitaste a tu laptop</span></li>
+        <li class="s4-cmds__row" data-anim="slide-right" style="--d:3"><code class="s4-cmd">ip addr</code><span class="s4-cmds__what">su propia <strong>IP</strong>, distinta a la tuya</span></li>
+        <li class="s4-cmds__row" data-anim="slide-right" style="--d:4"><code class="s4-cmd">df -h</code><span class="s4-cmds__what">su <strong>disco</strong></span></li>
+        <li class="s4-cmds__row s4-cmds__row--star" data-anim="slide-right" style="--d:5"><code class="s4-cmd">cat /proc/cpuinfo | grep "model name"</code><span class="s4-cmds__what">el <strong>modelo del procesador</strong></span></li>
+      </ol>
+      <div class="s4-check__side">
+        <div class="s4-moment" data-anim="pop" style="--d:6">
+          <span class="s4-label">El momento de la clase</span>
+          <p>Ese último comando muestra <span class="marker">el mismo procesador que tiene tu laptop</span>. No es simulado: es el tuyo, prestado por rebanadas. <strong>Eso es virtualizar.</strong></p>
+        </div>
+        <div class="s4-exp">
+          <span class="s4-label">El experimento del tamaño</span>
+          <ol class="s4-exp__list">
+            <li class="step s4-exp__item" data-step="1"><span class="s4-exp__n">1</span><span>Apaga la VM con <span class="s4-type">poweroff</span>.</span></li>
+            <li class="step s4-exp__item" data-step="2"><span class="s4-exp__n">2</span><span><span class="s4-ui">Configuración → Sistema → Procesador</span> y ponle <span class="s4-type">2</span>.</span></li>
+            <li class="step s4-exp__item" data-step="3"><span class="s4-exp__n">3</span><span>Enciende y escribe <span class="s4-type">nproc</span> otra vez.</span></li>
+          </ol>
+          <div class="step s4-exp__result" data-step="4"><span class="s4-exp__before">1</span><span class="s4-exp__arrow" aria-hidden="true">→</span><span class="s4-exp__after">2</span><span class="s4-exp__caption">lo que responde <code>nproc</code></span></div>
+        </div>
+      </div>
+    </div>
+    <p class="step s4-punch s4-punch--big" data-step="5"><svg class="icon" aria-hidden="true"><use href="#icon-cohete"></use></svg><span>Le cambiaste el hardware a una computadora en 30 segundos. <strong>Eso es la elasticidad de la nube</strong>, y acabas de hacerlo con tus manos.</span></p>
+  </div>
+  <aside class="notes">Diez minutos, y es la parte que se recuerda: no la sacrifiques aunque vayas tarde. Pide que dos o tres lean en voz alta el modelo de procesador que les salió y compáralo con el tuyo; si alguien tiene la misma laptop, saldrá el mismo texto y ahí cae el veinte. En el experimento recuérdales que la VM tiene que estar apagada o VirtualBox no deja tocar el procesador: es el único tropiezo de este paso.</aside>
+</section>
+
+<section class="slide s4-slide s4-deliver" id="s4-entrega" data-section="Manos a la obra" data-title="Tu entrega">
+  <div class="slide__inner s4-deliver__inner">
+    <div class="s4-heading s4-heading--compact" data-anim="fade-up">
+      <span class="eyebrow">Qué se entrega</span>
+      <h2 class="slide-title">Cuatro capturas y un párrafo</h2>
+    </div>
+    <div class="s4-deliver__layout">
+      <ol class="s4-shots" aria-label="Las cuatro capturas que debes entregar">
+        <li class="step s4-shots__item" data-step="1"><span class="s4-shots__n">1</span><div><strong>El Administrador de tareas</strong><span>Tus núcleos, tus procesadores lógicos y el renglón <span class="s4-type">Virtualización: habilitada</span>.</span></div></li>
+        <li class="step s4-shots__item" data-step="2"><span class="s4-shots__n">2</span><div><strong>La configuración de tu VM</strong><span>Memoria, procesadores y disco, tal como los dejaste.</span></div></li>
+        <li class="step s4-shots__item" data-step="3"><span class="s4-shots__n">3</span><div><strong>Dentro de Alpine</strong><span>La respuesta de <span class="s4-type">nproc</span>, <span class="s4-type">free -m</span> e <span class="s4-type">ip addr</span>.</span></div></li>
+        <li class="step s4-shots__item" data-step="4"><span class="s4-shots__n">4</span><div><strong>Después del experimento</strong><span><span class="s4-type">nproc</span> mostrando <span class="s4-type">2</span>.</span></div></li>
+      </ol>
+      <div class="s4-deliver__side">
+        <div class="s4-essay" data-anim="fade-up" style="--d:2">
+          <span class="s4-label">Y un párrafo de 3 a 5 líneas</span>
+          <p class="s4-essay__q">¿Por qué el procesador que ve la máquina virtual es <span class="marker">el mismo</span> que el de tu laptop?</p>
+        </div>
+        <div class="s4-deadline" data-anim="fade-up" style="--d:3">
+          <span class="s4-label">Datos de entrega</span>
+          <dl class="s4-deadline__list">
+            <div><dt>Fecha límite</dt><dd data-config="fechaEntrega">Por definir</dd></div>
+            <div><dt>Dónde se entrega</dt><dd data-config="medioEntrega">Por definir</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="help-box help-box--recuerda s4-deliver__tip" data-anim="fade-up" style="--d:4">
+      <svg class="help-box__icon" aria-hidden="true"><use href="#icon-foco"></use></svg>
+      <div><span class="help-box__label">Recuerda</span><p class="help-box__text">La captura 1 es la del <strong>Administrador de tareas</strong> que abrimos al principio de la clase. Si no la tomaste entonces, tómala ahora antes de irte.</p></div>
+    </div>
+  </div>
+  <aside class="notes">Lee las cuatro capturas en voz alta y da treinta segundos para que tomen la primera ahí mismo: cada semestre la mitad olvida que la del Administrador de tareas era de la sección 1. Insiste en que el párrafo es de ellos, no copiado de la diapositiva; lo que buscas oír es "el hipervisor le pasa el procesador real por rebanadas". Para cambiar la fecha y el medio de entrega, edita fechaEntrega y medioEntrega en src/config.js y vuelve a construir; si ya no vas a reconstruir, cámbialos en el bloque window.CLASE que quedó dentro de index.html.</aside>
+</section>
+
+<section class="slide s4-slide s4-troubles" id="s4-problemas" data-section="Manos a la obra" data-title="Si algo sale mal">
+  <div class="slide__inner s4-troubles__inner">
+    <div class="s4-heading s4-heading--compact" data-anim="fade-up">
+      <span class="eyebrow">Guía rápida de rescate</span>
+      <h2 class="slide-title">Si algo sale mal…</h2>
+    </div>
+    <div class="compare-wrap s4-troubles__wrap" data-anim="fade-up" style="--d:1">
+      <table class="compare-table s4-troubles__table">
+        <thead>
+          <tr><th scope="col">Problema</th><th scope="col">Solución</th></tr>
+        </thead>
+        <tbody>
+          <tr class="s4-troubles__row--top"><th scope="row">Error de <strong>VT-x / AMD-V</strong> al encender</th><td>Entra al <strong>BIOS/UEFI</strong> y activa la virtualización. Es lo más común, con diferencia.</td></tr>
+          <tr><th scope="row">Solo ofrece versiones de <strong>32 bits</strong></th><td>Es el mismo problema de arriba: falta activar <strong>VT-x</strong>.</td></tr>
+          <tr><th scope="row">El instalador <strong>vuelve a arrancar</strong></th><td>No quitaste el ISO: <span class="s4-ui">Dispositivos → Unidades ópticas → Eliminar disco</span>.</td></tr>
+          <tr><th scope="row"><strong>No se ve nada</strong> al escribir la contraseña</th><td>Es normal en Linux. Sigue escribiendo y pulsa <span class="s4-type">Enter</span>.</td></tr>
+          <tr><th scope="row">La VM va <strong>lentísima</strong></th><td>Le diste poca RAM, o le diste demasiada y ahogaste al anfitrión.</td></tr>
+          <tr><th scope="row"><strong>No hay internet</strong> dentro de la VM</th><td>Revisa que la red esté en <span class="s4-ui">NAT</span> en la configuración de la VM.</td></tr>
+          <tr><th scope="row">El instalador <strong>no me deja instalar</strong></th><td>Faltan permisos de administrador en la laptop.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="s4-troubles__foot" data-anim="fade-up" style="--d:2">¿Sigue sin salir? Levanta la mano <strong>antes</strong> de borrar la máquina virtual y empezar de cero.</p>
+  </div>
+  <aside class="notes">No la uses como diapositiva de cierre: vuelve a ella en cuanto alguien levante la mano, o déjala abierta en un segundo monitor toda la práctica. Apuesta segura: la mayoría de los paros de la sesión son el primer renglón, VT-x apagado en el BIOS. Ten anotada la tecla de BIOS de las marcas más comunes del salón y, si a alguien le toca reiniciar, ponlo a seguir la pantalla de un compañero mientras tanto para que no pierda el hilo.</aside>
+</section>
+
+<section class="slide s4-slide s4-closing" id="s4-cierre" data-bg="tinta" data-section="Manos a la obra" data-title="Si solo te llevas tres ideas">
+  <div class="s4-closing__glow" aria-hidden="true"><svg class="icon icon--fill"><use href="#icon-nube"></use></svg></div>
+  <div class="slide__inner s4-closing__inner">
+    <div class="s4-heading" data-anim="fade-up">
+      <span class="eyebrow">Para llevarte</span>
+      <h2 class="slide-title">Si solo te llevas tres ideas…</h2>
+    </div>
+    <ol class="s4-ideas" aria-label="Las tres ideas de la clase">
+      <li class="step s4-idea s4-idea--vcpu" data-step="1"><span class="s4-idea__n">1</span><div><strong>Un vCPU no es un núcleo</strong><span>Es un procesador lógico: un hilo de hardware.</span></div></li>
+      <li class="step s4-idea s4-idea--vm" data-step="2"><span class="s4-idea__n">2</span><div><strong>Virtualizar es repartir</strong><span>El hipervisor le presenta a cada invitado una computadora que en realidad es una rebanada de otra.</span></div></li>
+      <li class="step s4-idea s4-idea--nube" data-step="3"><span class="s4-idea__n">3</span><div><strong>Rentar por horas existe gracias a esto</strong><span>Sin virtualización no habría nube.</span></div></li>
+    </ol>
+    <div class="step s4-closing__final" data-step="4">
+      <div class="nubi s4-closing__nubi"><svg class="nubi__image" aria-hidden="true"><use href="#nubi-feliz"></use></svg><p class="nubi__bubble">Ya sabes qué hay dentro de la nube. Son computadoras, repartidas.</p></div>
+      <p class="s4-closing__q">¿Preguntas?</p>
+    </div>
+  </div>
+  <aside class="notes">Cierra con una pregunta al grupo, no con la respuesta: "el procesador que vieron dentro de la VM, ¿era simulado?". Aguanta el silencio hasta que alguien conteste. Después repite fecha y medio de entrega y deja dos minutos de preguntas. Si sobra tiempo, pídeles que apaguen la VM ahí mismo: es la última vez que vas a tener al grupo completo atento.</aside>
+</section>

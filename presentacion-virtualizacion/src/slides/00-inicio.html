@@ -1,0 +1,116 @@
+<section class="slide s0-slide s0-cover" id="s0-portada" data-bg="amarillo" data-section="Inicio" data-title="La nube por dentro">
+  <div class="s0-cloud s0-cloud--one" aria-hidden="true"><svg class="icon icon--fill"><use href="#icon-nube"></use></svg></div>
+  <div class="s0-cloud s0-cloud--two" aria-hidden="true"><svg class="icon icon--fill"><use href="#icon-nube"></use></svg></div>
+  <div class="slide__inner s0-cover__inner">
+    <div class="s0-cover__copy" data-anim="slide-right">
+      <span class="eyebrow">Cómputo en la Nube · Clase 2</span>
+      <h1 class="s0-cover__title"><span class="s0-cover__title-line">La nube</span><span class="s0-cover__title-line s0-cover__title-line--second"><span class="s0-cover__por">por</span><span>dentro</span></span></h1>
+      <p class="s0-cover__subtitle">Hilos, núcleos y máquinas virtuales: cómo una sola computadora puede ser treinta.</p>
+      <p class="s0-cover__hint"><svg class="icon"><use href="#icon-flecha"></use></svg> Pulsa → o la barra espaciadora para avanzar</p>
+    </div>
+    <div class="s0-cover__visual" aria-label="Dibujo de un procesador visto por dentro: sus núcleos y, dentro de cada uno, sus hilos">
+      <div class="s0-chip" data-anim="pop" style="--d:2">
+        <span class="s0-chip__pins s0-chip__pins--top" aria-hidden="true"></span>
+        <span class="s0-chip__pins s0-chip__pins--bottom" aria-hidden="true"></span>
+        <span class="s0-chip__pins s0-chip__pins--left" aria-hidden="true"></span>
+        <span class="s0-chip__pins s0-chip__pins--right" aria-hidden="true"></span>
+        <div class="s0-chip__die">
+          <div class="s0-core"><span class="s0-core__label">núcleo</span><span class="s0-core__threads"><i></i><i></i></span></div>
+          <div class="s0-core"><span class="s0-core__label">núcleo</span><span class="s0-core__threads"><i></i><i></i></span></div>
+          <div class="s0-core"><span class="s0-core__label">núcleo</span><span class="s0-core__threads"><i></i><i></i></span></div>
+          <div class="s0-core"><span class="s0-core__label">núcleo</span><span class="s0-core__threads"><i></i><i></i></span></div>
+        </div>
+      </div>
+      <p class="s0-legend" data-anim="fade-up" style="--d:3"><span><i class="s0-swatch s0-swatch--nucleo"></i>núcleo</span><span><i class="s0-swatch s0-swatch--hilo"></i>hilo</span></p>
+    </div>
+    <div class="nubi s0-cover__nubi" data-anim="fade-up" style="--d:4">
+      <svg class="nubi__image" aria-hidden="true"><use href="#nubi-feliz"></use></svg>
+      <p class="nubi__bubble">Hoy vamos a abrir la computadora y ver qué hay adentro.</p>
+    </div>
+  </div>
+  <aside class="notes">Arranca con una pregunta a mano alzada: ¿quién sabe cuántos procesadores tiene su laptop? Casi nadie lo sabe, y quien contesta suele decir «uno». Anota dos o tres respuestas en el pizarrón: en la diapositiva del Administrador de tareas las van a comprobar en vivo. No expliques todavía el dibujo del chip; solo di que al terminar la clase van a poder nombrar cada pieza.</aside>
+</section>
+
+<section class="slide s0-slide" id="s0-agenda" data-section="Inicio" data-title="Lo que vas a aprender hoy">
+  <div class="slide__inner s0-agenda">
+    <div class="s0-section-heading" data-anim="fade-up">
+      <span class="eyebrow">La ruta de hoy</span>
+      <h2 class="slide-title">Lo que vas a aprender hoy</h2>
+    </div>
+    <div class="grid grid--sidebar s0-agenda__layout">
+      <ol class="step-list s0-agenda__list" aria-label="Temas de la clase">
+        <li class="step step-list__item s0-agenda-item" data-step="1"><svg class="icon s0-agenda-item__icon"><use href="#icon-cpu"></use></svg><p>Qué es un <strong>núcleo</strong> y qué es un <strong>hilo</strong>.</p></li>
+        <li class="step step-list__item s0-agenda-item" data-step="2"><svg class="icon s0-agenda-item__icon"><use href="#icon-servidor"></use></svg><p>Por qué tu laptop dice que tiene <strong>más procesadores de los que tiene</strong>.</p></li>
+        <li class="step step-list__item s0-agenda-item" data-step="3"><svg class="icon s0-agenda-item__icon"><use href="#icon-engrane"></use></svg><p>Qué significa <strong>virtualizar</strong> y quién le miente a quién.</p></li>
+        <li class="step step-list__item s0-agenda-item" data-step="4"><svg class="icon s0-agenda-item__icon"><use href="#icon-dinero"></use></svg><p>Por qué puedes <strong>rentar una computadora por horas</strong>.</p></li>
+        <li class="step step-list__item s0-agenda-item s0-agenda-item--star" data-step="5"><svg class="icon s0-agenda-item__icon"><use href="#icon-cohete"></use></svg><p><strong>Práctica: crear tu propia máquina virtual.</strong></p></li>
+      </ol>
+      <div class="s0-agenda__side" data-anim="slide-left" style="--d:2">
+        <div class="s0-agenda__route"><svg class="s0-doodle" aria-hidden="true"><use href="#icon-mapa"></use></svg><span>De lo pequeño a lo grande</span></div>
+        <div class="help-box help-box--recuerda">
+          <svg class="help-box__icon"><use href="#icon-foco"></use></svg>
+          <div><span class="help-box__label">Recuerda</span><p class="help-box__text">No necesitas saber programar. Vamos a ir de lo más pequeño (un núcleo) a lo más grande (un centro de datos), sin saltos.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Detente en el punto 5 y confirma en voz alta quién trae laptop con Windows y permisos de administrador; hacen falta unos 3 GB libres. Quien no pueda instalar nada hoy que lo diga ahora, para emparejarlo con un compañero y no perder los últimos 60 minutos de la clase.</aside>
+</section>
+
+<section class="slide s0-slide" id="s0-recordatorio" data-section="Inicio" data-title="La clase pasada rentamos una computadora">
+  <div class="slide__inner s0-recap">
+    <div class="s0-section-heading" data-anim="fade-up">
+      <span class="eyebrow">De dónde venimos</span>
+      <h2 class="slide-title">La clase pasada rentamos una computadora</h2>
+    </div>
+    <div class="s0-recap__layout">
+      <div class="s0-recap__copy">
+        <p class="body-copy s0-recap__lead" data-anim="fade-up" style="--d:1">Vimos <strong>IaaS</strong>: rentas la máquina, y el sistema operativo y el software los pones tú.</p>
+        <div class="s0-split" data-anim="fade-up" style="--d:2">
+          <div class="s0-split__half s0-split__half--renta"><span class="s0-split__label">Lo que rentas</span><p>Procesador, memoria, disco y red.</p></div>
+          <div class="s0-split__half s0-split__half--pones"><span class="s0-split__label">Lo que pones tú</span><p>El sistema operativo y tus programas.</p></div>
+        </div>
+        <p class="s0-recap__lab" data-anim="fade-up" style="--d:3"><svg class="icon"><use href="#icon-cohete"></use></svg><span>En el laboratorio de <strong>AWS Educate</strong> encendieron una instancia <strong>EC2</strong>.</span></p>
+      </div>
+      <div class="s0-launch" data-anim="zoom" style="--d:2" aria-label="Lo que pasó en el laboratorio: un clic, dos minutos y una computadora encendida">
+        <div class="s0-launch__row">
+          <span class="s0-launch__num">1</span>
+          <div class="s0-launch__card s0-launch__card--click"><span class="s0-launch__btn">Lanzar instancia</span><small>un clic</small></div>
+        </div>
+        <div class="s0-launch__row">
+          <span class="s0-launch__num">2</span>
+          <div class="s0-launch__card s0-launch__card--wait"><svg class="icon"><use href="#icon-reloj"></use></svg><b>2 minutos</b><small>de espera</small></div>
+        </div>
+        <div class="s0-launch__row">
+          <span class="s0-launch__num">3</span>
+          <div class="s0-launch__card s0-launch__card--done"><svg class="icon"><use href="#icon-servidor"></use></svg><b>Una computadora encendida</b><small>con su propia dirección IP</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="step s0-twist" data-step="1">
+      <p class="s0-twist__text">Nadie fue a una bodega a conectar un servidor. <span class="marker" data-anim="draw-marker">¿Entonces de dónde salió?</span></p>
+    </div>
+  </div>
+  <aside class="notes">Pregunta abierta antes de revelar el giro: ¿cuánto tardó en aparecer su máquina de EC2? Deja que digan «dos minutos». Luego: ¿quién la encendió, físicamente? Si alguien contesta «ya estaba encendida», tienes servida la clase de hoy: repite esa frase y avísale al grupo que la vas a usar toda la hora.</aside>
+</section>
+
+<section class="slide s0-slide s0-question" id="s0-pregunta" data-bg="tinta" data-section="Inicio" data-title="La pregunta de hoy">
+  <div class="s0-cloud s0-cloud--three" aria-hidden="true"><svg class="icon icon--fill"><use href="#icon-nube"></use></svg></div>
+  <div class="slide__inner s0-question__inner">
+    <span class="eyebrow" data-anim="fade-up">La pregunta de hoy</span>
+    <p class="s0-question__text" data-anim="fade-up" style="--d:1">¿Cómo puede <strong>una sola computadora física</strong> convertirse en <strong>treinta computadoras</strong> para treinta clientes distintos?</p>
+    <div class="step s0-question__visual" data-step="1" aria-label="Una máquina real frente a treinta máquinas virtuales">
+      <div class="s0-one"><svg class="icon"><use href="#icon-servidor"></use></svg><span>1 máquina real</span></div>
+      <span class="s0-question__arrow" aria-hidden="true">→</span>
+      <div class="s0-thirty">
+        <div class="s0-thirty__grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <span>30 clientes que no se conocen entre sí</span>
+      </div>
+    </div>
+    <div class="step s0-question__end" data-step="2">
+      <p class="s0-question__hint">La respuesta empieza mucho más abajo de lo que crees: <strong>en un pedacito de tu procesador.</strong></p>
+      <div class="nubi s0-question__nubi"><svg class="nubi__image" aria-hidden="true"><use href="#nubi-pensando"></use></svg><p class="nubi__bubble">Yo tampoco lo entendí a la primera. Vamos por partes.</p></div>
+    </div>
+  </div>
+  <aside class="notes">No contestes todavía. Pide dos o tres hipótesis y escríbelas en el pizarrón tal cual las digan, aunque estén equivocadas; las retomas en la sección «De tu laptop a la nube» para ver quién se acercó. Si nadie se anima, lanza tú una respuesta falsa («tienen treinta computadoras chiquitas dentro») para provocar la discusión.</aside>
+</section>

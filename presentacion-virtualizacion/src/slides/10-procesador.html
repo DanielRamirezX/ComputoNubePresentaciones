@@ -1,0 +1,263 @@
+<section class="slide s1-slide" id="s1-nucleo" data-section="El procesador por dentro" data-title="El núcleo: una cosa a la vez">
+  <div class="slide__inner s1-core">
+    <div class="s1-heading" data-anim="fade-up">
+      <span class="eyebrow">El ladrillo más pequeño</span>
+      <h2 class="slide-title">El núcleo: una cosa a la vez</h2>
+      <p class="slide-subtitle">Primero la imagen, luego la palabra: <strong>la caja de un supermercado</strong>. Por rápida que sea la cajera, atiende a <strong>un cliente a la vez</strong>.</p>
+    </div>
+    <div class="s1-core__layout">
+      <div class="s1-checkout" data-anim="zoom" style="--d:1" aria-label="Cajas de supermercado: cada caja atiende a un cliente y los demás esperan formados">
+        <div class="s1-lane">
+          <span class="s1-lane__core"><svg class="icon"><use href="#icon-cpu"></use></svg><b>núcleo</b></span>
+          <span class="s1-lane__now"><i class="s1-client"></i><em>atendiendo</em></span>
+          <span class="s1-lane__queue"><i class="s1-client s1-client--wait"></i><i class="s1-client s1-client--wait"></i><i class="s1-client s1-client--wait"></i><em>formados</em></span>
+        </div>
+        <div class="s1-lane step" data-step="1">
+          <span class="s1-lane__core"><svg class="icon"><use href="#icon-cpu"></use></svg><b>núcleo</b></span>
+          <span class="s1-lane__now"><i class="s1-client"></i><em>atendiendo</em></span>
+          <span class="s1-lane__queue"><i class="s1-client s1-client--wait"></i><i class="s1-client s1-client--wait"></i><em>formados</em></span>
+        </div>
+        <div class="s1-lane step" data-step="1">
+          <span class="s1-lane__core"><svg class="icon"><use href="#icon-cpu"></use></svg><b>núcleo</b></span>
+          <span class="s1-lane__now"><i class="s1-client"></i><em>atendiendo</em></span>
+          <span class="s1-lane__queue"><i class="s1-client s1-client--wait"></i><i class="s1-client s1-client--wait"></i><i class="s1-client s1-client--wait"></i><em>formados</em></span>
+        </div>
+        <div class="s1-lane step" data-step="1">
+          <span class="s1-lane__core"><svg class="icon"><use href="#icon-cpu"></use></svg><b>núcleo</b></span>
+          <span class="s1-lane__now"><i class="s1-client"></i><em>atendiendo</em></span>
+          <span class="s1-lane__queue"><i class="s1-client s1-client--wait"></i><em>formados</em></span>
+        </div>
+      </div>
+      <div class="s1-core__copy">
+        <div class="s1-def" data-anim="fade-up" style="--d:2">
+          <span class="s1-def__term">Núcleo <small>core</small></span>
+          <p class="s1-def__text">La parte del procesador que <strong>de verdad ejecuta instrucciones</strong>. Hace una cosa a la vez.</p>
+        </div>
+        <p class="step s1-core__multi" data-step="1">Un procesador moderno trae <span class="marker" data-anim="draw-marker">varios núcleos</span>: es tener varias cajas abiertas al mismo tiempo.</p>
+        <div class="step help-box help-box--tecnico" data-step="2">
+          <svg class="help-box__icon"><use href="#icon-engrane"></use></svg>
+          <div><span class="help-box__label">Cosas técnicas</span><p class="help-box__text">«Una cosa a la vez» es una simplificación útil. Un núcleo real es <strong>superescalar</strong>: acomoda varias instrucciones por ciclo cuando no dependen entre sí. Para lo de hoy, la idea de «una a la vez» basta.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Monta la analogía en vivo: pon a un alumno de cajera y a tres de clientes, y pregunta qué pasa si llegan diez. Si alguien saca el tema de los GHz, tradúcelo como «qué tan rápido atiende la cajera», nunca como «a cuántos atiende a la vez»: es la confusión que arruina el resto de la clase. No avances hasta que alguien repita la idea con sus propias palabras.</aside>
+</section>
+
+<section class="slide s1-slide" id="s1-proceso-hilo" data-section="El procesador por dentro" data-title="Proceso e hilo">
+  <div class="slide__inner s1-pt">
+    <div class="s1-heading" data-anim="fade-up">
+      <span class="eyebrow">Vocabulario nuevo</span>
+      <h2 class="slide-title">Proceso e hilo</h2>
+      <p class="slide-subtitle">La analogía: el <strong>proceso</strong> es el restaurante y los <strong>hilos</strong> son los meseros. Todos trabajan en el mismo local y usan la misma cocina.</p>
+    </div>
+    <div class="s1-pt__layout">
+      <div class="s1-resto" data-anim="zoom" style="--d:1" aria-label="Un proceso dibujado como un restaurante con tres meseros que comparten la misma cocina">
+        <div class="s1-resto__head"><span class="s1-resto__tag">Proceso</span><b>Chrome abierto</b></div>
+        <div class="s1-resto__mem"><svg class="icon"><use href="#icon-base-datos"></use></svg><span>Su memoria, compartida por todos sus hilos <em>(la cocina del restaurante)</em></span></div>
+        <ul class="s1-resto__threads">
+          <li class="s1-thread"><span class="s1-thread__tag">hilo 1</span>dibuja la página</li>
+          <li class="s1-thread step" data-step="1"><span class="s1-thread__tag">hilo 2</span>descarga la imagen</li>
+          <li class="s1-thread step" data-step="1"><span class="s1-thread__tag">hilo 3</span>escucha el teclado</li>
+        </ul>
+      </div>
+      <div class="s1-pt__defs">
+        <div class="s1-def s1-def--proceso" data-anim="fade-up" style="--d:2">
+          <span class="s1-def__term">Proceso</span>
+          <p class="s1-def__text">Un <strong>programa en ejecución</strong>, con su propia memoria. Chrome abierto es un proceso.</p>
+        </div>
+        <div class="s1-def s1-def--hilo step" data-step="1">
+          <span class="s1-def__term">Hilo <small>thread</small></span>
+          <p class="s1-def__text">Una <strong>línea de trabajo dentro</strong> del proceso. Varios hilos del mismo proceso <strong>comparten la memoria</strong>.</p>
+        </div>
+        <div class="step help-box help-box--recuerda" data-step="2">
+          <svg class="help-box__icon"><use href="#icon-foco"></use></svg>
+          <div><span class="help-box__label">Recuerda</span><p class="help-box__text">Vas a ver tres palabras para lo mismo: <strong>hilo</strong>, <strong>thread</strong> y <strong>subproceso</strong>, que es como lo traduce Windows.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Pregunta al grupo: «si abro diez pestañas, ¿eso son diez hilos o diez restaurantes?». Deja que discutan un momento; lo que necesitas que quede es la diferencia de memoria: los hilos la comparten, los procesos no. Buen momento para nombrar el cierre de la clase pasada: cada programa que abren pelea por la misma cajera.</aside>
+</section>
+
+<section class="slide s1-slide" id="s1-concurrencia" data-section="El procesador por dentro" data-title="Un núcleo, muchos hilos">
+  <div class="slide__inner s1-conc">
+    <div class="s1-heading" data-anim="fade-up">
+      <span class="eyebrow">El problema de todos los días</span>
+      <h2 class="slide-title">Un núcleo, muchos hilos</h2>
+      <p class="slide-subtitle">Tu laptop tiene <strong>8 núcleos</strong>. Chrome, él solito, abre <strong>decenas de hilos</strong>. Las cuentas no dan.</p>
+    </div>
+    <div class="s1-conc__layout">
+      <figure class="s1-panel" data-anim="fade-up" style="--d:1">
+        <figcaption class="s1-panel__cap">El problema: no alcanzan</figcaption>
+        <div class="s1-swarm" aria-label="Decenas de hilos esperando turno">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <p class="s1-swarm__note">decenas de hilos quieren avanzar</p>
+        <div class="s1-cores" aria-label="Ocho núcleos disponibles"><b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b><b>7</b><b>8</b></div>
+        <p class="s1-cores__note">solo hay 8 núcleos</p>
+      </figure>
+      <figure class="s1-panel step" data-step="1">
+        <figcaption class="s1-panel__cap">La solución: turnarse</figcaption>
+        <div class="s1-track" aria-label="Un mismo núcleo alternando entre tres hilos en rebanadas de tiempo">
+          <span class="s1-slice s1-slice--h1">h1</span><span class="s1-slice s1-slice--h2">h2</span><span class="s1-slice s1-slice--h3">h3</span><span class="s1-slice s1-slice--h1">h1</span><span class="s1-slice s1-slice--h2">h2</span><span class="s1-slice s1-slice--h3">h3</span><span class="s1-slice s1-slice--h1">h1</span><span class="s1-slice s1-slice--h2">h2</span><span class="s1-slice s1-slice--h3">h3</span><span class="s1-slice s1-slice--h1">h1</span>
+        </div>
+        <p class="s1-track__axis"><span>un solo núcleo</span><span>tiempo →</span></p>
+        <p class="s1-panel__text">El sistema operativo le da a cada hilo unos milisegundos y va cambiando. Cambia tan rápido que a ti te parece simultáneo: eso es <strong>concurrencia</strong>.</p>
+      </figure>
+    </div>
+    <div class="s1-conc__bottom step" data-step="2">
+      <div class="compare-wrap s1-narrow-table">
+        <table class="compare-table">
+          <thead><tr><th scope="col"></th><th scope="col">Qué es</th><th scope="col">Qué necesita</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Concurrencia</th><td>Alternar muy rápido entre tareas</td><td>Un núcleo basta</td></tr>
+            <tr><th scope="row">Paralelismo</th><td>Hacerlas de verdad al mismo tiempo</td><td>Varios núcleos</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="help-box help-box--consejo">
+        <svg class="help-box__icon"><use href="#icon-foco"></use></svg>
+        <div><span class="help-box__label">Demo en clase · 1 minuto</span><p class="help-box__text">Administrador de tareas → pestaña <strong>Detalles</strong> → clic derecho en los encabezados → <strong>Seleccionar columnas</strong> → marcar <strong>Subprocesos</strong>. Ahí están los hilos reales de cada programa.</p></div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Aquí va la demo de un minuto, y conviene hacerla proyectada: muestra la columna Subprocesos en tu propia máquina y busca el número de Chrome. Pregunta antes de mostrarlo: «¿cuántos creen que son?». Siempre se quedan cortos. Si el grupo va con tiempo, deja que lo abran ellos; si vas apurado, hazlo tú y sigue.</aside>
+</section>
+
+<section class="slide s1-slide" id="s1-hyperthreading" data-section="El procesador por dentro" data-title="El núcleo que finge ser dos">
+  <div class="slide__inner s1-ht">
+    <div class="s1-heading" data-anim="fade-up">
+      <span class="eyebrow">El truco del fabricante</span>
+      <h2 class="slide-title">El núcleo que finge ser dos</h2>
+      <p class="slide-subtitle">Un núcleo pasa mucho tiempo <strong>esperando</strong>: a la memoria, al disco. Esos huecos se desperdician.</p>
+    </div>
+    <div class="s1-ht__layout">
+      <div class="s1-ht__tracks">
+        <figure class="s1-ht__row" data-anim="fade-up" style="--d:1">
+          <figcaption class="s1-ht__cap">Un núcleo con <b>un</b> hilo</figcaption>
+          <div class="s1-track" aria-label="Un núcleo con un solo hilo: tramos de trabajo separados por huecos de espera">
+            <span class="s1-slice s1-slice--h1">h1</span><span class="s1-slice s1-slice--gap">espera</span><span class="s1-slice s1-slice--h1">h1</span><span class="s1-slice s1-slice--gap">espera</span><span class="s1-slice s1-slice--h1">h1</span><span class="s1-slice s1-slice--gap">espera</span>
+          </div>
+          <p class="s1-ht__note">Casi la mitad del tiempo, el núcleo no hace nada.</p>
+        </figure>
+        <figure class="s1-ht__row step" data-step="1">
+          <figcaption class="s1-ht__cap">El mismo núcleo con <b>dos</b> hilos</figcaption>
+          <div class="s1-track" aria-label="El mismo núcleo con dos hilos: el segundo hilo ocupa los huecos que dejaba el primero">
+            <span class="s1-slice s1-slice--h1">h1</span><span class="s1-slice s1-slice--h2">h2</span><span class="s1-slice s1-slice--h1">h1</span><span class="s1-slice s1-slice--h2">h2</span><span class="s1-slice s1-slice--h1">h1</span><span class="s1-slice s1-slice--h2">h2</span>
+          </div>
+          <p class="s1-ht__note">El segundo hilo se mete en los huecos. Al sistema operativo le parecen <strong>dos procesadores</strong>.</p>
+        </figure>
+      </div>
+      <div class="s1-ht__copy">
+        <div class="s1-def" data-anim="fade-up" style="--d:2">
+          <span class="s1-def__term">Hyperthreading · SMT</span>
+          <p class="s1-def__text">Que un núcleo <strong>se presente al sistema como dos</strong> para meter trabajo en esos huecos. <strong>Hyperthreading</strong> es el nombre de Intel; <strong>SMT</strong>, el de AMD.</p>
+        </div>
+        <p class="step s1-ht__analogy" data-step="1"><strong>La cajera</strong> que, mientras un cliente busca su tarjeta, empieza a escanear al siguiente. <span class="marker" data-anim="draw-marker">No son dos cajeras.</span></p>
+        <div class="step help-box help-box--cuidado" data-step="2">
+          <svg class="help-box__icon"><use href="#icon-alerta"></use></svg>
+          <div><span class="help-box__label">Cuidado</span><p class="help-box__text">Dos procesadores lógicos <strong>no rinden como dos núcleos</strong>. La ganancia típica ronda el <strong>15–30 %</strong>, no el 100 %.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Antes de revelar el segundo riel, pregunta: «¿qué hace la cajera mientras el cliente busca su tarjeta?». Deja que lo digan ellos. Y machaca la caja roja: creer que 16 procesadores lógicos son 16 núcleos es el error número uno al comparar precios de servidores en la nube, y va a volver en la última sección.</aside>
+</section>
+
+<section class="slide s1-slide" id="s1-logicos" data-section="El procesador por dentro" data-title="Núcleos contra procesadores lógicos">
+  <div class="slide__inner s1-log">
+    <div class="s1-heading" data-anim="fade-up">
+      <span class="eyebrow">Compruébalo en tu laptop</span>
+      <h2 class="slide-title">Núcleos contra procesadores lógicos</h2>
+      <p class="slide-subtitle">Por eso el Administrador de tareas da <strong>dos números distintos</strong>.</p>
+    </div>
+    <div class="s1-log__layout">
+      <div class="s1-log__panel">
+      <div class="s1-tm" data-anim="zoom" style="--d:1" role="img" aria-label="Reproducción del panel Rendimiento, CPU, del Administrador de tareas de Windows: Núcleos 8, Procesadores lógicos 16 y Virtualización habilitada">
+        <div class="s1-tm__bar"><span class="s1-tm__name">Administrador de tareas</span><span class="s1-tm__win" aria-hidden="true"><i></i><i></i><i></i></span></div>
+        <div class="s1-tm__body">
+          <ul class="s1-tm__side">
+            <li>Procesos</li>
+            <li class="is-current">Rendimiento</li>
+            <li>Historial de aplicaciones</li>
+            <li>Inicio</li>
+            <li>Usuarios</li>
+            <li>Detalles</li>
+            <li>Servicios</li>
+          </ul>
+          <div class="s1-tm__main">
+            <div class="s1-tm__cpu"><b>CPU</b><span>% de utilización</span><span class="s1-tm__scale">100 %</span></div>
+            <div class="s1-tm__graph">
+              <svg viewBox="0 0 400 90" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,72 20,60 40,66 60,40 80,52 100,30 120,44 140,22 160,48 180,36 200,58 220,28 240,46 260,34 280,62 300,40 320,50 340,26 360,44 380,38 400,54 400,90 0,90"></polygon><polyline points="0,72 20,60 40,66 60,40 80,52 100,30 120,44 140,22 160,48 180,36 200,58 220,28 240,46 260,34 280,62 300,40 320,50 340,26 360,44 380,38 400,54"></polyline></svg>
+              <span class="s1-tm__axis"><i>60 segundos</i><i>0</i></span>
+            </div>
+            <div class="s1-tm__stats">
+              <dl class="s1-tm__col">
+                <div><dt>Utilización</dt><dd class="s1-tm__blur"></dd></div>
+                <div><dt>Velocidad</dt><dd class="s1-tm__blur"></dd></div>
+                <div><dt>Procesos</dt><dd class="s1-tm__blur"></dd></div>
+                <div><dt>Subprocesos</dt><dd class="s1-tm__blur"></dd></div>
+                <div><dt>Tiempo activo</dt><dd class="s1-tm__blur"></dd></div>
+              </dl>
+              <dl class="s1-tm__col s1-tm__col--specs">
+                <div><dt>Sockets:</dt><dd class="s1-tm__blur"></dd></div>
+                <div class="s1-tm__key"><dt>Núcleos:</dt><dd>8</dd></div>
+                <div class="s1-tm__key"><dt>Procesadores lógicos:</dt><dd>16</dd></div>
+                <div class="s1-tm__virt"><dt>Virtualización:</dt><dd>Habilitada</dd></div>
+                <div><dt>Caché L1:</dt><dd class="s1-tm__blur"></dd></div>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="s1-log__draw" data-anim="fade" style="--d:2">Dibujo, no captura: en tu laptop los números serán otros.</p>
+      </div>
+      <div class="s1-log__notes">
+        <div class="step s1-callout s1-callout--nums" data-step="1">
+          <span class="s1-callout__tag">Los dos números</span>
+          <p><strong>8 núcleos</strong> de verdad, cada uno fingiendo ser dos: <strong>16 procesadores lógicos</strong>. Un solo procesador contado de dos maneras.</p>
+        </div>
+        <div class="step s1-callout s1-callout--virt" data-step="2">
+          <span class="s1-callout__tag">Guarda este renglón</span>
+          <p><strong>Virtualización: habilitada.</strong> Es la pieza que hace posible la nube. Vuelve en la siguiente sección.</p>
+        </div>
+        <div class="step help-box help-box--consejo" data-step="3">
+          <svg class="help-box__icon"><use href="#icon-foco"></use></svg>
+          <div><span class="help-box__label">Demo · hazlo ahora</span><p class="help-box__text">Ábrelo en tu laptop, entra a <strong>Rendimiento → CPU</strong> y anota tus dos números: es la <strong>captura 1</strong> de la práctica.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Que todos lo abran ahora y pide tres números en voz alta: verán que el segundo casi siempre es el doble del primero. Si en alguna laptop son iguales, pregúntale al grupo por qué (ese procesador no tiene SMT) y aprovecha: es la mejor comprobación de la diapositiva anterior. Recuérdales que esta pantalla es la captura 1 de la entrega, así que la tomen ya.</aside>
+</section>
+
+<section class="slide s1-slide" id="s1-vcpu" data-section="El procesador por dentro" data-title="Un vCPU es un procesador lógico">
+  <div class="slide__inner s1-vcpu">
+    <div class="s1-heading" data-anim="fade-up">
+      <span class="eyebrow">El puente con la nube</span>
+      <h2 class="slide-title">Un vCPU es un procesador lógico</h2>
+      <p class="body-copy s1-vcpu__lead">Cuando rentas una máquina con <strong>2 vCPU</strong> no rentas dos núcleos: rentas <span class="marker" data-anim="draw-marker">dos procesadores lógicos</span>, o sea dos hilos de hardware.</p>
+    </div>
+    <ol class="s1-ladder" aria-label="La misma pieza con cuatro nombres">
+      <li class="s1-rung s1-rung--nucleo" data-anim="fade-up" style="--d:1"><span class="s1-rung__name">Núcleo</span><span class="s1-rung__who">la pieza física que ejecuta</span></li>
+      <li class="s1-rung s1-rung--hilo step" data-step="1"><span class="s1-rung__name">Hilo</span><span class="s1-rung__who">cada línea de trabajo que atiende</span></li>
+      <li class="s1-rung s1-rung--logico step" data-step="1"><span class="s1-rung__name">Procesador lógico</span><span class="s1-rung__who">así lo cuenta Windows</span></li>
+      <li class="s1-rung s1-rung--vcpu step" data-step="1"><span class="s1-rung__name">vCPU</span><span class="s1-rung__who">así te lo renta y te lo cobra la nube</span></li>
+    </ol>
+    <p class="step s1-ladder__caption" data-step="1">Es la misma escalera, con <strong>nombres distintos según quién la mire</strong>.</p>
+    <div class="s1-vcpu__bottom">
+      <div class="step s1-instance" data-step="2">
+        <span class="s1-instance__tag">Ejemplo</span>
+        <b class="s1-instance__name">t3.micro</b>
+        <span class="s1-instance__spec">2 vCPU</span>
+        <p class="s1-instance__text">Dice 2 vCPU, y eso <strong>no significa dos procesadores</strong>.</p>
+      </div>
+      <div class="step help-box help-box--tecnico" data-step="2">
+        <svg class="help-box__icon"><use href="#icon-engrane"></use></svg>
+        <div><span class="help-box__label">Cosas técnicas</span><p class="help-box__text">En los procesadores <strong>Graviton</strong> de AWS (ARM) un vCPU <strong>sí</strong> es un núcleo físico completo, porque esos núcleos no usan SMT. Por eso comparar «vCPU contra vCPU» entre familias distintas es engañoso.</p></div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Cierra la sección con una pregunta de control: «¿cuántos núcleos les da una instancia de 2 vCPU?». La respuesta que buscas es «uno, partido en dos». Si nadie pregunta por Graviton, sáltate la caja azul; si alguien pregunta por precios, úsala y remata: por eso no se comparan proveedores solo por el número de vCPU. De aquí en adelante ya pueden usar la palabra vCPU sin traducirla.</aside>
+</section>

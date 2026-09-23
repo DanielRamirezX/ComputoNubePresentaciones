@@ -1,0 +1,113 @@
+<section class="slide s0-slide s0-cover" id="s0-portada" data-bg="amarillo" data-section="Inicio" data-title="IaaS, PaaS y SaaS">
+  <div class="s0-cloud s0-cloud--one" aria-hidden="true"><svg class="icon icon--fill"><use href="#icon-nube"></use></svg></div>
+  <div class="s0-cloud s0-cloud--two" aria-hidden="true"><svg class="icon icon--fill"><use href="#icon-nube"></use></svg></div>
+  <div class="slide__inner s0-cover__inner">
+    <div class="s0-cover__copy" data-anim="slide-right">
+      <span class="eyebrow">Cómputo en la Nube</span>
+      <h1 class="s0-cover__title"><span class="s0-cover__title-line">IaaS, PaaS</span><span class="s0-cover__title-line s0-cover__title-line--second"><span class="s0-cover__and">y</span><span>SaaS</span></span></h1>
+      <p class="s0-cover__subtitle">La nube explicada fácil: quién hace qué, quién paga qué y por dónde empezar.</p>
+      <p class="s0-cover__hint"><svg class="icon"><use href="#icon-flecha"></use></svg> Pulsa → o la barra espaciadora para avanzar</p>
+    </div>
+    <div class="s0-cover__visual" aria-label="Tres modelos de servicio apilados">
+      <div class="s0-block s0-block--iaas" data-anim="pop" style="--d:3"><span>IaaS</span><small>infraestructura</small></div>
+      <div class="s0-block s0-block--paas" data-anim="pop" style="--d:2"><span>PaaS</span><small>plataforma</small></div>
+      <div class="s0-block s0-block--saas" data-anim="pop" style="--d:1"><span>SaaS</span><small>software</small></div>
+    </div>
+    <div class="nubi s0-cover__nubi" data-anim="fade-up" style="--d:4">
+      <svg class="nubi__image" aria-hidden="true"><use href="#nubi-feliz"></use></svg>
+      <p class="nubi__bubble">¡Hola! Hoy te explico la nube sin palabras raras.</p>
+    </div>
+  </div>
+  <aside class="notes">Presenta el tema. Pregunta al grupo: “¿Quién ha usado ‘la nube’ esta semana?” y deja que levanten la mano. Casi todos lo han hecho sin saberlo (Gmail, Drive, Netflix).</aside>
+</section>
+
+<section class="slide s0-slide" id="s0-agenda" data-section="Inicio" data-title="Lo que vas a aprender hoy">
+  <div class="slide__inner s0-agenda">
+    <div class="s0-section-heading" data-anim="fade-up">
+      <span class="eyebrow">La ruta de hoy</span>
+      <h2 class="slide-title">Lo que vas a aprender hoy</h2>
+    </div>
+    <div class="grid grid--sidebar s0-agenda__layout">
+      <ol class="step-list s0-agenda__list" aria-label="Temas de la clase">
+        <li class="step step-list__item s0-agenda-item" data-step="1"><svg class="icon s0-agenda-item__icon"><use href="#icon-nube"></use></svg><p>Qué es la nube, sin tecnicismos.</p></li>
+        <li class="step step-list__item s0-agenda-item" data-step="2"><svg class="icon s0-agenda-item__icon"><use href="#icon-codigo"></use></svg><p>Los tres modelos de servicio: IaaS, PaaS y SaaS, y cómo distinguirlos.</p></li>
+        <li class="step step-list__item s0-agenda-item" data-step="3"><svg class="icon s0-agenda-item__icon"><use href="#icon-edificio"></use></svg><p>Los tres proveedores más grandes: AWS, Microsoft Azure y Google Cloud.</p></li>
+        <li class="step step-list__item s0-agenda-item" data-step="4"><svg class="icon s0-agenda-item__icon"><use href="#icon-servidor"></use></svg><p>Cómo se ve la IaaS en cada uno de ellos.</p></li>
+        <li class="step step-list__item s0-agenda-item" data-step="5"><svg class="icon s0-agenda-item__icon"><use href="#icon-cohete"></use></svg><p>Actividad práctica: tu cuenta de AWS Educate.</p></li>
+      </ol>
+      <div class="s0-agenda__side" data-anim="slide-left" style="--d:2">
+        <div class="s0-agenda__route"><svg class="s0-doodle" aria-hidden="true"><use href="#icon-mapa"></use></svg><span>Ruta de la clase</span></div>
+        <div class="help-box help-box--recuerda">
+          <svg class="help-box__icon"><use href="#icon-foco"></use></svg>
+          <div><span class="help-box__label">Recuerda</span><p class="help-box__text">No necesitas saber programar para entender esta clase. Si sabes rentar un departamento o pedir un cuarto de hotel, ya tienes la mitad del camino.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Aclara que la clase termina con una actividad práctica y una tarea en AWS Educate.</aside>
+</section>
+
+<section class="slide s0-slide" id="s0-que-es" data-section="Inicio" data-title="¿Qué es la nube?">
+  <div class="slide__inner s0-what">
+    <div class="s0-section-heading" data-anim="fade-up">
+      <span class="eyebrow">La idea central</span>
+      <h2 class="slide-title">¿Qué es la nube?</h2>
+      <p class="s0-what__big">La nube son <span class="marker" data-anim="draw-marker">computadoras de alguien más</span> que tú rentas por internet.</p>
+    </div>
+    <div class="s0-what__layout">
+      <div class="s0-what__ideas">
+        <ol class="step-list" aria-label="Tres ideas sobre la nube">
+          <li class="step s0-idea" data-step="1"><svg class="icon"><use href="#icon-edificio"></use></svg><p>Viven en <strong>centros de datos</strong> enormes, repartidos por el mundo.</p></li>
+          <li class="step s0-idea" data-step="2"><svg class="icon"><use href="#icon-red"></use></svg><p>Las usas <strong>a través de internet</strong>, sin tocarlas nunca.</p></li>
+          <li class="step s0-idea" data-step="3"><svg class="icon"><use href="#icon-dinero"></use></svg><p><strong>Pagas por lo que usas</strong>, como la luz o el agua.</p></li>
+        </ol>
+        <div class="grid grid--2 s0-what__tips" data-anim="fade-up" style="--d:2">
+          <div class="help-box help-box--consejo"><svg class="help-box__icon"><use href="#icon-foco"></use></svg><div><span class="help-box__label">Consejo</span><p class="help-box__text">Piensa en la luz eléctrica: no construyes tu propia planta de energía; conectas tu aparato y pagas lo que consumes. La nube hace lo mismo con las computadoras.</p></div></div>
+          <div class="help-box help-box--tecnico"><svg class="help-box__icon"><use href="#icon-engrane"></use></svg><div><span class="help-box__label">Cosas técnicas</span><p class="help-box__text">La definición más citada (NIST, 2011) dice que un servicio de nube tiene cinco rasgos: autoservicio bajo demanda, acceso amplio por red, recursos compartidos, elasticidad rápida y servicio medido.</p></div></div>
+        </div>
+      </div>
+      <div class="s0-network" data-anim="zoom" style="--d:2" aria-label="Laptop conectada a un centro de datos mediante una nube">
+        <div class="s0-network__device"><svg class="icon s0-network__laptop" viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="9" width="40" height="31" rx="3"></rect><path d="M7 47h50l-5 7H12Z"></path><path d="M20 17h24M20 23h17"></path></svg><span>tú</span></div>
+        <div class="s0-network__path"><span class="s0-packet s0-packet--a"></span><span class="s0-packet s0-packet--b"></span><svg class="icon icon--fill"><use href="#icon-nube"></use></svg></div>
+        <div class="s0-network__rack"><svg class="icon"><use href="#icon-servidor"></use></svg><span>centro de datos</span></div>
+        <svg class="s0-network__line" viewBox="0 0 520 80" aria-hidden="true"><path d="M8 40h504" stroke-dasharray="8 12"/></svg>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Insiste en que “la nube” no es algo etéreo: son edificios reales llenos de servidores, con electricidad, enfriamiento y seguridad. Lo nuevo es la forma de usarlos: rentados y por internet.</aside>
+</section>
+
+<section class="slide s0-slide" id="s0-antes" data-section="Inicio" data-title="Antes de la nube, todo era tuyo">
+  <div class="slide__inner s0-before">
+    <div class="s0-section-heading" data-anim="fade-up">
+      <span class="eyebrow">Antes de rentar</span>
+      <h2 class="slide-title">Antes de la nube, todo era tuyo</h2>
+      <p class="slide-subtitle">Si una empresa quería un sistema o una página web, compraba sus propios servidores y se encargaba de <strong>todas</strong> estas capas:</p>
+    </div>
+    <div class="s0-before__layout">
+      <div class="s0-tower" aria-label="Torre de nueve capas de infraestructura">
+        <div class="s0-tower__label">Tú administras</div>
+        <div class="s0-layer step" data-step="1"><b>1 · Aplicación</b><span>el programa que usan las personas</span></div>
+        <div class="s0-layer step" data-step="2"><b>2 · Datos</b><span>la información que guardas</span></div>
+        <div class="s0-layer step" data-step="3"><b>3 · Entorno de ejecución</b><span>runtime: Node.js, Java, Python…</span></div>
+        <div class="s0-layer step" data-step="4"><b>4 · Middleware</b><span>servidor web, conectores, colas</span></div>
+        <div class="s0-layer step" data-step="5"><b>5 · Sistema operativo</b><span>Windows o Linux</span></div>
+        <div class="s0-layer step" data-step="6"><b>6 · Virtualización</b><span>una física en varias “virtuales”</span></div>
+        <div class="s0-layer step" data-step="7"><b>7 · Servidores</b><span>las computadoras físicas</span></div>
+        <div class="s0-layer step" data-step="8"><b>8 · Almacenamiento</b><span>los discos de la información</span></div>
+        <div class="s0-layer step" data-step="9"><b>9 · Red</b><span>cables, switches e internet</span></div>
+      </div>
+      <div class="s0-before__right">
+        <div class="s0-extra" data-anim="slide-left" style="--d:2"><strong>y además…</strong><span>el edificio, la luz, el aire acondicionado y la seguridad.</span></div>
+        <ul class="s0-problems" aria-label="Problemas de administrar todo en casa">
+          <li class="step s0-problem" data-step="10"><svg class="icon"><use href="#icon-dinero"></use></svg><span>Cuesta mucho dinero antes de empezar.</span></li>
+          <li class="step s0-problem" data-step="11"><svg class="icon"><use href="#icon-reloj"></use></svg><span>El equipo tarda semanas en llegar e instalarse.</span></li>
+          <li class="step s0-problem" data-step="12"><svg class="icon"><use href="#icon-alerta"></use></svg><span>Si llega mucha gente, el sistema se cae.</span></li>
+          <li class="step s0-problem" data-step="13"><svg class="icon"><use href="#icon-servidor"></use></svg><span>Si llega poca, pagaste por equipo que no usas.</span></li>
+        </ul>
+        <div class="help-box help-box--recuerda" data-anim="fade-up" style="--d:3"><svg class="help-box__icon"><use href="#icon-casa"></use></svg><div><span class="help-box__label">Recuerda</span><p class="help-box__text">A este modelo se le llama <strong>on-premises</strong> (u “on-prem”): todo vive en tus propias instalaciones y todo es tu responsabilidad.</p></div></div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Pregunta: “¿Qué pasa con la página de inscripciones de la escuela el primer día?” (se cae por exceso de visitas). Ese es el problema de dimensionar servidores propios.</aside>
+</section>

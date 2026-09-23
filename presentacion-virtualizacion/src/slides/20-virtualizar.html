@@ -1,0 +1,272 @@
+<svg class="svg-sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="s2-i-ram" viewBox="0 0 64 64"><rect x="5" y="17" width="54" height="26" rx="3"/><path d="M14 24h9v12h-9zM27.5 24h9v12h-9zM41 24h9v12h-9zM13 43v7M23 43v7M33 43v7M43 43v7M53 43v7"/></symbol>
+    <symbol id="s2-i-capas" viewBox="0 0 64 64"><path d="m32 7 24 11-24 11L8 18Z"/><path d="m8 32 24 11 24-11M8 45l24 11 24-11"/></symbol>
+  </defs>
+</svg>
+
+<section class="slide s2-slide s2-que-es" id="s2-que-es" data-section="Virtualizar" data-title="Virtualizar es mentir (con permiso)">
+  <div class="slide__inner">
+    <div class="s2-head" data-anim="fade-up">
+      <span class="eyebrow">Sección 2 · Virtualizar</span>
+      <h2 class="slide-title">Virtualizar es mentir <span class="s2-head__soft">(con permiso)</span></h2>
+    </div>
+    <div class="s2-lie-layout">
+      <div class="s2-lie-copy">
+        <div class="s2-analogy step" data-step="1">
+          <svg class="icon" aria-hidden="true"><use href="#icon-casa"></use></svg>
+          <div>
+            <span class="s2-analogy__label">Primero, la analogía</span>
+            <p>Subarriendas un cuarto de tu casa. El inquilino entra, prende la luz, duerme tranquilo. Nunca se pregunta quién puso las paredes ni de dónde sale el agua: para él, ese cuarto <strong>es su casa</strong>.</p>
+          </div>
+        </div>
+        <p class="s2-lead step" data-step="2">Lo normal es que un sistema operativo mande directo sobre el hardware. <strong>Virtualizar</strong> es meter un programa en medio —el <span class="marker">hipervisor</span>— que le presenta a otro sistema operativo un procesador, una memoria y un disco <strong>que no existen como tales</strong>.</p>
+        <p class="s2-punch step" data-step="3">Y el sistema invitado nunca se entera.</p>
+        <div class="help-box help-box--tecnico step" data-step="4">
+          <svg class="help-box__icon" aria-hidden="true"><use href="#icon-engrane"></use></svg>
+          <div>
+            <span class="help-box__label">Cosas técnicas</span>
+            <p class="help-box__text"><strong>Hipervisor</strong> es el nombre del programa que hace ese reparto. También se le dice <em>monitor de máquinas virtuales</em>. Es la palabra que vas a oír el resto de la clase.</p>
+          </div>
+        </div>
+      </div>
+      <div class="s2-lie-stage" data-anim="zoom" aria-label="El invitado cree tener una computadora propia; abajo hay una sola computadora real">
+        <div class="s2-lie-card s2-lie-card--guest">
+          <span class="s2-lie-card__tag">Invitado</span>
+          <b>El sistema operativo de la máquina virtual</b>
+          <p class="s2-lie-quote">“Tengo un procesador, un gigabyte de memoria y un disco de 2 GB. Todo mío.”</p>
+        </div>
+        <div class="s2-lie-link"><span>le presenta</span></div>
+        <div class="s2-lie-card s2-lie-card--hv">
+          <span class="s2-lie-card__tag">La capa nueva</span>
+          <b>Hipervisor</b>
+          <p>Reparte lo que hay de verdad y sostiene la mentira.</p>
+        </div>
+        <div class="s2-lie-link"><span>reparte</span></div>
+        <div class="s2-lie-card s2-lie-card--host">
+          <span class="s2-lie-card__tag">Anfitrión</span>
+          <b>Una sola computadora física</b>
+          <p>Un procesador, una memoria y un disco reales.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Antes de explicar nada, pregunta: “¿alguien ha rentado un cuarto o ha vivido en uno rentado?”. Deja que una persona lo cuente; la analogía sola hace la mitad del trabajo. Escribe “hipervisor” en el pizarrón y no avances hasta que alguien pueda decir con sus propias palabras qué hace. Si nadie puede, vuelve a leer la tarjeta verde de la derecha.</aside>
+</section>
+
+<section class="slide s2-slide s2-hipervisor" id="s2-hipervisor" data-section="Virtualizar" data-title="Dos tipos de hipervisor">
+  <div class="slide__inner">
+    <div class="s2-head" data-anim="fade-up">
+      <span class="eyebrow">El diagrama de la clase</span>
+      <h2 class="slide-title">Dos tipos de hipervisor</h2>
+      <p class="s2-hint">Las mismas piezas, apiladas de dos maneras. Se construyen de abajo hacia arriba.</p>
+    </div>
+    <div class="s2-hv-grid">
+      <article class="s2-hv-tower s2-hv-tower--t2">
+        <header class="s2-hv-tower__head" data-anim="fade-up">
+          <span class="s2-hv-badge s2-hv-badge--t2">Tipo 2 · alojado</span>
+          <h3>Se instala <em>dentro</em> de tu Windows, como un programa más</h3>
+          <p class="s2-hv-tower__chips"><span class="chip">VirtualBox</span><span class="chip">VMware Workstation Player</span></p>
+        </header>
+        <div class="s2-stack" aria-label="Capas del tipo 2, de abajo hacia arriba: hardware, Windows, VirtualBox y la máquina virtual">
+          <div class="s2-layer s2-layer--hw step" data-step="1"><b>Hardware</b><span>tu laptop: procesador, memoria y disco</span></div>
+          <div class="s2-layer s2-layer--host step" data-step="2"><b>Windows</b><span>el sistema operativo anfitrión</span><i class="s2-layer__cost">se queda con RAM y CPU</i></div>
+          <div class="s2-layer s2-layer--hv step" data-step="3"><b>VirtualBox</b><span>el hipervisor: un programa más, abierto en tu escritorio</span></div>
+          <div class="s2-layer s2-layer--vm step" data-step="4"><b>Máquina virtual</b><span>el Linux invitado que vas a instalar hoy</span></div>
+        </div>
+        <p class="s2-hv-tower__use" data-anim="fade-up" style="--d:1">Es lo que vas a usar hoy en la práctica.</p>
+      </article>
+      <article class="s2-hv-tower s2-hv-tower--t1">
+        <header class="s2-hv-tower__head" data-anim="fade-up" style="--d:1">
+          <span class="s2-hv-badge s2-hv-badge--t1">Tipo 1 · bare-metal</span>
+          <h3>Va <em>directo sobre el hardware</em>, sin escritorio debajo</h3>
+          <p class="s2-hv-tower__chips"><span class="chip">VMware ESXi</span><span class="chip">KVM</span><span class="chip">Xen</span><span class="chip">AWS Nitro</span></p>
+        </header>
+        <div class="s2-stack" aria-label="Capas del tipo 1, de abajo hacia arriba: hardware, hipervisor y varias máquinas virtuales">
+          <div class="s2-layer s2-layer--hw step" data-step="1"><b>Hardware</b><span>un servidor del centro de datos</span></div>
+          <div class="s2-layer s2-layer--hv s2-layer--hv-bare step" data-step="2"><b>Hipervisor</b><span>no necesita ningún sistema operativo debajo</span><i class="s2-layer__cost s2-layer__cost--ok">aquí no se desperdicia nada</i></div>
+          <div class="s2-layer s2-layer--vms step" data-step="3">
+            <b>Máquinas virtuales</b>
+            <span class="s2-vm-row"><i>VM</i><i>VM</i><i>VM</i><i>VM</i><i>VM</i></span>
+          </div>
+        </div>
+        <p class="s2-hv-tower__use" data-anim="fade-up" style="--d:2">Es lo que usan las nubes para rentarte una máquina.</p>
+      </article>
+    </div>
+    <div class="s2-hv-note step" data-step="5">
+      <svg class="icon" aria-hidden="true"><use href="#s2-i-capas"></use></svg>
+      <p><b>La diferencia práctica:</b> el tipo 1 no carga con un sistema operativo de escritorio debajo, así que <span class="marker">desperdicia mucho menos</span>. Por eso en tu laptop cabe una máquina virtual y en un servidor de nube caben decenas.</p>
+    </div>
+  </div>
+  <aside class="notes">Construye la torre junto con el grupo: antes de cada avance pregunta “¿qué creen que va encima?”. Cuando aparezca la capa de Windows del tipo 2, detente y pregunta “¿esa capa es gratis?”. De ahí sale solo el argumento del tipo 1; no lo adelantes tú. Regresa a esta diapositiva a media práctica, cuando ya tengan VirtualBox abierto: pide que señalen en qué capa están parados.</aside>
+</section>
+
+<section class="slide s2-slide s2-vtx" id="s2-vtx" data-section="Virtualizar" data-title="El interruptor que ya traes">
+  <div class="slide__inner">
+    <div class="s2-head" data-anim="fade-up">
+      <span class="eyebrow">Dentro del procesador</span>
+      <h2 class="slide-title">El interruptor que ya traes</h2>
+    </div>
+    <div class="s2-vtx-layout">
+      <div class="s2-vtx-copy">
+        <div class="s2-analogy step" data-step="1">
+          <svg class="icon" aria-hidden="true"><use href="#icon-globo"></use></svg>
+          <div>
+            <span class="s2-analogy__label">Primero, la analogía</span>
+            <p>Sin ayuda, el hipervisor tendría que traducir frase por frase lo que dice el invitado, como un intérprete humano en una junta. Funciona, pero todo va <strong>lentísimo</strong>.</p>
+          </div>
+        </div>
+        <p class="s2-lead step" data-step="2">Por eso los procesadores traen extensiones dedicadas a virtualizar: <strong class="s2-tech">Intel VT-x</strong> y <strong class="s2-tech">AMD-V</strong>. Con ellas el procesador entiende por sí mismo que hay un invitado y ya no hay nada que traducir.</p>
+        <p class="s2-lead step" data-step="3">Se activan en el <strong>BIOS/UEFI</strong> de tu computadora y casi siempre <strong>ya vienen encendidas</strong>.</p>
+        <div class="help-box help-box--cuidado step" data-step="4">
+          <svg class="help-box__icon" aria-hidden="true"><use href="#icon-alerta"></use></svg>
+          <div>
+            <span class="help-box__label">Cuidado</span>
+            <p class="help-box__text">Si al encender la máquina virtual VirtualBox marca un <strong>error de VT-x/AMD-V</strong>, hay que entrar al BIOS/UEFI y activar la virtualización. Es el problema número uno de esta práctica.</p>
+          </div>
+        </div>
+      </div>
+      <aside class="s2-vtx-stage" data-anim="zoom" aria-label="Renglón del Administrador de tareas que dice Virtualización habilitada">
+        <div class="s2-panel">
+          <div class="s2-panel__bar"><span></span><span></span><span></span><code>Administrador de tareas · Rendimiento · CPU</code></div>
+          <div class="s2-panel__body">
+            <div class="s2-panel__row"><span>Núcleos</span><b>8</b></div>
+            <div class="s2-panel__row"><span>Procesadores lógicos</span><b>16</b></div>
+            <div class="s2-panel__row s2-panel__row--hot">
+              <span>Virtualización</span>
+              <b class="marker">Habilitada</b>
+            </div>
+          </div>
+        </div>
+        <div class="s2-switch-wrap">
+          <span class="s2-switch" aria-hidden="true"><i></i></span>
+          <p>Ese renglón que vieron en su Administrador de tareas <strong>es justo esto</strong>: el interruptor ya venía encendido de fábrica.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <aside class="notes">Pide una votación a mano alzada: “¿a quién le dice Habilitada?”. Cuenta cuántos no levantan la mano o no saben: ésos son exactamente los que se van a atorar al encender la VM, y conviene sentarse con ellos antes de empezar. Ten localizada de antemano la tecla que abre el BIOS/UEFI en los equipos del laboratorio, porque cambia según la marca.</aside>
+</section>
+
+<section class="slide s2-slide s2-anfitrion-invitado" id="s2-anfitrion-invitado" data-section="Virtualizar" data-title="Anfitrión e invitado">
+  <div class="slide__inner">
+    <div class="s2-head" data-anim="fade-up">
+      <span class="eyebrow">Vocabulario para toda la práctica</span>
+      <h2 class="slide-title">Anfitrión e invitado</h2>
+    </div>
+    <div class="grid grid--2 s2-roles">
+      <article class="model-card s2-card s2-card--host step" data-step="1">
+        <div class="model-card__head">
+          <h3 class="model-card__title">Anfitrión</h3>
+          <svg class="icon s2-card__icon" aria-hidden="true"><use href="#icon-casa"></use></svg>
+        </div>
+        <p class="s2-card__en">en inglés: <code>host</code></p>
+        <p class="model-card__text s2-card__text">Tu laptop real, con su Windows. La que de verdad tiene el procesador, la memoria y el disco. Es la que <strong>presta</strong>.</p>
+      </article>
+      <article class="model-card s2-card s2-card--guest step" data-step="2">
+        <div class="model-card__head">
+          <h3 class="model-card__title">Invitado</h3>
+          <svg class="icon s2-card__icon" aria-hidden="true"><use href="#icon-maleta"></use></svg>
+        </div>
+        <p class="s2-card__en">en inglés: <code>guest</code></p>
+        <p class="model-card__text s2-card__text">La máquina virtual y el sistema operativo que le instalas. Vive dentro de un archivo del anfitrión. Es la que <strong>recibe prestado</strong>.</p>
+      </article>
+    </div>
+    <div class="s2-bubble-layout">
+      <div class="s2-bubble step" data-step="3" aria-label="La máquina virtual vive dentro de la laptop, encerrada en su propia burbuja">
+        <span class="s2-bubble__host-tag">tu laptop · anfitrión</span>
+        <div class="s2-bubble__inner">
+          <span class="s2-bubble__guest-tag">la VM · invitado</span>
+          <p>Desde aquí adentro no se ve nada de afuera.</p>
+        </div>
+        <span class="s2-bubble__blocked"><i>✕</i> el invitado no ve tus archivos, ni tu escritorio, ni tus contraseñas</span>
+      </div>
+      <div class="help-box help-box--consejo step" data-step="4">
+        <svg class="help-box__icon" aria-hidden="true"><use href="#icon-foco"></use></svg>
+        <div>
+          <span class="help-box__label">Consejo</span>
+          <p class="help-box__text">Por eso una máquina virtual es <strong>un lugar seguro para experimentar</strong>: puedes romperla, borrarla y volver a crearla sin tocar tu computadora de verdad.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Ejercicio de treinta segundos que vale toda la práctica: señala tu laptop y pregunta “¿esto es anfitrión o invitado?”; luego señala la ventana de la VM proyectada, luego el archivo del disco virtual, luego el Windows de arriba. Repítelo hasta que contesten sin pensar. Si confunden estos dos términos ahora, cada instrucción de la práctica se les va a enredar.</aside>
+</section>
+
+<section class="slide s2-slide s2-que-le-prestas" id="s2-que-le-prestas" data-section="Virtualizar" data-title="Lo que le prestas a una VM">
+  <div class="slide__inner">
+    <div class="s2-head" data-anim="fade-up">
+      <span class="eyebrow">Las cuatro perillas</span>
+      <h2 class="slide-title">Lo que le prestas a una máquina virtual</h2>
+    </div>
+    <div class="grid grid--4 s2-res-grid">
+      <article class="s2-res step" data-step="1">
+        <div class="s2-res__head"><svg class="icon" aria-hidden="true"><use href="#icon-cpu"></use></svg><h3>Procesador</h3></div>
+        <p>Cuántos <strong>vCPU</strong> le cedes de los procesadores lógicos que tienes.</p>
+        <div class="s2-lend"><span class="s2-lend__from">anfitrión</span><span class="s2-lend__arrow" aria-hidden="true">→</span><span class="s2-lend__to">invitado</span></div>
+        <p class="s2-res__today">Hoy: <b>1 vCPU</b>.</p>
+      </article>
+      <article class="s2-res step" data-step="2">
+        <div class="s2-res__head"><svg class="icon" aria-hidden="true"><use href="#s2-i-ram"></use></svg><h3>Memoria</h3></div>
+        <p>RAM que le <strong>quitas a tu laptop</strong> todo el tiempo que la VM esté encendida.</p>
+        <div class="s2-lend"><span class="s2-lend__from">anfitrión</span><span class="s2-lend__arrow" aria-hidden="true">→</span><span class="s2-lend__to">invitado</span></div>
+        <p class="s2-res__today">Hoy: <b>1024 MB</b>.</p>
+      </article>
+      <article class="s2-res step" data-step="3">
+        <div class="s2-res__head"><svg class="icon" aria-hidden="true"><use href="#icon-disco"></use></svg><h3>Disco</h3></div>
+        <p>Un <strong>archivo</strong> guardado en tu disco real, que la VM cree que es su disco duro.</p>
+        <div class="s2-lend"><span class="s2-lend__from">anfitrión</span><span class="s2-lend__arrow" aria-hidden="true">→</span><span class="s2-lend__to">invitado</span></div>
+        <p class="s2-res__today">Hoy: <b>2 GB</b>.</p>
+      </article>
+      <article class="s2-res step" data-step="4">
+        <div class="s2-res__head"><svg class="icon" aria-hidden="true"><use href="#icon-red"></use></svg><h3>Red</h3></div>
+        <p>Una <strong>tarjeta de red virtual</strong>, con su propia dirección IP.</p>
+        <div class="s2-lend"><span class="s2-lend__from">anfitrión</span><span class="s2-lend__arrow" aria-hidden="true">→</span><span class="s2-lend__to">invitado</span></div>
+        <p class="s2-res__today">Hoy: <b>una IP propia</b>.</p>
+      </article>
+    </div>
+    <div class="help-box help-box--cuidado s2-res-warning step" data-step="5">
+      <svg class="help-box__icon" aria-hidden="true"><use href="#icon-alerta"></use></svg>
+      <div>
+        <span class="help-box__label">Cuidado</span>
+        <p class="help-box__text">Nunca le des a una VM <strong>más vCPU que los procesadores lógicos que tienes</strong>, ni <strong>más de la mitad de tu RAM</strong>. Si lo haces se frenan las dos: la invitada y la tuya.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Pide que abran el Administrador de tareas y que cada quien diga en voz alta cuánta RAM tiene. Ahí mismo, que calculen la mitad: ése es su techo para hoy. Quien tenga poca memoria necesita saberlo ahora y no a media instalación. Deja claro que estas cuatro perillas son exactamente las cuatro pantallas del asistente de VirtualBox que verán en el paso 3.</aside>
+</section>
+
+<section class="slide s2-slide s2-disco" id="s2-disco" data-section="Virtualizar" data-title="Por qué un disco de 2 GB no pesa 2 GB">
+  <div class="slide__inner">
+    <div class="s2-head" data-anim="fade-up">
+      <span class="eyebrow">La pregunta rara del asistente</span>
+      <h2 class="slide-title">Por qué un disco de 2 GB no pesa 2 GB</h2>
+      <p class="s2-hint">Al crear el disco virtual, VirtualBox te da a elegir entre dos formas de guardarlo. En las barras, el recuadro completo son los 2 GB que pediste; el relleno es lo que pesa el archivo en tu disco real.</p>
+    </div>
+    <div class="grid grid--2 s2-disk-grid">
+      <article class="s2-disk s2-disk--dyn step" data-step="1">
+        <div class="s2-disk__head"><h3>Reservado dinámicamente</h3><span class="s2-disk__tag">lo que vas a elegir</span></div>
+        <div class="s2-disk__bar" aria-label="El archivo empieza casi vacío y va creciendo">
+          <i style="--fill:14%"></i>
+          <span class="s2-disk__grow">crece conforme se usa →</span>
+        </div>
+        <p class="s2-disk__legend"><b>El archivo empieza en casi nada</b> y va creciendo conforme metes cosas. Le dijiste 2 GB, pero hoy ocupa lo que de verdad usas.</p>
+      </article>
+      <article class="s2-disk s2-disk--fixed step" data-step="2">
+        <div class="s2-disk__head"><h3>Tamaño fijo</h3><span class="s2-disk__tag s2-disk__tag--muted">la otra opción</span></div>
+        <div class="s2-disk__bar" aria-label="El archivo aparta los dos gigabytes completos desde el principio">
+          <i style="--fill:100%"></i>
+        </div>
+        <p class="s2-disk__legend"><b>Aparta los 2 GB desde el primer momento</b>, aunque el disco esté vacío. Tu computadora los da por ocupados desde que pulsas Finalizar.</p>
+      </article>
+    </div>
+    <div class="s2-bridge step" data-step="3">
+      <svg class="icon" aria-hidden="true"><use href="#icon-nube"></use></svg>
+      <div>
+        <span class="s2-bridge__label">El puente con la nube</span>
+        <p>Ese “crece conforme se usa” es exactamente el modelo de cobro del almacenamiento en la nube: <span class="marker">pagas por lo que ocupas, no por lo que pediste</span>.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">Pregunta con trampa antes de revelar el puente: “entonces, ¿cuánto espacio libre necesitan para un disco de 2 GB?”. La respuesta honesta es “al principio casi nada, pero ten los 2 GB”. Ahí conecta con la factura: en la nube quien paga es el que ocupa, no el que pide, y ése es el motivo por el que casi siempre conviene el disco dinámico.</aside>
+</section>
