@@ -41,8 +41,8 @@ const modulos = await montarModulos(app, CURSO, __dirname);
 
 app.get('/api/curso', (req, res) => {
   registrarVisita(req);
-  // `publica` le dice al navegador donde esta corriendo esto, para no afirmar
-  // que vive en la laptop del docente cuando ya esta desplegado.
+  // `publica` le dice al navegador dónde está corriendo esto, para no afirmar
+  // que vive en la laptop del docente cuando ya está desplegado.
   res.json({ materia: MATERIA, docente: DOCENTE, grupo: GRUPO, modulos, publica: Boolean(urlPublica()) });
 });
 
@@ -51,7 +51,7 @@ app.get('/api/red', (req, res) => {
   res.json({
     puerto: PUERTO,
     principal: direccionPrincipal(PUERTO),
-    // Desplegado no hay direcciones alternas que ofrecer: solo la publica.
+    // Desplegado no hay direcciones alternas que ofrecer: solo la pública.
     direcciones: publica ? [] : direccionesLan(PUERTO),
     publica: Boolean(publica),
     conectados: conectados()

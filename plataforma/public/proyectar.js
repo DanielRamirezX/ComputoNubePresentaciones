@@ -24,11 +24,11 @@ async function refrescar() {
     $('contador').innerHTML = n > 0
       ? `<b>${n}</b> ${n === 1 ? 'dispositivo conectado' : 'dispositivos conectados'}`
       : 'Esperando al primero…';
-    // Desplegado en la nube no hay direcciones alternas y el Wi-Fi del salon
+    // Desplegado en la nube no hay direcciones alternas y el Wi-Fi del salón
     // deja de ser un requisito: el servidor ya no vive en esta laptop.
     if (datos.publica) {
-      $('paso').textContent = 'Abre esta direccion desde donde sea';
-      $('nota').textContent = 'Funciona con datos del celular: ya no depende del Wi-Fi del salon.';
+      $('paso').textContent = 'Abre esta dirección desde donde sea';
+      $('nota').textContent = 'Funciona con datos del celular: ya no depende del Wi-Fi del salón.';
       $('alterna').textContent = '';
       return;
     }

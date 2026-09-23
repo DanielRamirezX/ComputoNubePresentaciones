@@ -46,8 +46,8 @@ async function cargar() {
     // es la laptop del docente; desplegado, es un servidor rentado. Decirlo bien
     // es media clase de la materia.
     $('pie-donde').innerHTML = datos.publica
-      ? 'Este servidor ya no vive en la laptop del docente: corre en un centro de datos rentado, y sigue abierto aunque el salon este vacio. Eso es <b>PaaS</b>.'
-      : 'Este servidor corre en la laptop del docente, dentro de la red del salon. Si se apaga, la pagina deja de abrir: es justo lo que significa <b>on-premises</b>.';
+      ? 'Este servidor ya no vive en la laptop del docente: corre en un centro de datos rentado, y sigue abierto aunque el salón esté vacío. Eso es <b>PaaS</b>.'
+      : 'Este servidor corre en la laptop del docente, dentro de la red del salón. Si se apaga, la página deja de abrir: es justo lo que significa <b>on-premises</b>.';
 
     $('cargando').hidden = true;
     $('rejilla').hidden = false;
