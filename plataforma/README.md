@@ -9,7 +9,8 @@ No necesita internet: todo se sirve desde tu máquina.
 ## La primera vez
 
 Instala las dependencias de la plataforma **y las de cada módulo que sea un
-servidor** (el examen lo es; las presentaciones no necesitan nada):
+servidor** (el examen lo es; las presentaciones y el curso *Comprender la
+computación en la nube* no necesitan nada):
 
 ```powershell
 cd plataforma
@@ -57,6 +58,8 @@ presentación.
 Computo en la nube/
 ├─ plataforma/                  ← esto
 ├─ presentacion-iaas-paas-saas/ ← carpeta hermana
+├─ presentacion-virtualizacion/ ← carpeta hermana
+├─ curso-comprender-nube/       ← carpeta hermana
 └─ examen-diagnostico/          ← carpeta hermana
 ```
 

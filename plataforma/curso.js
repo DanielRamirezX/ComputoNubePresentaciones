@@ -40,6 +40,14 @@ export const CURSO = {
       etiqueta: 'Presentación',
       tipo: 'estatico',
       ruta: '../presentacion-virtualizacion'
+    },
+    {
+      id: 'comprender-nube',
+      titulo: 'Comprender la computación en la nube',
+      resumen: 'Curso guiado de 2 horas: lecciones, ejercicios con XP y una práctica final con un caso real.',
+      etiqueta: 'Curso',
+      tipo: 'express',
+      ruta: '../curso-comprender-nube'
     }
   ]
 };
