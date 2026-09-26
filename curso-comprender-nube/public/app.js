@@ -1208,7 +1208,11 @@ function practicaResultado(r) {
         </dl>
         <p class="sutil">Tómale captura a esta pantalla: es tu comprobante de entrega.</p>
       </section>
-      <div class="acciones"><a class="boton" href="#/">Volver al curso</a></div>
+      <div class="acciones">
+        ${conCalificacion ? `<a class="boton boton--primario" href="api/practica/reporte.pdf?a=${perfil.id}" download>${icono('i-libro')} Descargar mi reporte en PDF</a>` : ''}
+        <a class="boton" href="#/">Volver al curso</a>
+      </div>
+      ${conCalificacion ? '<p class="sutil">El reporte trae tu dominio por tema y por concepto, comparado con tu grupo, y qué lecciones repasar.</p>' : ''}
     </main>`;
 }
 

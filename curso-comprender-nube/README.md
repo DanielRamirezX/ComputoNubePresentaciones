@@ -27,6 +27,13 @@ que se cae cada Día de Reyes y quiere mudarse a la nube. Son 20 preguntas en
 5 temas (4 por tema), unos 20 minutos y una sola entrega. Se califica en el
 servidor: las respuestas correctas nunca llegan al navegador del alumno.
 
+Al entregar, el alumno ve su resultado por tema, un comprobante con folio y un
+botón para **descargar su reporte en PDF**: su dominio por tema y por cada uno de
+los 20 conceptos evaluados, comparado con el promedio de su grupo en ese
+momento, y qué lecciones repasar. En modo `resumen` el reporte dice qué concepto
+falló pero no la respuesta; en modo `completo` también la incluye; en modo
+`nada` no hay reporte.
+
 Los ejercicios del curso sí se revisan en el navegador, a propósito: son
 práctica con retroalimentación inmediata, igual que en DataCamp. Valen 50 o
 100 XP; pedir pista quita 30 % y cada intento fallido 20 % (mínimo 10 %). Tras
@@ -128,7 +135,9 @@ salir del salón** y no dejes la práctica abierta como tarea para otro día.
   con `tipo` (`leccion`, `opcion` o `clasificar`), `xp` y `minutos`. Las láminas
   llevan `html` y `notas` para el docente. Los cambios se ven al recargar.
 - **Práctica final:** `src/practica.js`. Cada pregunta lleva `correcta` (índice
-  desde 0) y `explicacion`, que sale en el repaso del panel. `fijo: true` deja
+  desde 0), `explicacion` (sale en el repaso del panel) y `concepto` (el nombre
+  corto que sale en el reporte PDF del alumno). `REPASO` dice qué lecciones
+  recomendar cuando un tema sale bajo. `fijo: true` deja
   las opciones en su orden (sirve cuando son categorías como IaaS, PaaS, SaaS);
   en las demás, cada alumno las ve en otro orden para que copiar la letra no
   sirva.
@@ -165,6 +174,8 @@ server.js            arranque cuando el curso corre solo
 src/practica.js      caso y banco de la práctica final, y la calificación
 src/almacen.js       datos en un archivo JSON, con escritura segura
 src/estadisticas.js  promedio, reparto, temas y opciones más elegidas
+src/reporte-pdf.js   el reporte de dominio que descarga el alumno
+src/pdf.js           generador de PDF mínimo, sin dependencias
 src/servidor.js      enrutador y archivos estáticos sin dependencias
 src/verificar.js     auditoría del curso y de la práctica
 public/contenido.js  capítulos, lecciones, ejercicios y plan de la clase

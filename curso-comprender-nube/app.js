@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 import { CURSO } from './public/contenido.js';
 import { almacen } from './src/almacen.js';
-import { CASO, PREGUNTAS, TEMAS, practicaPublica, calificar } from './src/practica.js';
+import { CASO, PREGUNTAS, REPASO, TEMAS, practicaPublica, calificar } from './src/practica.js';
+import { reporteDominio } from './src/reporte-pdf.js';
 import { resumirPractica } from './src/estadisticas.js';
 import { crearEnrutador, enviarDescarga, enviarJson, fallo, leerJson, servirArchivos } from './src/servidor.js';
 
@@ -24,6 +25,9 @@ const ZONA_HORARIA = process.env.ZONA_HORARIA || 'America/Mexico_City';
 const VENTANA_ACTIVO_MS = 2 * 60 * 1000;
 
 const XP_MAXIMA = new Map(CURSO.capitulos.flatMap((c) => c.actividades).map((a) => [a.id, a.xp]));
+const TITULOS = new Map(
+  CURSO.capitulos.flatMap((c) => c.actividades.map((a) => [a.id, `${a.titulo} (capítulo ${c.numero})`]))
+);
 const TOTAL_ACTIVIDADES = XP_MAXIMA.size;
 
 /**
@@ -182,6 +186,42 @@ export function crearApp() {
     };
     almacen.guardarEntrega(entrega);
     enviarJson(res, 201, { estado: 'entregada', resultado: resultadoPara(entrega) });
+  });
+
+  // El reporte en PDF que el alumno descarga al terminar. Se pide con el id que
+  // solo conoce su navegador; si entregó desde otro celular, se encuentra igual.
+  app.get('/api/practica/reporte.pdf', (req, res, { query }) => {
+    if (RETRO === 'nada') return enviarJson(res, 403, { error: 'Los resultados se revisan en clase' });
+    const alumno = idValido(query.a) ? almacen.alumno(query.a) : null;
+    const entrega = alumno && almacen.entregaDe(alumno);
+    if (!entrega) return enviarJson(res, 404, { error: 'No encontré tu práctica entregada' });
+
+    // Cómo le fue al grupo, contando las entregas que hay en este momento.
+    const delGrupo = almacen.entregas(entrega.grupo).map((e) => calificar(e.respuestas).detalle);
+    const aciertoGrupo = (filtro) => {
+      const casos = delGrupo.flat().filter(filtro);
+      return casos.length ? Math.round((casos.filter((d) => d.correcta).length / casos.length) * 100) : 0;
+    };
+    const grupo = {
+      entregas: delGrupo.length,
+      promedio: aciertoGrupo(() => true),
+      porPregunta: Object.fromEntries(PREGUNTAS.map((p) => [p.id, aciertoGrupo((d) => d.id === p.id)])),
+      porTema: Object.fromEntries(TEMAS.map((t) => [t, aciertoGrupo((d) => d.tema === t)]))
+    };
+
+    const pdf = reporteDominio({
+      entrega,
+      preguntas: PREGUNTAS,
+      temas: TEMAS,
+      detalle: calificar(entrega.respuestas).detalle,
+      grupo,
+      repaso: Object.fromEntries(Object.entries(REPASO).map(([t, ids]) => [t, ids.map((id) => TITULOS.get(id))])),
+      conRespuestas: RETRO === 'completo',
+      materia: MATERIA,
+      curso: CURSO.titulo,
+      fecha: new Date(entrega.fin).toLocaleString('es-MX', { timeZone: ZONA_HORARIA, dateStyle: 'long', timeStyle: 'short' })
+    });
+    enviarDescarga(res, `reporte-${entrega.folio}.pdf`, 'application/pdf', pdf);
   });
 
   // --------------------------------------------------------------- docente

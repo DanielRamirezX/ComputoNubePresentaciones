@@ -8,6 +8,9 @@
 //  2. Cada distractor es una confusión real (CapEx contra OpEx, híbrida contra
 //     multinube, dato personal contra sensible), no un absurdo.
 //
+// `concepto` es el nombre corto de lo que mide cada pregunta: sale en el reporte
+// del alumno sin revelar la respuesta correcta.
+//
 // `fijo: true` = las opciones son categorías (IaaS, PaaS, SaaS…) y se muestran
 // siempre en ese orden. En las demás, el navegador baraja el orden por alumno
 // para que copiar la letra del vecino no sirva de nada.
@@ -19,6 +22,16 @@ export const TEMAS = [
   'Datos y normativa',
   'Roles y proveedores'
 ];
+
+// Qué lecciones del curso repasar cuando un tema sale bajo. Lo usa el reporte
+// en PDF que descarga el alumno al entregar.
+export const REPASO = {
+  'La nube y su valor': ['c1-intro', 'c1-poder'],
+  'Modelos de servicio': ['c1-modelos', 'c2-normativa'],
+  'Modelos de despliegue': ['c2-despliegue'],
+  'Datos y normativa': ['c2-normativa', 'c1-poder'],
+  'Roles y proveedores': ['c2-funciones', 'c3-panorama', 'c3-azure']
+};
 
 export const CASO = `
   <p><strong>Panaderías Doña Rosca</strong> (empresa ficticia) tiene 14 sucursales en Querétaro. Hoy todo vive en un solo servidor, en la trastienda de la sucursal matriz:</p>
@@ -33,6 +46,7 @@ export const PREGUNTAS = [
   /* ------------------------------------------------ La nube y su valor */
   {
     id: 'p01',
+    concepto: 'Qué es la nube',
     tema: 'La nube y su valor',
     texto: 'La dueña te pregunta qué significa exactamente “mudarse a la nube”. ¿Qué le respondes?',
     opciones: [
@@ -47,6 +61,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p02',
+    concepto: 'CapEx y OpEx',
     tema: 'La nube y su valor',
     texto:
       'Para aguantar el 6 de enero, hoy tendrían que comprar servidores para 20 veces la demanda normal y pagarlos antes de vender una sola rosca. En la nube pagarían cada mes lo que usen. ¿Cómo se llama ese cambio en la forma de gastar?',
@@ -61,6 +76,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p03',
+    concepto: 'Elasticidad',
     tema: 'La nube y su valor',
     texto:
       '¿Qué característica de la nube permite que la tienda tenga muchos más servidores el 6 de enero y vuelva a lo normal el día 7?',
@@ -70,6 +86,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p04',
+    concepto: 'Escalamiento horizontal',
     tema: 'La nube y su valor',
     texto: 'Para el pico, el equipo pone 15 servidores iguales detrás de un balanceador de carga. ¿Qué tipo de escalamiento es?',
     opciones: [
@@ -86,6 +103,7 @@ export const PREGUNTAS = [
   /* ------------------------------------------------ Modelos de servicio */
   {
     id: 'p05',
+    concepto: 'SaaS',
     tema: 'Modelos de servicio',
     texto: 'Para el correo de sus empleados contratan Microsoft 365. ¿Qué modelo de servicio es?',
     opciones: ['IaaS', 'PaaS', 'SaaS', 'On-premises'],
@@ -95,6 +113,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p06',
+    concepto: 'PaaS',
     tema: 'Modelos de servicio',
     texto:
       'El programador quiere publicar la nueva tienda en línea subiendo solo su código, sin instalar ni actualizar sistemas operativos. ¿Qué modelo le conviene?',
@@ -105,6 +124,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p07',
+    concepto: 'IaaS para sistemas heredados',
     tema: 'Modelos de servicio',
     texto:
       'El sistema de ventas solo funciona en Windows Server, con una configuración muy especial. ¿Qué modelo permite llevarlo a la nube tal como está?',
@@ -116,6 +136,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p08',
+    concepto: 'Responsabilidad compartida en IaaS',
     tema: 'Modelos de servicio',
     texto:
       'Si llevan el sistema de ventas a una máquina virtual (IaaS), ¿quién debe instalar los parches de seguridad de Windows Server?',
@@ -133,6 +154,7 @@ export const PREGUNTAS = [
   /* ---------------------------------------------- Modelos de despliegue */
   {
     id: 'p09',
+    concepto: 'Nube híbrida',
     tema: 'Modelos de despliegue',
     texto:
       'Deciden llevar la tienda en línea a una nube pública y dejar, por ahora, el sistema de ventas en el servidor de la matriz, conectados entre sí. ¿Qué modelo de despliegue es?',
@@ -143,6 +165,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p10',
+    concepto: 'Nube pública contra privada',
     tema: 'Modelos de despliegue',
     texto: '¿Cuál es la diferencia principal entre una nube pública y una privada?',
     opciones: [
@@ -157,6 +180,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p11',
+    concepto: 'Multinube',
     tema: 'Modelos de despliegue',
     texto:
       'Dos años después ya no tienen ningún servidor propio: usan AWS para la tienda y Google Cloud para analizar sus ventas con BigQuery. ¿Cómo se llama esto?',
@@ -168,6 +192,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p12',
+    concepto: 'Cuándo conviene una nube privada',
     tema: 'Modelos de despliegue',
     texto: 'La dueña pregunta si mejor monta “su propia nube privada” en la matriz. ¿Qué le respondes?',
     opciones: [
@@ -184,6 +209,7 @@ export const PREGUNTAS = [
   /* ------------------------------------------------- Datos y normativa */
   {
     id: 'p13',
+    concepto: 'Datos personales sensibles',
     tema: 'Datos y normativa',
     texto: '¿Cuál de estos datos del programa de lealtad es un dato personal SENSIBLE según la ley mexicana?',
     opciones: [
@@ -198,6 +224,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p14',
+    concepto: 'Aviso de privacidad',
     tema: 'Datos y normativa',
     texto: 'Antes de pedirles sus datos a los clientes, ¿qué debe ponerles a disposición Doña Rosca?',
     opciones: [
@@ -212,6 +239,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p15',
+    concepto: 'Plazo de conservación de los datos',
     tema: 'Datos y normativa',
     texto:
       'En la hoja de cálculo siguen los datos de clientes que dejaron el programa hace seis años, “por si acaso”. ¿Qué dice la ley?',
@@ -227,6 +255,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p16',
+    concepto: 'Regiones y residencia de datos',
     tema: 'Datos y normativa',
     texto:
       'La dueña quiere que los datos de sus clientes se guarden físicamente en México. ¿Qué eligen al crear sus recursos en la nube?',
@@ -244,6 +273,7 @@ export const PREGUNTAS = [
   /* ----------------------------------------------- Roles y proveedores */
   {
     id: 'p17',
+    concepto: 'Arquitectura de nube',
     tema: 'Roles y proveedores',
     texto:
       '¿Quién diseña cómo se conectan la tienda, la base de datos y el sistema de ventas, cuidando el costo y la seguridad?',
@@ -258,6 +288,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p18',
+    concepto: 'FinOps',
     tema: 'Roles y proveedores',
     texto:
       'En febrero la factura llega al triple: después del 6 de enero nadie apagó los servidores extra. ¿Qué función se encarga de vigilar y optimizar ese gasto?',
@@ -267,6 +298,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p19',
+    concepto: 'Elegir proveedor según lo que ya usas',
     tema: 'Roles y proveedores',
     texto:
       'Doña Rosca ya usa Microsoft 365 y su sistema de ventas corre en Windows Server con SQL Server. ¿Qué proveedor le ofrece la integración más natural?',
@@ -277,6 +309,7 @@ export const PREGUNTAS = [
   },
   {
     id: 'p20',
+    concepto: 'Dependencia del proveedor',
     tema: 'Roles y proveedores',
     texto:
       'Si construyen todo con servicios que solo existen en un proveedor, mudarse después podría costar reescribir casi todo. ¿Cómo se llama ese riesgo?',

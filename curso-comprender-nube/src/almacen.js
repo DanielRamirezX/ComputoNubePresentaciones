@@ -83,6 +83,8 @@ export const almacen = {
 
   existe: (id) => Object.hasOwn(estado.alumnos, id),
 
+  alumno: (id) => (Object.hasOwn(estado.alumnos, id) ? estado.alumnos[id] : null),
+
   abrirPractica(abierta) {
     estado.practicaAbierta = Boolean(abierta);
     guardar();

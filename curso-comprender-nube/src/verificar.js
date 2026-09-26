@@ -49,6 +49,7 @@ for (const p of PREGUNTAS) {
   if (new Set(p.opciones).size !== p.opciones.length) falla(`${p.id} tiene opciones repetidas`);
   if (!TEMAS.includes(p.tema)) falla(`${p.id} usa un tema que no está en TEMAS`);
   if (!p.explicacion) falla(`${p.id} no tiene explicación para el repaso`);
+  if (!p.concepto) falla(`${p.id} no tiene concepto para el reporte del alumno`);
 }
 const ids = PREGUNTAS.map((p) => p.id);
 if (new Set(ids).size !== ids.length) falla('hay ids de pregunta repetidos');
