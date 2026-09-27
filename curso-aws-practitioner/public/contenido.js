@@ -52,6 +52,50 @@ const boton = (texto, traduccion) =>
 // Un bloque de código con botón de copiar (el botón lo agrega app.js).
 const codigo = (texto) => `<pre class="codigo"><code>${texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`;
 
+// Capturas reales de la consola, tomadas en el sandbox del docente (septiembre
+// de 2026) con el Account ID tapado. Ancho y alto evitan saltos al cargar.
+const CAPTURAS = {
+  '01-sandbox-datacamp': [1265, 766],
+  '02-consola-inicio': [1512, 470],
+  '03-ec2-panel': [760, 520],
+  '04-lanzar-nombre-ami': [1330, 565],
+  '05-tipo-lista': [820, 580],
+  '06-tipo-elegido': [1230, 290],
+  '07-llaves': [820, 220],
+  '08-red': [820, 440],
+  '09-disco': [820, 400],
+  '10-user-data': [820, 360],
+  '11-resumen': [410, 400],
+  '12-exito': [760, 142],
+  '13-running': [820, 450],
+  '14-pagina-web': [720, 174],
+  '15-acciones-menu': [450, 450],
+  '16-system-log': [910, 425],
+  '17-estado-menu': [815, 195],
+  '18-stop-modal': [612, 364],
+  '19-stopped': [790, 295],
+  '20-terminate-menu': [815, 155],
+  '21-terminate-modal': [612, 324],
+  '22-terminated': [720, 140],
+  '23-volumes': [960, 475],
+  '24-salir': [952, 480]
+};
+
+// Una captura con marcas numeradas. Cada marca es [x, y, texto], con x e y en
+// porcentaje de la imagen; los textos salen al pie, en el mismo orden.
+// app.js agrega el visor que la amplía al tocarla.
+const captura = (archivo, alt, marcas = []) => {
+  const [ancho, alto] = CAPTURAS[archivo];
+  return `
+  <figure class="captura">
+    <button class="captura__marco" type="button" data-ampliar aria-label="Ampliar captura: ${alt}">
+      <img src="capturas/s1/${archivo}.webp" width="${ancho}" height="${alto}" alt="${alt}" loading="lazy">
+      ${marcas.map(([x, y], k) => `<span class="captura__marca" style="left:${x}%;top:${y}%" aria-hidden="true"><b>${k + 1}</b></span>`).join('')}
+    </button>
+    ${marcas.length ? `<figcaption><ol class="captura__claves">${marcas.map(([, , texto]) => `<li>${texto}</li>`).join('')}</ol></figcaption>` : ''}
+  </figure>`;
+};
+
 /* ------------------------------------------------------------ el sandbox */
 
 // Los números de la cuenta del docente: 10 000 tokens a la semana rinden unas
@@ -239,8 +283,8 @@ export const CURSO = {
                 <p class="entrada"><strong>Amazon EC2</strong> (Elastic Compute Cloud) renta servidores virtuales: se llaman <strong>instancias</strong>. Al crear una, eliges estas seis piezas:</p>
                 <div class="rejilla rejilla--3 roles">
                   <article class="rol">${icono('disco')}<h3>AMI</h3><p>La plantilla: sistema operativo y software con que arranca. Hoy: <em>Amazon Linux 2023</em>.</p></article>
-                  <article class="rol">${icono('cpu')}<h3>Tipo de instancia</h3><p>Cuántos vCPU y cuánta RAM. Hoy: una <em>t3.micro</em> o <em>t2.micro</em>.</p></article>
-                  <article class="rol">${icono('llave')}<h3>Par de llaves</h3><p>La llave para entrar por SSH. Hoy entraremos desde el navegador, sin llave.</p></article>
+                  <article class="rol">${icono('cpu')}<h3>Tipo de instancia</h3><p>Cuántos vCPU y cuánta RAM. Hoy: una <em>t2.micro</em>, la que permite el sandbox.</p></article>
+                  <article class="rol">${icono('llave')}<h3>Par de llaves</h3><p>La llave para entrar por SSH. Hoy va sin llave: el sandbox no deja entrar a la terminal.</p></article>
                   <article class="rol">${icono('escudo')}<h3>Grupo de seguridad</h3><p>El firewall de la instancia: qué tráfico puede entrar. Hoy: SSH (22) y web (80).</p></article>
                   <article class="rol">${icono('base-datos')}<h3>Volumen EBS</h3><p>El disco. Sigue existiendo aunque apagues la instancia. Hoy: 8 GiB.</p></article>
                   <article class="rol">${icono('codigo')}<h3>Datos de usuario</h3><p>Un script que corre solo la primera vez que arranca. Hoy instalará un servidor web.</p></article>
@@ -380,7 +424,7 @@ export const CURSO = {
       numero: 2,
       titulo: 'Laboratorio guiado en AWS',
       descripcion:
-        'Ahora sí: enciendes el sandbox y levantas un servidor web real en Amazon EC2, lo visitas desde tu navegador, entras a su terminal, lo detienes y lo eliminas. Cada paso dice exactamente dónde hacer clic y qué deberías ver.',
+        'Ahora sí: enciendes el sandbox y levantas un servidor web real en Amazon EC2, lo visitas desde tu navegador, lees su registro de arranque, lo detienes y lo eliminas. Cada paso dice exactamente dónde hacer clic y qué deberías ver.',
       actividades: [
         {
           id: 's1-lab-ec2',
@@ -388,7 +432,7 @@ export const CURSO = {
           titulo: 'Laboratorio: tu primer servidor web en EC2',
           xp: 300,
           minutos: 50,
-          objetivo: 'Crear una instancia EC2 que muestre una página web propia, entrar a su terminal desde el navegador, detenerla y eliminarla.',
+          objetivo: 'Crear una instancia EC2 que muestre una página web propia, comprobar en su registro de arranque que el script corrió, detenerla y eliminarla.',
           necesitas: [
             'Tu sesión de DataCamp abierta (el sandbox todavía apagado).',
             'Esta guía abierta en otra pestaña o en tu celular.',
@@ -405,7 +449,8 @@ dnf install -y httpd
 echo "<h1>Hola desde EC2</h1><p>Servidor de $(hostname -f)</p>" > /var/www/html/index.html
 systemctl enable --now httpd`)}
                 <p>Qué hace, renglón por renglón: instala Apache (un servidor web), escribe una página de bienvenida y deja el servidor encendido, también después de reiniciar.</p>
-                ${recuadro('consejo', 'Al pasar al siguiente paso, el contador del sandbox (arriba) arranca solo. Así sabrás cuántos minutos gastaste.')}`,
+                ${recuadro('consejo', 'Todas las imágenes de esta guía son capturas reales del sandbox. Tócalas para verlas en grande: los círculos numerados marcan dónde hacer clic.')}
+                ${recuadro('recuerda', 'Al pasar al siguiente paso, el contador del sandbox (arriba) arranca solo. Así sabrás cuántos minutos gastaste.')}`,
               ver: 'Tienes el script copiado o visible, y el sandbox sigue apagado.',
               sandbox: false
             },
@@ -413,16 +458,27 @@ systemctl enable --now httpd`)}
               titulo: 'Enciende el sandbox de AWS en DataCamp',
               html: `
                 <ol class="pasos-consola">
-                  <li>En DataCamp, abre la sección <strong>Sandbox</strong> desde el menú.</li>
-                  <li>Elige la tarjeta de <strong>AWS</strong> y pulsa el botón para iniciar la sesión.</li>
-                  <li>Espera a que termine de prepararse. No cierres la pestaña: si la cierras, el sandbox se reinicia.</li>
-                  <li>Cuando esté listo, abre la <strong>consola de AWS</strong> desde el mismo panel del sandbox.</li>
-                                  </ol>
-                ${recuadro('cuidado', 'Si tu pantalla de DataCamp se ve un poco distinta, busca las mismas ideas: “Sandbox”, “AWS” y el botón para lanzar la sesión. Si algo no aparece, levanta la mano antes de gastar minutos buscando.')}`,
-              ver: 'La consola de AWS abierta, con la página de inicio (Console Home) y la barra de búsqueda arriba.',
+                  <li>En DataCamp abre la sección <strong>Sandbox</strong>. Abajo a la izquierda ves tus <strong>Sandbox tokens</strong> y cuánto falta para que se renueven.</li>
+                  <li>En la tarjeta de <strong>AWS</strong> pulsa ${boton('Open Sandbox', 'abrir sandbox')}.</li>
+                </ol>
+                ${captura('01-sandbox-datacamp', 'Página Sandbox de DataCamp con las tarjetas de Power BI, Tableau y AWS', [
+                  [93.7, 63.1, '<strong>Open Sandbox</strong> en la tarjeta de AWS'],
+                  [6.7, 87.1, 'Tus tokens y cuándo se renuevan']
+                ])}
+                <ol class="pasos-consola" start="3" style="counter-reset: paso 2">
+                  <li>Espera a que cargue. Aparece un <strong>escritorio remoto</strong> con Chrome y la consola de AWS ya abierta: no necesitas usuario ni contraseña.</li>
+                  <li>Arriba, en la barra de DataCamp, están los <strong>tokens que te quedan</strong> y el botón <strong>Exit Session</strong> (terminar sesión). Lo usarás al final.</li>
+                </ol>
+                ${captura('02-consola-inicio', 'El escritorio remoto del sandbox con la consola de AWS en Console Home', [
+                  [47.6, 4.7, 'Tokens que te quedan: bajan mientras la sesión está abierta'],
+                  [95.7, 4.7, '<strong>Exit Session</strong>: apaga el sandbox al terminar']
+                ])}
+                ${recuadro('cuidado', 'Estás manejando una computadora remota: a veces tarda un segundo en reaccionar. Haz <strong>un solo clic</strong> y espera. Si das varios, puedes marcar y desmarcar una casilla sin darte cuenta.')}`,
+              ver: 'El escritorio remoto con la consola de AWS en Console Home y, en la barra de DataCamp, tus tokens y el botón Exit Session.',
               problemas: [
-                ['Dice que no tienes tokens suficientes', 'Revisa en el panel del sandbox cuántos te quedan y cuándo se renuevan. Avísale al docente.'],
-                ['Ya tenías otra sesión abierta', 'Solo corre una sesión a la vez: cierra la otra desde el panel del sandbox.']
+                ['Dice que no tienes tokens suficientes', 'Revisa en la página del sandbox cuántos te quedan y cuándo se renuevan. Avísale al docente.'],
+                ['Ya tenías otra sesión abierta', 'Solo corre una sesión a la vez: ciérrala con Exit Session y vuelve a abrir.'],
+                ['La pantalla remota se queda en blanco', 'Deja la pestaña del sandbox al frente: si la ocultas o cambias de pestaña, la imagen deja de actualizarse.']
               ],
               sandbox: true
             },
@@ -430,11 +486,15 @@ systemctl enable --now httpd`)}
               titulo: 'Ubícate: la región y el servicio EC2',
               html: `
                 <ol class="pasos-consola">
-                  <li>Arriba a la derecha está el <strong>selector de región</strong>. Anota cuál aparece (por ejemplo, <em>N. Virginia · us-east-1</em>).</li>
+                  <li>Arriba a la derecha está el <strong>selector de región</strong>. Debe decir <strong>United States (N. Virginia)</strong>, que es <em>us-east-1</em>.</li>
                   <li><strong>No la cambies</strong> durante todo el laboratorio: lo que crees en una región no se ve en otra.</li>
                   <li>En la barra de búsqueda de arriba escribe <kbd>EC2</kbd> y elige <strong>EC2</strong> (Virtual Servers in the Cloud).</li>
                 </ol>
-                ${recuadro('sabias', 'Los sandbox suelen limitarse a ciertas regiones. Quédate en la que te abrió; si al crear algo aparece <em>“not authorized”</em> o <em>“AccessDenied”</em>, es una restricción del sandbox, no un error tuyo.')}`,
+                ${captura('02-consola-inicio', 'La consola de AWS con la barra de búsqueda y el selector de región', [
+                  [81.2, 27.7, 'Región: United States (N. Virginia)'],
+                  [20.6, 27.7, 'Barra de búsqueda: escribe EC2']
+                ])}
+                ${recuadro('sabias', 'En el panel de EC2 verás algunos recuadros con <em>Access denied</em>, como Load balancers o Service health. Es normal: el sandbox no te da permiso para todo. No es un error tuyo.')}`,
               ver: 'El panel de EC2 (EC2 Dashboard) con un menú a la izquierda: Instances, Images, Elastic Block Store, Network &amp; Security…',
               sandbox: true
             },
@@ -443,9 +503,13 @@ systemctl enable --now httpd`)}
               html: `
                 <ol class="pasos-consola">
                   <li>En el panel de EC2 pulsa el botón naranja ${boton('Launch instance', 'lanzar instancia')}.</li>
+                </ol>
+                ${captura('03-ec2-panel', 'Panel de EC2 con el recuadro Launch instance', [[35.3, 63.5, 'El botón naranja <strong>Launch instance</strong>']])}
+                <ol class="pasos-consola" start="2" style="counter-reset: paso 1">
                   <li>Se abre un formulario largo, dividido en secciones. A la derecha hay un resumen (<strong>Summary</strong>) que se va llenando.</li>
                   <li>En <strong>Name and tags</strong> (nombre y etiquetas), escribe el nombre: <kbd>web-tu-nombre</kbd> (por ejemplo, <em>web-mariana</em>).</li>
                 </ol>
+                ${captura('04-lanzar-nombre-ami', 'Formulario Launch an instance con el nombre web-mariana', [[28.6, 26.9, 'Name: <em>web-tu-nombre</em>']])}
                 ${recuadro('tecnico', 'El nombre en realidad es una <strong>etiqueta</strong> (tag) con clave <em>Name</em>. Las etiquetas sirven para organizar recursos y repartir costos por proyecto.')}`,
               ver: 'La página “Launch an instance” con tu nombre escrito en Name and tags.',
               sandbox: true
@@ -456,9 +520,14 @@ systemctl enable --now httpd`)}
                 <ol class="pasos-consola">
                   <li>Baja a <strong>Application and OS Images (Amazon Machine Image)</strong>.</li>
                   <li>En <strong>Quick Start</strong> deja seleccionado <strong>Amazon Linux</strong>.</li>
-                  <li>En la lista de AMI elige <strong>Amazon Linux 2023 AMI</strong>. Debe decir <em>Free tier eligible</em>.</li>
-                  <li>En <strong>Architecture</strong> deja <strong>64-bit (x86)</strong>.</li>
-                </ol>`,
+                  <li>En <strong>Amazon Machine Image (AMI)</strong> deja la que viene: <strong>Amazon Linux 2023 AMI</strong>. Dice <em>Free tier eligible</em>.</li>
+                  <li>Más abajo, en <strong>Architecture</strong>, deja <strong>64-bit (x86)</strong>.</li>
+                </ol>
+                ${captura('04-lanzar-nombre-ami', 'Sección de imágenes con Amazon Linux seleccionado', [
+                  [13.1, 70.8, 'Quick Start: <strong>Amazon Linux</strong>'],
+                  [37.6, 89.2, 'Amazon Linux 2023 AMI'],
+                  [62.9, 88.5, 'La etiqueta <em>Free tier eligible</em>']
+                ])}`,
               ver: 'Amazon Linux 2023 AMI seleccionada, con la etiqueta “Free tier eligible”.',
               sandbox: true
             },
@@ -466,22 +535,31 @@ systemctl enable --now httpd`)}
               titulo: 'Pieza 2: el tipo de instancia',
               html: `
                 <ol class="pasos-consola">
-                  <li>En <strong>Instance type</strong> abre la lista.</li>
-                  <li>Elige <strong>t3.micro</strong> o <strong>t2.micro</strong>: la que diga <em>Free tier eligible</em>. Las dos tienen 1 GiB de memoria; alcanza de sobra para una página web.</li>
+                  <li>En <strong>Instance type</strong> viene elegida <em>t3.micro</em>. <strong>Cámbiala:</strong> el sandbox solo permite <strong>t2.nano, t2.micro y t2.small</strong>.</li>
+                  <li>Abre la lista, escribe <kbd>t2.micro</kbd> en su buscador y elígela.</li>
                 </ol>
-                ${recuadro('cuidado', 'No elijas tipos grandes “para que vaya rápido”. En el sandbox pueden estar bloqueados, y en una cuenta real cuestan mucho más.')}`,
-              ver: 'Instance type: t3.micro (o t2.micro), con “Free tier eligible”.',
-              problemas: [['Al lanzar sale un error sobre el tipo de instancia', 'El sandbox puede permitir solo ciertos tipos. Regresa a este paso y prueba con el otro (t2.micro o t3.micro).']],
+                ${captura('05-tipo-lista', 'Lista de tipos de instancia abierta con t2.nano, t2.micro y t2.small', [
+                  [37.6, 47.2, 'El buscador de la lista'],
+                  [7.1, 65.5, '<strong>t2.micro</strong>: 1 vCPU, 1 GiB de memoria']
+                ])}
+                ${captura('06-tipo-elegido', 'Instance type con t2.micro elegida y el resumen a la derecha', [
+                  [23.6, 77.9, 'Así queda: t2.micro'],
+                  [70.3, 73.1, 'El Summary también dice t2.micro']
+                ])}
+                ${recuadro('sabias', 't2.micro no dice <em>Free tier eligible</em> en esta lista, y no pasa nada: en el sandbox no pagas tú. En una cuenta propia, esa etiqueta te dice qué tipos entran en la capa gratuita.')}`,
+              ver: 'Instance type: t2.micro, y en el Summary de la derecha también dice t2.micro.',
+              problemas: [['Al lanzar sale un error sobre el tipo de instancia o “not authorized”', 'Casi siempre es porque se quedó t3.micro. Regresa a este paso y elige t2.micro.']],
               sandbox: true
             },
             {
               titulo: 'Pieza 3: el par de llaves',
               html: `
                 <ol class="pasos-consola">
-                  <li>En <strong>Key pair (login)</strong> abre la lista.</li>
-                  <li>Elige <strong>Proceed without a key pair (Not recommended)</strong> (continuar sin par de llaves).</li>
+                  <li>En <strong>Key pair (login)</strong> abre la lista <em>Key pair name</em>.</li>
+                  <li>Elige <strong>Proceed without a key pair (Not recommended)</strong> (continuar sin par de llaves). Es la opción por omisión: dice <em>Default value</em>.</li>
                 </ol>
-                <p>¿Por qué? Vamos a entrar con <strong>EC2 Instance Connect</strong>, que abre la terminal en tu navegador y crea una llave temporal por ti. Así nadie pierde tiempo peleando con archivos <em>.pem</em>.</p>
+                ${captura('07-llaves', 'Lista de pares de llaves con la opción Proceed without a key pair', [[18.0, 70.9, '<strong>Proceed without a key pair</strong>']])}
+                <p>¿Por qué sin llave? Hoy no entraremos a la terminal del servidor: el sandbox no lo permite. Veremos lo que pasa adentro con su <strong>registro de arranque</strong>, en el paso 12.</p>
                 ${recuadro('tecnico', 'En un trabajo real sí crearías un par de llaves y guardarías el archivo .pem en un lugar seguro: es la llave de tu servidor.')}`,
               ver: 'Key pair: “Proceed without a key pair”.',
               sandbox: true
@@ -490,15 +568,21 @@ systemctl enable --now httpd`)}
               titulo: 'Pieza 4: la red y el grupo de seguridad',
               html: `
                 <ol class="pasos-consola">
-                  <li>En <strong>Network settings</strong> (configuración de red) deja la VPC y la subred que vienen por omisión.</li>
-                  <li>Revisa que <strong>Auto-assign public IP</strong> diga <strong>Enable</strong>. Si no se ve, pulsa ${boton('Edit', 'editar')} en esa sección para comprobarlo.</li>
-                  <li>En <strong>Firewall (security groups)</strong> deja marcado <strong>Create security group</strong>.</li>
-                  <li>Deja marcado <strong>Allow SSH traffic from</strong> <em>Anywhere 0.0.0.0/0</em>.</li>
-                  <li>Marca también <strong>Allow HTTP traffic from the internet</strong> (permitir tráfico web).</li>
+                  <li>En <strong>Network settings</strong> (configuración de red) deja la red y la subred que vienen por omisión.</li>
+                  <li>Revisa que <strong>Auto-assign public IP</strong> diga <strong>Enable</strong>. Así viene: no hay que cambiar nada.</li>
+                  <li>En <strong>Firewall (security groups)</strong> deja seleccionado <strong>Create security group</strong>.</li>
+                  <li><strong>Allow SSH traffic from</strong> viene marcado, con <em>Anywhere 0.0.0.0/0</em>. Déjalo así.</li>
+                  <li>Marca <strong>Allow HTTP traffic from the internet</strong> (permitir tráfico web). Ojo: <strong>HTTP</strong>, no HTTPS.</li>
                 </ol>
-                ${recuadro('cuidado', 'Abrir SSH a todo internet (0.0.0.0/0) está bien para un laboratorio de 45 minutos. En producción, solo se abre a las direcciones que lo necesitan.')}
+                ${captura('08-red', 'Network settings con Create security group y las casillas de SSH y HTTP marcadas', [
+                  [5.1, 34.5, 'Auto-assign public IP: <strong>Enable</strong>'],
+                  [4.9, 48.2, '<strong>Create security group</strong>'],
+                  [4.1, 60.5, 'Allow SSH traffic (ya viene marcado)'],
+                  [4.1, 77.7, '<strong>Allow HTTP traffic</strong>: márcalo tú']
+                ])}
+                ${recuadro('cuidado', 'Abrir un puerto a todo internet (0.0.0.0/0) está bien para un laboratorio de 45 minutos. En producción, solo se abre lo que se usa y a quien lo necesita: el aviso amarillo de la consola te lo recuerda.')}
                 ${recuadro('examen', 'Los grupos de seguridad solo tienen reglas para <strong>permitir</strong>; todo lo que no permites queda bloqueado. Y recuerdan las conexiones: si dejas entrar una petición, su respuesta sale sola (son <em>stateful</em>).')}`,
-              ver: 'Tres casillas: Create security group, Allow SSH traffic y Allow HTTP traffic, las tres marcadas.',
+              ver: 'Auto-assign public IP: Enable, Create security group seleccionado, y Allow SSH y Allow HTTP marcadas (Allow HTTPS no).',
               sandbox: true
             },
             {
@@ -506,77 +590,133 @@ systemctl enable --now httpd`)}
               html: `
                 <ol class="pasos-consola">
                   <li>En <strong>Configure storage</strong> deja <strong>8 GiB gp3</strong>: es el volumen EBS raíz.</li>
-                  <li>Abre <strong>Advanced details</strong> (detalles avanzados). Es una sección plegada al final del formulario.</li>
-                  <li>Baja hasta el último campo, <strong>User data</strong> (datos de usuario).</li>
-                  <li>Pega ahí el script del paso 1.</li>
+                  <li>Abre <strong>Advanced details</strong> (detalles avanzados). Es una sección plegada al final del formulario: pulsa el triángulo.</li>
+                </ol>
+                ${captura('09-disco', 'Configure storage con 8 GiB gp3 y la sección Advanced details plegada', [
+                  [11.0, 20.0, 'El disco: 8 GiB gp3'],
+                  [12.4, 93.0, '<strong>Advanced details</strong>: ábrela']
+                ])}
+                <ol class="pasos-consola" start="3" style="counter-reset: paso 2">
+                  <li>Baja hasta el último campo, <strong>User data</strong> (datos de usuario), y pega ahí el script del paso 1.</li>
+                  <li>Debajo del cuadro, la casilla <strong>User data has already been base64 encoded</strong> debe quedar <strong>sin marcar</strong>.</li>
                 </ol>
                 ${codigo(`#!/bin/bash
 dnf install -y httpd
 echo "<h1>Hola desde EC2</h1><p>Servidor de $(hostname -f)</p>" > /var/www/html/index.html
 systemctl enable --now httpd`)}
+                ${captura('10-user-data', 'El cuadro User data con el script pegado', [
+                  [23.2, 30.6, 'El script en <strong>User data</strong>'],
+                  [3.9, 92.2, 'La casilla base64: <strong>sin marcar</strong>']
+                ])}
                 ${recuadro('recuerda', 'Los datos de usuario se ejecutan <strong>una sola vez</strong>, como administrador, la primera vez que arranca la instancia.')}`,
-              ver: 'El script pegado en el cuadro User data, empezando con #!/bin/bash.',
+              ver: 'El script pegado en el cuadro User data, empezando con #!/bin/bash, y la casilla base64 sin marcar.',
+              problemas: [['Se marcó la casilla base64 y no se quita', 'Haz clic en el cuadro del script, pulsa la tecla Tab para pasar a la casilla y luego la barra espaciadora. Revisa que quede vacía.']],
               sandbox: true
             },
             {
               titulo: 'Lanza la instancia',
               html: `
                 <ol class="pasos-consola">
-                  <li>Revisa el <strong>Summary</strong> de la derecha: 1 instancia, Amazon Linux 2023, t3.micro (o t2.micro), un grupo de seguridad nuevo y 8 GiB.</li>
+                  <li>Revisa el <strong>Summary</strong> de la derecha: 1 instancia, Amazon Linux 2023, t2.micro, un grupo de seguridad nuevo y 8 GiB. Si está plegado, ábrelo con su triángulo.</li>
                   <li>Pulsa ${boton('Launch instance', 'lanzar instancia')}.</li>
+                </ol>
+                ${captura('11-resumen', 'El resumen Summary con t2.micro y el botón Launch instance', [
+                  [11.0, 48.0, 't2.micro en el resumen'],
+                  [78.5, 82.5, '<strong>Launch instance</strong>']
+                ])}
+                <ol class="pasos-consola" start="3" style="counter-reset: paso 2">
                   <li>Aparece un aviso verde de <strong>Success</strong> con el ID de tu instancia (empieza con <em>i-</em>).</li>
-                  <li>Pulsa ${boton('View all instances', 'ver todas las instancias')}.</li>
-                </ol>`,
+                  <li>Pulsa <strong>Instances</strong> en la ruta de arriba (<em>EC2 › Instances</em>) para ver tu lista.</li>
+                </ol>
+                ${captura('12-exito', 'Aviso verde Success con el ID de la instancia', [
+                  [13.6, 7.7, '<strong>Instances</strong>: te lleva a la lista'],
+                  [38.6, 57.7, 'El ID de tu instancia']
+                ])}`,
               ver: 'La lista de instancias con la tuya en estado Pending (pendiente) y, en unos segundos, Running (encendida).',
-              problemas: [['Sale “You are not authorized to perform this operation”', 'Es una restricción del sandbox. Anota el mensaje exacto, regresa al paso 6 y prueba con el otro tipo de instancia; si sigue, avísale al docente.']],
+              problemas: [['Sale “You are not authorized to perform this operation”', 'Es una restricción del sandbox. Casi siempre es el tipo de instancia: regresa al paso 6 y revisa que diga t2.micro. Si sigue, anota el mensaje exacto y avísale al docente.']],
               sandbox: true
             },
             {
               titulo: 'Visita tu página web',
               html: `
                 <ol class="pasos-consola">
-                  <li>Espera a que <strong>Instance state</strong> diga <strong>Running</strong> y <strong>Status check</strong> diga <em>2/2</em> o <em>3/3 checks passed</em>. Toma uno o dos minutos; usa el botón de refrescar (la flecha circular).</li>
-                  <li>Selecciona tu instancia (la casilla de la izquierda). Abajo se abren sus detalles.</li>
-                  <li>Copia la <strong>Public IPv4 address</strong> (dirección IPv4 pública) con el icono de copiar.</li>
-                  <li>En una pestaña nueva escribe <kbd>http://</kbd> y pega la dirección. Por ejemplo: <em>http://3.84.12.201</em>.</li>
+                  <li>Espera a que <strong>Instance state</strong> diga <strong>Running</strong> y <strong>Status check</strong> diga <em>2/2 checks passed</em>. Toma dos o tres minutos; usa el botón de refrescar (la flecha circular).</li>
+                  <li>Selecciona tu instancia con la casilla de la izquierda. Abajo se abren sus detalles.</li>
+                  <li>Anota la <strong>Public IPv4 address</strong> (dirección IPv4 pública): son cuatro números separados por puntos. Fíjate también en la columna <strong>Availability Zone</strong>: es la zona donde vive tu servidor.</li>
                 </ol>
-                ${recuadro('cuidado', 'Escribe <strong>http://</strong> a mano. Si el navegador intenta <em>https://</em>, la página no abre: nuestro servidor solo habla HTTP.')}`,
-              ver: 'Una página blanca que dice “Hola desde EC2” y el nombre interno del servidor. Tómale captura: es una de tus evidencias.',
+                ${captura('13-running', 'Lista de instancias con web-mariana en Running y sus detalles abajo', [
+                  [3.9, 25.1, 'La casilla para seleccionarla'],
+                  [69.8, 25.1, 'Status check: espera <em>2/2 checks passed</em>'],
+                  [53.2, 92.9, 'La <strong>Public IPv4 address</strong>'],
+                  [70.1, 92.9, '<em>open address</em>: no lo uses']
+                ])}
+                <ol class="pasos-consola" start="4" style="counter-reset: paso 3">
+                  <li>Abre una pestaña nueva <strong>en el navegador de tu computadora o en tu celular</strong>, fuera del escritorio del sandbox.</li>
+                  <li>Escribe <kbd>http://</kbd> y la dirección. Por ejemplo: <em>http://54.196.248.230</em>.</li>
+                </ol>
+                ${captura('14-pagina-web', 'La página Hola desde EC2 abierta en un navegador', [[27.8, 18.4, 'Escribe <strong>http://</strong> y tu IP']])}
+                ${recuadro('cuidado', 'Dentro del escritorio remoto de DataCamp la página <strong>no abre</strong> (sale <em>ERR_TIMED_OUT</em>): esa computadora no puede salir hacia tus servidores. Desde tu propio navegador sí abre. Y no uses el enlace <em>open address</em>: abre con <em>https://</em>, y nuestro servidor solo habla HTTP.')}`,
+              ver: 'Una página blanca que dice “Hola desde EC2” y el nombre interno del servidor. Tómale captura: es tu primera evidencia.',
               problemas: [
-                ['La página no carga', 'Espera un minuto más: el script instala Apache después de arrancar. Luego revisa que usaste http:// y no https://.'],
-                ['Sigue sin cargar', 'Revisa la pestaña Security de la instancia: el grupo de seguridad debe permitir HTTP (puerto 80). Si falta, se agrega desde Edit inbound rules.']
+                ['Sale ERR_TIMED_OUT o “took too long to respond”', '¿La abriste dentro del sandbox? Ábrela en el navegador de tu computadora. Si ya lo hiciste ahí, espera un minuto más: el script tarda en instalar Apache.'],
+                ['El navegador la cambia a https://', 'Escribe la dirección completa con http:// al principio. Si insiste, prueba en una ventana de incógnito o en tu celular.'],
+                ['Sigue sin cargar', 'Abre la instancia y su pestaña Security: en Inbound rules debe haber una regla para el puerto 80. Si falta, faltó marcar Allow HTTP en el paso 8.']
               ],
               sandbox: true
             },
             {
-              titulo: 'Entra a la terminal de tu servidor',
+              titulo: 'Mira por dentro: el registro de arranque',
               html: `
+                <p>¿Cómo sabes que tu script corrió? Leyendo lo que la instancia escribió al arrancar: su <strong>System log</strong> (registro del sistema).</p>
                 <ol class="pasos-consola">
-                  <li>Con tu instancia seleccionada, pulsa ${boton('Connect', 'conectar')} arriba de la lista.</li>
-                  <li>Queda abierta la pestaña <strong>EC2 Instance Connect</strong>. Deja el usuario <strong>ec2-user</strong>.</li>
-                  <li>Pulsa ${boton('Connect', 'conectar')}. Se abre una terminal negra en el navegador.</li>
-                  <li>Escribe estos comandos, uno por uno, y lee lo que responden:</li>
+                  <li>Con tu instancia seleccionada, abre ${boton('Actions', 'acciones')}.</li>
+                  <li>Pasa a <strong>Monitor and troubleshoot</strong> (monitorear y resolver problemas) y elige <strong>Get system log</strong>.</li>
                 </ol>
-                ${codigo(`whoami
-cat /etc/os-release | head -2
-df -h /
-curl -s localhost`)}
-                <p>Ahora pregúntale a la instancia <strong>en qué zona de disponibilidad vive</strong>:</p>
-                ${codigo(`TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
-curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone; echo`)}`,
-              ver: 'ec2-user, “Amazon Linux 2023”, un disco de unos 8 GB, tu página en HTML y una zona como us-east-1b. Tómale captura a la terminal: es una de tus evidencias.',
-              problemas: [['Instance Connect no conecta', 'Revisa que el grupo de seguridad permita SSH (puerto 22) desde 0.0.0.0/0 y que la instancia tenga IP pública.']],
+                ${captura('15-acciones-menu', 'Menú Actions abierto en Monitor and troubleshoot', [
+                  [87.8, 4.7, '<strong>Actions</strong>'],
+                  [74.4, 41.3, '<strong>Monitor and troubleshoot</strong>'],
+                  [16.7, 76.4, '<strong>Get system log</strong>']
+                ])}
+                <ol class="pasos-consola" start="3" style="counter-reset: paso 2">
+                  <li>Se abre <strong>Instance diagnostics</strong> en la pestaña <strong>System log</strong>. Arriba, los status checks dicen <em>Check passed</em>.</li>
+                  <li>En el registro busca las líneas de <strong>httpd</strong> y la palabra <strong>Complete!</strong>: es tu script instalando Apache.</li>
+                </ol>
+                ${captura('16-system-log', 'Instance diagnostics con el System log de la instancia', [
+                  [41.3, 7.1, 'Status checks: <em>Check passed</em>'],
+                  [28.8, 63.1, '<strong>Complete!</strong>: terminó la instalación'],
+                  [64.8, 66.6, 'El servicio <strong>httpd</strong> quedó activado']
+                ])}
+                ${recuadro('sabias', '¿Y la terminal? En una cuenta real entrarías con el botón <strong>Connect</strong>: <em>EC2 Instance Connect</em> o <em>Session Manager</em>. El sandbox de DataCamp no permite ninguno de los dos, ni CloudShell. Si pulsas Connect verás <em>SendSSHPublicKey failed</em>: no es un error tuyo.')}
+                ${recuadro('examen', '<strong>Session Manager</strong> (de AWS Systems Manager) te deja entrar a una instancia sin abrir el puerto 22 y sin llaves. <strong>EC2 Instance Connect</strong> entra por SSH con una llave temporal.')}`,
+              ver: 'Los status checks en Check passed y, en System log, las líneas de httpd con “Complete!”. Tómale captura: es tu segunda evidencia.',
+              problemas: [['El registro sale vacío', 'Tarda unos minutos en aparecer después de arrancar. Pulsa la flecha circular de refrescar junto a Copy log.']],
               sandbox: true
             },
             {
               titulo: 'Detén la instancia (Stop)',
               html: `
                 <ol class="pasos-consola">
-                  <li>Regresa a la lista de instancias. Anota la <strong>IP pública</strong> actual.</li>
-                  <li>Con tu instancia seleccionada, abre ${boton('Instance state', 'estado de la instancia')} y elige <strong>Stop instance</strong> (detener).</li>
-                  <li>Confirma con ${boton('Stop', 'detener')}.</li>
-                  <li>Espera a que diga <strong>Stopped</strong>. Fíjate: ya no tiene IP pública.</li>
+                  <li>Abre la página de tu instancia (clic en su ID) o selecciónala en la lista. Anota su <strong>IP pública</strong> actual.</li>
+                  <li>Abre ${boton('Instance state', 'estado de la instancia')} y elige <strong>Stop instance</strong> (detener).</li>
                 </ol>
+                ${captura('17-estado-menu', 'Menú Instance state abierto', [
+                  [79.6, 10.8, '<strong>Instance state</strong>'],
+                  [78.5, 24.6, '<strong>Stop instance</strong>']
+                ])}
+                <ol class="pasos-consola" start="3" style="counter-reset: paso 2">
+                  <li>Lee el aviso amarillo y confirma con ${boton('Stop', 'detener')}.</li>
+                </ol>
+                ${captura('18-stop-modal', 'Ventana Stop instance con el aviso de cobros', [
+                  [50.0, 57.1, 'El aviso: el disco EBS se sigue cobrando'],
+                  [92.5, 94.0, '<strong>Stop</strong>']
+                ])}
+                <ol class="pasos-consola" start="4" style="counter-reset: paso 3">
+                  <li>Espera a que diga <strong>Stopped</strong> (refresca con la flecha circular). Fíjate: <strong>ya no tiene IP pública</strong>.</li>
+                </ol>
+                ${captura('19-stopped', 'La instancia en estado Stopped, sin IP pública', [
+                  [54.4, 63.7, 'Instance state: <strong>Stopped</strong>'],
+                  [52.5, 53.6, 'Public IPv4 address: vacía']
+                ])}
                 <p>Detenida no cobra cómputo, pero su disco EBS sigue existiendo (y en una cuenta real, se sigue cobrando).</p>`,
               ver: 'Instance state: Stopped, sin Public IPv4 address.',
               sandbox: true
@@ -585,29 +725,52 @@ curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta
               titulo: 'Elimina la instancia (Terminate)',
               html: `
                 <ol class="pasos-consola">
-                  <li>Con tu instancia seleccionada, abre ${boton('Instance state', 'estado de la instancia')} y elige <strong>Terminate (delete) instance</strong>.</li>
-                  <li>Confirma con ${boton('Terminate (delete)', 'eliminar')}.</li>
-                  <li>Espera a que diga <strong>Terminated</strong>. Desaparecerá de la lista en un rato.</li>
-                  <li>Abre <strong>Elastic Block Store → Volumes</strong> en el menú izquierdo: el volumen de 8 GiB también se borró.</li>
+                  <li>Abre ${boton('Instance state', 'estado de la instancia')} y elige <strong>Terminate (delete) instance</strong>.</li>
                 </ol>
+                ${captura('20-terminate-menu', 'Menú Instance state con Terminate (delete) instance', [[82.5, 89.0, '<strong>Terminate (delete) instance</strong>']])}
+                <ol class="pasos-consola" start="2" style="counter-reset: paso 1">
+                  <li>Lee el aviso y confirma con ${boton('Terminate (delete)', 'eliminar')}.</li>
+                </ol>
+                ${captura('21-terminate-modal', 'Ventana Terminate (delete) instance con su aviso', [
+                  [50.0, 21.3, 'El aviso: también se borra el disco raíz'],
+                  [86.9, 93.5, '<strong>Terminate (delete)</strong>']
+                ])}
+                <ol class="pasos-consola" start="3" style="counter-reset: paso 2">
+                  <li>En la lista de instancias espera a que diga <strong>Terminated</strong>. Desaparecerá de la lista en un rato.</li>
+                </ol>
+                ${captura('22-terminated', 'La lista de instancias con web-mariana en Terminated', [[47.9, 80.7, 'Instance state: <strong>Terminated</strong>']])}
+                <ol class="pasos-consola" start="4" style="counter-reset: paso 3">
+                  <li>En el menú izquierdo abre <strong>Elastic Block Store › Volumes</strong>: el volumen de 8 GiB también se borró.</li>
+                </ol>
+                ${captura('23-volumes', 'La página Volumes sin ningún volumen', [
+                  [4.2, 94.1, '<strong>Volumes</strong> en el menú'],
+                  [84.5, 24.4, '<em>You currently have no volumes</em>']
+                ])}
                 ${recuadro('recuerda', 'Terminate no tiene vuelta atrás. En una cuenta real, lo que se te olvida terminar se sigue cobrando cada segundo.')}`,
-              ver: 'Instance state: Terminated, y ningún volumen de tu instancia en Volumes.',
+              ver: 'Instance state: Terminated, y “You currently have no volumes in this region” en Volumes.',
               sandbox: true
             },
             {
               titulo: 'Apaga el sandbox y entrega tus evidencias',
               html: `
                 <ol class="pasos-consola">
-                  <li>Regresa a DataCamp y <strong>termina la sesión del sandbox</strong> desde su panel. No basta con cerrar la consola de AWS.</li>
-                  <li>Al pulsar <strong>Terminar laboratorio</strong>, el contador se detiene solo y verás cuántos minutos gastaste.</li>
-                  <li>Revisa que tengas tus dos capturas: la página “Hola desde EC2” y la terminal con la zona de disponibilidad.</li>
+                  <li>En la barra de DataCamp pulsa <strong>Exit Session</strong> y confirma con ${boton('End Session', 'terminar sesión')}. No basta con cerrar la consola de AWS.</li>
+                </ol>
+                ${captura('24-salir', 'Aviso de DataCamp antes de terminar la sesión del sandbox', [
+                  [93.1, 4.6, '<strong>Exit Session</strong>'],
+                  [23.9, 92.7, '<strong>End Session</strong>']
+                ])}
+                <ol class="pasos-consola" start="2" style="counter-reset: paso 1">
+                  <li>El aviso lo dice claro: el sandbox es de <strong>una sola sesión</strong> y al salir se borra todo. Por eso guardas capturas.</li>
+                  <li>Al pulsar <strong>Terminar laboratorio</strong>, el contador de este curso se detiene y verás cuántos minutos gastaste.</li>
+                  <li>Revisa que tengas tus dos capturas: la página “Hola desde EC2” y el registro de arranque con “Complete!”.</li>
                 </ol>
                 ${nubi('¡Levantaste tu primer servidor en AWS! Eso es exactamente IaaS: rentaste la máquina y tú pusiste el software.', 'nubi-feliz')}`,
-              ver: 'El sandbox cerrado en DataCamp y el contador detenido.',
+              ver: 'La página Sandbox de DataCamp otra vez, y el contador de este curso detenido.',
               sandbox: false
             }
           ],
-          cierre: 'Creaste una instancia EC2 con sus seis piezas, publicaste una página web, entraste a su terminal, la detuviste y la eliminaste.'
+          cierre: 'Creaste una instancia EC2 con sus seis piezas, publicaste una página web, leíste su registro de arranque, la detuviste y la eliminaste.'
         },
         {
           id: 's1-ex-stop',

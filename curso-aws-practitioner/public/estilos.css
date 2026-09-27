@@ -2051,3 +2051,123 @@ kbd {
 .sesion__sandbox { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: .75rem; }
 .sesion__estado { justify-self: start; padding: 2px 10px; border: 2px solid var(--ink); border-radius: 999px; background: var(--white); font-family: var(--mono); font-size: .72rem; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
 .sesion--actual .sesion__estado { background: var(--yellow); }
+
+/* Capturas reales de la consola con marcas numeradas. Las marcas van en el
+   naranja de AWS para no confundirse con los números de los pasos. */
+.captura { margin: 4px 0; }
+
+.captura__marco {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: #0f1b2a;
+  box-shadow: var(--shadow);
+  cursor: zoom-in;
+}
+
+.captura__marco img, .visor__lienzo img { display: block; width: 100%; height: auto; }
+.captura__marco:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+
+/* Un anillo hueco alrededor de lo que hay que tocar (no tapa el texto) y el
+   número en una etiqueta afuera, arriba a la derecha. */
+.captura__marca {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--aws);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(22, 24, 29, .7), inset 0 0 0 2px rgba(22, 24, 29, .7);
+  transform: translate(-50%, -50%);
+  animation: latido 2.4s ease-in-out infinite;
+}
+
+.captura__marca b {
+  position: absolute;
+  top: -14px;
+  right: -16px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 2px solid #16181d;
+  border-radius: 50%;
+  background: var(--aws);
+  color: #16181d;
+  font-family: var(--mono);
+  font-size: .72rem;
+}
+
+@keyframes latido {
+  50% { border-color: #ffc56b; }
+}
+
+.captura__claves {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 0 !important;
+  list-style: none;
+  counter-reset: marca;
+  font-size: .9em;
+}
+
+.captura__claves li { position: relative; margin: 0 !important; padding-left: 32px; counter-increment: marca; }
+
+.captura__claves li::before {
+  content: counter(marca);
+  position: absolute;
+  top: 1px;
+  left: 0;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 2px solid #16181d;
+  border-radius: 50%;
+  background: var(--aws);
+  font-family: var(--mono);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.visor {
+  width: min(1500px, 96vw);
+  max-width: none;
+  max-height: 94vh;
+  padding: 44px 14px 14px;
+  overflow: auto;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.visor::backdrop { background: rgba(15, 18, 24, .82); }
+.visor__lienzo { position: relative; border: 2px solid var(--ink); border-radius: 8px; overflow: hidden; }
+.visor .captura__claves { margin-top: 12px; }
+
+.visor__cerrar {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--white);
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .captura__marca { width: 24px; height: 24px; border-width: 2px; }
+  .captura__marca b { top: -12px; right: -13px; width: 18px; height: 18px; font-size: .62rem; }
+  /* En el celular el visor muestra la captura más grande y se desliza. */
+  .visor__lienzo { width: 680px; max-width: none; }
+}

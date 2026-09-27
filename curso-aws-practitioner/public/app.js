@@ -507,6 +507,7 @@ function vistaLeccion(actividad, numeroLamina) {
     history.replaceState(null, '', `#/${actividad.id}/${i + 1}`);
     activarLamina(app);
     activarCodigo(app);
+    activarCapturas(app);
     app.querySelector('.navegacion').addEventListener('click', (e) => {
       const accion = e.target.closest('[data-accion]')?.dataset.accion;
       if (accion === 'anterior') retroceder();
@@ -1040,6 +1041,35 @@ function activarCodigo(raiz) {
   });
 }
 
+// Tocar una captura de la consola la abre en grande, con sus marcas y su pie.
+// Se cierra con Esc, con la ×, o tocando fuera de la imagen.
+function activarCapturas(raiz) {
+  raiz.querySelectorAll('[data-ampliar]').forEach((marco) =>
+    marco.addEventListener('click', () => {
+      const visor = document.createElement('dialog');
+      visor.className = 'visor';
+      visor.setAttribute('aria-label', marco.querySelector('img').alt);
+      visor.innerHTML = `
+        <button class="visor__cerrar" type="button" aria-label="Cerrar">×</button>
+        <div class="visor__lienzo">${marco.innerHTML}</div>`;
+      visor.querySelector('img').loading = 'eager';
+      const pie = marco.closest('figure').querySelector('figcaption');
+      if (pie) visor.append(pie.cloneNode(true));
+      // Las flechas no deben cambiar de paso detrás del visor.
+      visor.addEventListener('keydown', (e) => e.stopPropagation());
+      visor.addEventListener('click', (e) => {
+        if (e.target === visor || e.target.closest('.visor__cerrar')) visor.close();
+      });
+      visor.addEventListener('close', () => {
+        visor.remove();
+        marco.focus();
+      });
+      document.body.append(visor);
+      visor.showModal();
+    })
+  );
+}
+
 /* ------------------------------------------------------------ laboratorios */
 
 function vistaLaboratorio(actividad, numeroPaso) {
@@ -1109,6 +1139,7 @@ function vistaLaboratorio(actividad, numeroPaso) {
     history.replaceState(null, '', `#/${actividad.id}/${i + 1}`);
     activarLamina(app);
     activarCodigo(app);
+    activarCapturas(app);
     app.querySelector('.navegacion').addEventListener('click', (e) => {
       const accion = e.target.closest('[data-accion]')?.dataset.accion;
       if (accion === 'anterior') irAlPaso(i - 1);
