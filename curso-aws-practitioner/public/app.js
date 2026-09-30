@@ -12,6 +12,16 @@
 // copia se reintenta en el siguiente movimiento.
 
 import { CURSO, RUTA, SANDBOX } from './contenido.js';
+import {
+  almacenDuradero,
+  borrarEvidencia,
+  claveEvidencia,
+  documentoEvidencias,
+  guardarEvidencia,
+  leerEvidencia,
+  nombreArchivo,
+  prepararCaptura
+} from './evidencias.js';
 
 const PREFIJO = 'aws-practitioner:';
 const LETRAS = ['A', 'B', 'C', 'D', 'E'];
@@ -1076,19 +1086,219 @@ function vistaLaboratorio(actividad, numeroPaso) {
   const clave = `lab-${actividad.id}`;
   const hechos = new Set(leer(clave, { hechos: [] }).hechos);
   const total = actividad.pasos.length;
-  // Sin paso en la dirección, abre el primero que falte.
+  const conEvidencia = actividad.pasos.map((paso, j) => ({ paso, j })).filter(({ paso }) => paso.evidencia);
+  // Sin paso en la dirección, abre el primero que falte. Si ya terminó y el
+  // laboratorio pide evidencias, abre el último: ahí se descarga el PDF.
   const primeroQueFalta = actividad.pasos.findIndex((_, j) => !hechos.has(j));
-  let i = numeroPaso ? Math.min(Math.max(numeroPaso, 1), total) - 1 : Math.max(0, primeroQueFalta);
+  let i = numeroPaso
+    ? Math.min(Math.max(numeroPaso, 1), total) - 1
+    : primeroQueFalta < 0 && conEvidencia.length
+      ? total - 1
+      : Math.max(0, primeroQueFalta);
 
   const recordar = () => {
     guardar(clave, { hechos: [...hechos].sort((a, b) => a - b) });
     sincronizar();
   };
 
+  // Las capturas de cada alumno van aparte: en el salón la computadora se comparte.
+  const claveDe = (paso) => claveEvidencia(perfil?.id ?? 'proyector', actividad.id, paso.evidencia.id);
+  // Las miniaturas son URLs de objeto: se sueltan al cambiar de paso o de vista.
+  let miniaturas = [];
+  const soltarMiniaturas = () => {
+    miniaturas.forEach((url) => URL.revokeObjectURL(url));
+    miniaturas = [];
+  };
+  const miniatura = (blob) => {
+    const url = URL.createObjectURL(blob);
+    miniaturas.push(url);
+    return url;
+  };
+  alSalir.push(soltarMiniaturas);
+
+  // Pegar con Ctrl + V en cualquier parte del paso: es lo que hace quien usa Win + Shift + S.
+  const alPegar = (e) => {
+    const paso = actividad.pasos[i];
+    if (!paso.evidencia) return;
+    const archivo = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
+    if (!archivo) return;
+    e.preventDefault();
+    recibirCaptura(paso, archivo);
+  };
+  document.addEventListener('paste', alPegar);
+  alSalir.push(() => document.removeEventListener('paste', alPegar));
+
+  function cajaEvidencia(paso) {
+    return `
+      <section class="evidencia" aria-labelledby="evidencia-titulo" data-evidencia>
+        <p class="evidencia__etiqueta">Tu evidencia · para tu PDF de Blackboard</p>
+        <h2 class="evidencia__titulo" id="evidencia-titulo">${escapar(paso.evidencia.titulo)}</h2>
+        <p class="evidencia__pide"><strong>Debe verse:</strong> ${escapar(paso.evidencia.pide)}</p>
+        <div class="evidencia__zona" data-zona><p class="evidencia__cargando">Buscando tu captura…</p></div>
+        <input type="file" accept="image/*" hidden data-archivo>
+        <p class="evidencia__estado" role="status" aria-live="polite" data-estado></p>
+      </section>`;
+  }
+
+  async function pintarEvidencia(paso) {
+    const caja = app.querySelector('[data-evidencia]');
+    if (!caja) return;
+    const zona = caja.querySelector('[data-zona]');
+    const registro = await leerEvidencia(claveDe(paso)).catch(() => null);
+    // Si mientras leía cambió de paso, esta caja ya no existe.
+    if (!caja.isConnected) return;
+    const duradero = await almacenDuradero();
+    zona.classList.toggle('evidencia__zona--lista', Boolean(registro));
+    zona.innerHTML = registro
+      ? `
+        <img class="evidencia__imagen" src="${miniatura(registro.blob)}" width="${registro.ancho}" height="${registro.alto}" alt="Tu captura para: ${escapar(paso.evidencia.titulo)}">
+        <div class="evidencia__datos">
+          <p><span class="pildora-hecho">Guardada</span> ${escapar(registro.nombre)} · ${escapar(fechaHora(registro.fecha))}</p>
+          <div class="evidencia__acciones">
+            <button class="boton boton--sutil boton--chico" type="button" data-elegir>Cambiarla</button>
+            <button class="boton boton--peligro boton--chico" type="button" data-quitar>Quitarla</button>
+          </div>
+        </div>`
+      : `
+        <svg class="icono evidencia__icono" aria-hidden="true"><use href="#i-imagen"></use></svg>
+        <p><strong>Pega tu captura con Ctrl + V</strong>, arrástrala aquí o</p>
+        <button class="boton boton--chico" type="button" data-elegir>Elige una imagen</button>
+        <p class="evidencia__nota">${
+          duradero
+            ? 'Se guarda solo en este navegador. Nadie la ve hasta que subas tu PDF.'
+            : 'Este navegador no deja guardarla: no cierres la pestaña hasta descargar tu PDF.'
+        }</p>`;
+  }
+
+  async function recibirCaptura(paso, archivo) {
+    const estado = app.querySelector('[data-estado]');
+    if (estado) estado.textContent = 'Guardando tu captura…';
+    try {
+      const registro = await prepararCaptura(archivo);
+      await guardarEvidencia(claveDe(paso), registro);
+      if (estado) estado.textContent = 'Listo: tu captura quedó guardada.';
+      soltarMiniaturas();
+      await pintarEvidencia(paso);
+      pintarEntrega();
+    } catch (error) {
+      if (estado) estado.textContent = error.message || 'No se pudo guardar la captura. Inténtalo de nuevo.';
+    }
+  }
+
+  function activarEvidencia(paso) {
+    const caja = app.querySelector('[data-evidencia]');
+    if (!caja) return;
+    const entrada = caja.querySelector('[data-archivo]');
+    caja.addEventListener('click', async (e) => {
+      if (e.target.closest('[data-elegir]')) entrada.click();
+      if (e.target.closest('[data-quitar]')) {
+        await borrarEvidencia(claveDe(paso));
+        soltarMiniaturas();
+        caja.querySelector('[data-estado]').textContent = 'Quitaste la captura.';
+        await pintarEvidencia(paso);
+        caja.querySelector('[data-elegir]')?.focus();
+      }
+    });
+    entrada.addEventListener('change', () => {
+      if (entrada.files[0]) recibirCaptura(paso, entrada.files[0]);
+      entrada.value = '';
+    });
+    const zona = caja.querySelector('[data-zona]');
+    zona.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      zona.classList.add('evidencia__zona--encima');
+    });
+    zona.addEventListener('dragleave', () => zona.classList.remove('evidencia__zona--encima'));
+    zona.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zona.classList.remove('evidencia__zona--encima');
+      const archivo = [...(e.dataTransfer?.files ?? [])][0];
+      if (archivo) recibirCaptura(paso, archivo);
+    });
+    pintarEvidencia(paso);
+  }
+
+  // En el último paso: las evidencias juntas y el botón del PDF.
+  const cajaEntrega = () => `
+    <section class="entrega-evidencias" aria-labelledby="entrega-titulo" data-entrega>
+      <h2 class="entrega-evidencias__titulo" id="entrega-titulo">Tu PDF de evidencias</h2>
+      <p>Descárgalo y súbelo a Blackboard. Se arma aquí, en tu navegador, con las capturas que pegaste.</p>
+      <ol class="entrega-evidencias__lista" data-lista></ol>
+      <button class="boton boton--primario" type="button" data-descargar disabled>Descargar mi PDF de evidencias</button>
+      <p class="evidencia__estado" role="status" aria-live="polite" data-estado-entrega></p>
+    </section>`;
+
+  async function pintarEntrega() {
+    const caja = app.querySelector('[data-entrega]');
+    if (!caja) return;
+    const registros = await Promise.all(conEvidencia.map(({ paso }) => leerEvidencia(claveDe(paso)).catch(() => null)));
+    if (!caja.isConnected) return;
+    caja.querySelector('[data-lista]').innerHTML = conEvidencia
+      .map(({ paso, j }, k) => {
+        const registro = registros[k];
+        return `<li class="${registro ? 'lista' : 'falta'}">
+          ${registro ? `<img src="${miniatura(registro.blob)}" alt="" width="${registro.ancho}" height="${registro.alto}">` : '<span class="entrega-evidencias__vacio" aria-hidden="true">?</span>'}
+          <span><strong>${escapar(paso.evidencia.titulo)}</strong><br>${
+            registro ? 'Lista' : `Falta · <a href="#/${actividad.id}/${j + 1}">vuelve al paso ${j + 1}</a>`
+          }</span>
+        </li>`;
+      })
+      .join('');
+    const faltan = registros.filter((r) => !r).length;
+    const boton = caja.querySelector('[data-descargar]');
+    boton.disabled = faltan > 0 || !perfil;
+    caja.querySelector('[data-estado-entrega]').textContent = !perfil
+      ? 'En el proyector no se arma el PDF: cada alumno lo descarga en su computadora.'
+      : faltan
+        ? `Te ${faltan === 1 ? 'falta 1 captura' : `faltan ${faltan} capturas`} para poder descargarlo.`
+        : '';
+  }
+
+  async function descargarPdf(boton) {
+    const estado = app.querySelector('[data-estado-entrega]');
+    boton.disabled = true;
+    estado.textContent = 'Armando tu PDF…';
+    try {
+      const evidencias = [];
+      for (const { paso, j } of conEvidencia) {
+        const registro = await leerEvidencia(claveDe(paso));
+        if (!registro) throw new Error(`Falta la captura del paso ${j + 1}.`);
+        evidencias.push({
+          paso: j + 1,
+          tituloPaso: paso.titulo,
+          titulo: paso.evidencia.titulo,
+          pide: paso.evidencia.pide,
+          captura: { ...registro, bytes: new Uint8Array(await registro.blob.arrayBuffer()) }
+        });
+      }
+      const bytes = documentoEvidencias({
+        curso: CURSO.titulo,
+        sesion: CURSO.subtitulo,
+        laboratorio: actividad.titulo,
+        alumno: perfil,
+        evidencias,
+        fecha: new Date().toISOString()
+      });
+      const enlace = document.createElement('a');
+      enlace.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      enlace.download = nombreArchivo(perfil, actividad.id);
+      document.body.append(enlace);
+      enlace.click();
+      enlace.remove();
+      setTimeout(() => URL.revokeObjectURL(enlace.href), 30000);
+      estado.textContent = `Listo: se descargó ${enlace.download}. Súbelo a Blackboard.`;
+    } catch (error) {
+      estado.textContent = error.message || 'No se pudo armar el PDF. Inténtalo de nuevo.';
+    } finally {
+      boton.disabled = false;
+    }
+  }
+
   function mostrar(enfocar = false) {
     const paso = actividad.pasos[i];
     const ultimo = i === total - 1;
     if (paso.sandbox) encenderSandbox();
+    soltarMiniaturas();
 
     app.innerHTML = `
       ${barraActividad(actividad)}
@@ -1115,6 +1325,7 @@ function vistaLaboratorio(actividad, numeroPaso) {
           <div class="lamina__cuerpo">
             ${paso.html}
             <div class="deberias-ver"><span class="deberias-ver__etiqueta">Deberías ver</span><p>${paso.ver}</p></div>
+            ${paso.evidencia ? cajaEvidencia(paso) : ''}
             ${
               paso.problemas
                 ? `<details class="problemas"><summary>¿Algo salió mal?</summary><dl>${paso.problemas
@@ -1122,6 +1333,7 @@ function vistaLaboratorio(actividad, numeroPaso) {
                     .join('')}</dl></details>`
                 : ''
             }
+            ${ultimo && conEvidencia.length ? cajaEntrega() : ''}
           </div>
         </article>
       </main>
@@ -1140,6 +1352,11 @@ function vistaLaboratorio(actividad, numeroPaso) {
     activarLamina(app);
     activarCodigo(app);
     activarCapturas(app);
+    if (paso.evidencia) activarEvidencia(paso);
+    if (ultimo && conEvidencia.length) {
+      app.querySelector('[data-descargar]').addEventListener('click', (e) => descargarPdf(e.currentTarget));
+      pintarEntrega();
+    }
     app.querySelector('.navegacion').addEventListener('click', (e) => {
       const accion = e.target.closest('[data-accion]')?.dataset.accion;
       if (accion === 'anterior') irAlPaso(i - 1);
@@ -1156,7 +1373,19 @@ function vistaLaboratorio(actividad, numeroPaso) {
     mostrar(true);
   }
 
-  function marcar() {
+  // Sin su captura no se avanza: al cerrar el sandbox se borra todo y ya no
+  // habría de dónde sacarla. En el proyector no se exige.
+  async function marcar() {
+    const paso = actividad.pasos[i];
+    if (paso.evidencia && !PROYECTOR && !(await leerEvidencia(claveDe(paso)).catch(() => null))) {
+      aviso('Primero pega tu captura');
+      const caja = app.querySelector('[data-evidencia]');
+      caja?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const estado = caja?.querySelector('[data-estado]');
+      if (estado) estado.textContent = 'Falta tu captura. Tómala antes de seguir: al cerrar el sandbox ya no podrás.';
+      caja?.querySelector('[data-elegir]')?.focus({ preventScroll: true });
+      return;
+    }
     hechos.add(i);
     recordar();
     irAlPaso(i + 1);

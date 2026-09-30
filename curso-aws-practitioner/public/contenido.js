@@ -11,6 +11,8 @@
 //   'opcion'      — opción múltiple con una sola respuesta correcta.
 //   'clasificar'  — mandar cada ficha a su grupo (también sirve para V/F).
 //   'laboratorio' — pasos en la consola de AWS; cada paso se marca al hacerlo.
+//                   Un paso con `evidencia` pide una captura: el alumno la pega
+//                   ahí mismo y al final descarga un PDF para Blackboard.
 //
 // Los nombres de botones de la consola van en inglés, como los ve el alumno, y
 // su traducción entre paréntesis. Datos del examen verificados en septiembre de
@@ -437,7 +439,7 @@ export const CURSO = {
             'Tu sesión de DataCamp abierta (el sandbox todavía apagado).',
             'Esta guía abierta en otra pestaña o en tu celular.',
             'Unos 45 minutos de sandbox.',
-            'Una forma de tomar capturas de pantalla.'
+            'Una forma de tomar capturas de pantalla. En Windows: Win + Shift + S, y la pegas en el paso con Ctrl + V.'
           ],
           pasos: [
             {
@@ -657,6 +659,11 @@ systemctl enable --now httpd`)}
                 ${captura('14-pagina-web', 'La página Hola desde EC2 abierta en un navegador', [[27.8, 18.4, 'Escribe <strong>http://</strong> y tu IP']])}
                 ${recuadro('cuidado', 'Dentro del escritorio remoto de DataCamp la página <strong>no abre</strong> (sale <em>ERR_TIMED_OUT</em>): esa computadora no puede salir hacia tus servidores. Desde tu propio navegador sí abre. Y no uses el enlace <em>open address</em>: abre con <em>https://</em>, y nuestro servidor solo habla HTTP.')}`,
               ver: 'Una página blanca que dice “Hola desde EC2” y el nombre interno del servidor. Tómale captura: es tu primera evidencia.',
+              evidencia: {
+                id: 'pagina-web',
+                titulo: 'Tu página “Hola desde EC2”',
+                pide: 'La página “Hola desde EC2” abierta en tu navegador, con la dirección http:// y la IP pública de tu instancia a la vista.'
+              },
               problemas: [
                 ['Sale ERR_TIMED_OUT o “took too long to respond”', '¿La abriste dentro del sandbox? Ábrela en el navegador de tu computadora. Si ya lo hiciste ahí, espera un minuto más: el script tarda en instalar Apache.'],
                 ['El navegador la cambia a https://', 'Escribe la dirección completa con http:// al principio. Si insiste, prueba en una ventana de incógnito o en tu celular.'],
@@ -689,6 +696,11 @@ systemctl enable --now httpd`)}
                 ${recuadro('sabias', '¿Y la terminal? En una cuenta real entrarías con el botón <strong>Connect</strong>: <em>EC2 Instance Connect</em> o <em>Session Manager</em>. El sandbox de DataCamp no permite ninguno de los dos, ni CloudShell. Si pulsas Connect verás <em>SendSSHPublicKey failed</em>: no es un error tuyo.')}
                 ${recuadro('examen', '<strong>Session Manager</strong> (de AWS Systems Manager) te deja entrar a una instancia sin abrir el puerto 22 y sin llaves. <strong>EC2 Instance Connect</strong> entra por SSH con una llave temporal.')}`,
               ver: 'Los status checks en Check passed y, en System log, las líneas de httpd con “Complete!”. Tómale captura: es tu segunda evidencia.',
+              evidencia: {
+                id: 'system-log',
+                titulo: 'El registro de arranque',
+                pide: 'Instance diagnostics con los status checks en Check passed y, en el System log, las líneas de httpd con “Complete!”.'
+              },
               problemas: [['El registro sale vacío', 'Tarda unos minutos en aparecer después de arrancar. Pulsa la flecha circular de refrescar junto a Copy log.']],
               sandbox: true
             },
@@ -763,7 +775,7 @@ systemctl enable --now httpd`)}
                 <ol class="pasos-consola" start="2" style="counter-reset: paso 1">
                   <li>El aviso lo dice claro: el sandbox es de <strong>una sola sesión</strong> y al salir se borra todo. Por eso guardas capturas.</li>
                   <li>Al pulsar <strong>Terminar laboratorio</strong>, el contador de este curso se detiene y verás cuántos minutos gastaste.</li>
-                  <li>Revisa que tengas tus dos capturas: la página “Hola desde EC2” y el registro de arranque con “Complete!”.</li>
+                  <li>Abajo están tus dos capturas: la página “Hola desde EC2” y el registro de arranque con “Complete!”. Descarga tu <strong>PDF de evidencias</strong>: ese archivo es el que subes a Blackboard.</li>
                 </ol>
                 ${nubi('¡Levantaste tu primer servidor en AWS! Eso es exactamente IaaS: rentaste la máquina y tú pusiste el software.', 'nubi-feliz')}`,
               ver: 'La página Sandbox de DataCamp otra vez, y el contador de este curso detenido.',

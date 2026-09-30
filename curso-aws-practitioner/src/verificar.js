@@ -84,6 +84,18 @@ for (const a of actividades) {
       if (typeof paso.sandbox !== 'boolean') falla(`${a.id}: el paso ${n + 1} no dice si necesita el sandbox`);
     }
     if (a.pasos?.at(-1)?.sandbox) falla(`${a.id}: el último paso debería ser apagar el sandbox`);
+    // Evidencias: cada una con su id, qué es y qué debe verse; el último paso
+    // arma el PDF, así que ahí no se pide captura.
+    const idsEvidencia = new Set();
+    for (const [n, paso] of (a.pasos ?? []).entries()) {
+      if (!paso.evidencia) continue;
+      const { id, titulo, pide } = paso.evidencia;
+      if (!id || !titulo || !pide) falla(`${a.id}: la evidencia del paso ${n + 1} necesita id, titulo y pide`);
+      if (idsEvidencia.has(id)) falla(`${a.id}: la evidencia "${id}" se repite`);
+      idsEvidencia.add(id);
+    }
+    if (a.pasos?.at(-1)?.evidencia) falla(`${a.id}: el último paso arma el PDF, no puede pedir captura`);
+    if (idsEvidencia.size) console.log(`  ${a.id}: ${idsEvidencia.size} evidencias para el PDF (${[...idsEvidencia].join(', ')})`);
   } else if (a.tipo === 'clasificar') {
     const grupos = new Set(a.grupos.map((g) => g.id));
     for (const f of a.fichas) {
