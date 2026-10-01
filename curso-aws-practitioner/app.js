@@ -2,9 +2,9 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-import { CURSO } from './public/contenido.js';
+import { CURSO, SESIONES, sesionDe } from './public/contenido.js';
 import { almacen } from './src/almacen.js';
-import { CASO, PREGUNTAS, REPASO, TEMAS, practicaPublica, calificar } from './src/practica.js';
+import { BANCOS, sesionValida } from './src/practicas.js';
 import { reporteDominio } from './src/reporte-pdf.js';
 import { resumirPractica } from './src/estadisticas.js';
 import { crearEnrutador, enviarDescarga, enviarJson, fallo, leerJson, servirArchivos } from './src/servidor.js';
@@ -24,15 +24,18 @@ const ZONA_HORARIA = process.env.ZONA_HORARIA || 'America/Mexico_City';
 // Un alumno cuenta como "activo" si su navegador dio señales hace poco.
 const VENTANA_ACTIVO_MS = 2 * 60 * 1000;
 
-const XP_MAXIMA = new Map(CURSO.capitulos.flatMap((c) => c.actividades).map((a) => [a.id, a.xp]));
+// Todas las actividades de todas las sesiones: el avance del alumno es uno solo.
+const actividadesDe = (sesion) => sesion.capitulos.flatMap((c) => c.actividades);
+const TODAS = SESIONES.flatMap(actividadesDe);
+const XP_MAXIMA = new Map(TODAS.map((a) => [a.id, a.xp]));
 const TITULOS = new Map(
-  CURSO.capitulos.flatMap((c) => c.actividades.map((a) => [a.id, `${a.titulo} (capítulo ${c.numero})`]))
+  SESIONES.flatMap((s) =>
+    s.capitulos.flatMap((c) => c.actividades.map((a) => [a.id, `${a.titulo} (sesión ${s.numero}, capítulo ${c.numero})`]))
+  )
 );
-const TOTAL_ACTIVIDADES = XP_MAXIMA.size;
 // Cuántos pasos tiene cada laboratorio, para validar lo que manda el navegador.
-const PASOS_LAB = new Map(
-  CURSO.capitulos.flatMap((c) => c.actividades).filter((a) => a.tipo === 'laboratorio').map((a) => [a.id, a.pasos.length])
-);
+const PASOS_LAB = new Map(TODAS.filter((a) => a.tipo === 'laboratorio').map((a) => [a.id, a.pasos.length]));
+const NUMEROS = SESIONES.map((s) => s.numero);
 
 /**
  * Construye el manejador del curso sin ponerlo a escuchar.
@@ -94,7 +97,14 @@ export function crearApp() {
     return limpios;
   }
 
-  function respuestasValidas(datos) {
+  /** La sesión que pide el navegador; sin número, la 1 (así llegaban antes). */
+  function sesionPedida(valor) {
+    const n = sesionValida(valor);
+    if (n === null) throw fallo(400, 'Esa sesión no existe');
+    return n;
+  }
+
+  function respuestasValidas(datos, { PREGUNTAS }) {
     const limpias = {};
     for (const p of PREGUNTAS) {
       const i = datos?.[p.id];
@@ -111,9 +121,10 @@ export function crearApp() {
   };
 
   function resultadoPara(e) {
-    const base = { folio: e.folio, fin: e.fin, nombre: e.nombre, matricula: e.matricula, grupo: e.grupo };
+    const base = { sesion: e.sesion, folio: e.folio, fin: e.fin, nombre: e.nombre, matricula: e.matricula, grupo: e.grupo };
     if (RETRO === 'nada') return base;
 
+    const { PREGUNTAS, TEMAS, calificar } = BANCOS.get(e.sesion);
     const { detalle } = calificar(e.respuestas);
     const porcentaje = Math.round((e.aciertos / e.total) * 100);
     return {
@@ -148,7 +159,12 @@ export function crearApp() {
   app.get('/api/estado', (req, res, { query }) => {
     // Solo cuenta la señal de quien ya se registró: nadie llena la memoria con ids inventados.
     if (idValido(query.a) && almacen.existe(query.a)) vistos.set(query.a, Date.now());
-    enviarJson(res, 200, { materia: MATERIA, practicaAbierta: almacen.practicaAbierta() });
+    const sesion = sesionValida(query.s) ?? 1;
+    enviarJson(res, 200, {
+      materia: MATERIA,
+      practicaAbierta: almacen.practicaAbierta(sesion),
+      practicas: almacen.practicasAbiertas(NUMEROS)
+    });
   });
 
   // El navegador manda su avance completo cada vez: si el servidor se reinició
@@ -156,44 +172,50 @@ export function crearApp() {
   app.post('/api/progreso', async (req, res) => {
     const cuerpo = await leerJson(req);
     alumnoDe(cuerpo, completadosValidos(cuerpo.completados), pasosValidos(cuerpo.pasos));
-    enviarJson(res, 200, { guardado: true, practicaAbierta: almacen.practicaAbierta() });
+    enviarJson(res, 200, { guardado: true, practicas: almacen.practicasAbiertas(NUMEROS) });
   });
 
   // El caso sin preguntas: es lo que se proyecta en el salón.
-  app.get('/api/caso', (req, res) => enviarJson(res, 200, { caso: CASO }));
+  app.get('/api/caso', (req, res, { query }) => enviarJson(res, 200, { caso: BANCOS.get(sesionPedida(query.s)).CASO }));
 
   app.post('/api/practica', async (req, res) => {
-    const alumno = alumnoDe(await leerJson(req));
-    const entrega = almacen.entregaDe(alumno);
+    const cuerpo = await leerJson(req);
+    const sesion = sesionPedida(cuerpo.sesion);
+    const alumno = alumnoDe(cuerpo);
+    const entrega = almacen.entregaDe(alumno, sesion);
     if (entrega) return enviarJson(res, 200, { estado: 'entregada', resultado: resultadoPara(entrega) });
-    if (!almacen.practicaAbierta()) return enviarJson(res, 200, { estado: 'cerrada' });
+    if (!almacen.practicaAbierta(sesion)) return enviarJson(res, 200, { estado: 'cerrada' });
 
-    almacen.iniciarPractica(alumno.id);
+    almacen.iniciarPractica(alumno.id, sesion);
+    const { CASO, practicaPublica } = BANCOS.get(sesion);
     enviarJson(res, 200, { estado: 'abierta', caso: CASO, preguntas: practicaPublica() });
   });
 
   app.post('/api/practica/entregar', async (req, res) => {
     const cuerpo = await leerJson(req);
+    const sesion = sesionPedida(cuerpo.sesion);
     const alumno = alumnoDe(cuerpo);
 
-    const previa = almacen.entregaDe(alumno);
+    const previa = almacen.entregaDe(alumno, sesion);
     if (previa) {
       return enviarJson(res, 409, { error: 'Ya habías entregado esta práctica', resultado: resultadoPara(previa) });
     }
-    if (!almacen.practicaAbierta()) {
+    if (!almacen.practicaAbierta(sesion)) {
       return enviarJson(res, 423, { error: 'La práctica ya está cerrada. Avísale a tu docente' });
     }
 
-    const respuestas = respuestasValidas(cuerpo.respuestas);
-    const { aciertos, total } = calificar(respuestas);
+    const banco = BANCOS.get(sesion);
+    const respuestas = respuestasValidas(cuerpo.respuestas, banco);
+    const { aciertos, total } = banco.calificar(respuestas);
     const id = randomUUID();
     const entrega = {
       id,
+      sesion,
       alumnoId: alumno.id,
       nombre: alumno.nombre,
       matricula: alumno.matricula,
       grupo: alumno.grupo,
-      inicio: alumno.inicioPractica ?? null,
+      inicio: alumno.inicioPracticas?.[sesion] ?? null,
       fin: new Date().toISOString(),
       respuestas,
       aciertos,
@@ -208,12 +230,15 @@ export function crearApp() {
   // solo conoce su navegador; si entregó desde otro celular, se encuentra igual.
   app.get('/api/practica/reporte.pdf', (req, res, { query }) => {
     if (RETRO === 'nada') return enviarJson(res, 403, { error: 'Los resultados se revisan en clase' });
+    const sesion = sesionPedida(query.s);
     const alumno = idValido(query.a) ? almacen.alumno(query.a) : null;
-    const entrega = alumno && almacen.entregaDe(alumno);
+    const entrega = alumno && almacen.entregaDe(alumno, sesion);
     if (!entrega) return enviarJson(res, 404, { error: 'No encontré tu práctica entregada' });
 
+    const { PREGUNTAS, TEMAS, REPASO, calificar } = BANCOS.get(sesion);
+    const datosSesion = sesionDe(sesion);
     // Cómo le fue al grupo, contando las entregas que hay en este momento.
-    const delGrupo = almacen.entregas(entrega.grupo).map((e) => calificar(e.respuestas).detalle);
+    const delGrupo = almacen.entregas(entrega.grupo, sesion).map((e) => calificar(e.respuestas).detalle);
     const aciertoGrupo = (filtro) => {
       const casos = delGrupo.flat().filter(filtro);
       return casos.length ? Math.round((casos.filter((d) => d.correcta).length / casos.length) * 100) : 0;
@@ -234,11 +259,11 @@ export function crearApp() {
       repaso: Object.fromEntries(Object.entries(REPASO).map(([t, ids]) => [t, ids.map((id) => TITULOS.get(id))])),
       conRespuestas: RETRO === 'completo',
       materia: MATERIA,
-      etiqueta: CURSO.practica.titulo,
-      curso: `${CURSO.titulo} · ${CURSO.subtitulo}`,
+      etiqueta: datosSesion.practica.titulo,
+      curso: `${CURSO.titulo} · ${datosSesion.subtitulo}`,
       fecha: new Date(entrega.fin).toLocaleString('es-MX', { timeZone: ZONA_HORARIA, dateStyle: 'long', timeStyle: 'short' })
     });
-    enviarDescarga(res, `reporte-${entrega.folio}.pdf`, 'application/pdf', pdf);
+    enviarDescarga(res, `reporte-sesion${sesion}-${entrega.folio}.pdf`, 'application/pdf', pdf);
   });
 
   // --------------------------------------------------------------- docente
@@ -258,13 +283,14 @@ export function crearApp() {
     '/api/docente/resumen',
     soloDocente((req, res, { query }) => {
       const grupo = grupoPedido(query);
+      const sesion = sesionPedida(query.sesion);
       const ahora = Date.now();
-      const entregas = almacen.entregas(grupo);
+      const entregas = almacen.entregas(grupo, sesion);
 
       const alumnos = almacen.alumnos(grupo).map((a) => {
         // Si entró desde varios celulares, cuenta la señal más reciente de cualquiera.
         const visto = Math.max(0, ...a.ids.map((id) => vistos.get(id) ?? 0)) || null;
-        const e = almacen.entregaDe(a);
+        const e = almacen.entregaDe(a, sesion);
         return {
           id: a.id,
           nombre: a.nombre,
@@ -290,12 +316,13 @@ export function crearApp() {
 
       enviarJson(res, 200, {
         materia: MATERIA,
-        practicaAbierta: almacen.practicaAbierta(),
+        sesion,
+        practicaAbierta: almacen.practicaAbierta(sesion),
         grupos: almacen.grupos(),
-        totalActividades: TOTAL_ACTIVIDADES,
+        totalActividades: actividadesDe(sesionDe(sesion)).length,
         pasosLaboratorio: Object.fromEntries(PASOS_LAB),
         alumnos,
-        practica: resumirPractica(entregas),
+        practica: resumirPractica(entregas, BANCOS.get(sesion)),
         generado: new Date(ahora).toISOString()
       });
     })
@@ -304,16 +331,19 @@ export function crearApp() {
   app.put(
     '/api/docente/practica',
     soloDocente(async (req, res) => {
-      const { abierta } = await leerJson(req);
-      almacen.abrirPractica(abierta === true);
-      enviarJson(res, 200, { practicaAbierta: almacen.practicaAbierta() });
+      const { abierta, sesion: pedida } = await leerJson(req);
+      const sesion = sesionPedida(pedida);
+      almacen.abrirPractica(sesion, abierta === true);
+      enviarJson(res, 200, { practicaAbierta: almacen.practicaAbierta(sesion) });
     })
   );
 
   app.delete(
     '/api/docente/entregas/:alumnoId',
-    soloDocente((req, res, { params }) => {
-      if (!almacen.borrarEntrega(params.alumnoId)) return enviarJson(res, 404, { error: 'Ese alumno no tenía entrega' });
+    soloDocente((req, res, { params, query }) => {
+      if (!almacen.borrarEntrega(params.alumnoId, sesionPedida(query.sesion))) {
+        return enviarJson(res, 404, { error: 'Ese alumno no tenía entrega' });
+      }
       enviarJson(res, 200, { borrada: true });
     })
   );
@@ -327,6 +357,8 @@ export function crearApp() {
     '/api/docente/datos.csv',
     soloDocente((req, res, { query }) => {
       const grupo = grupoPedido(query);
+      const sesion = sesionPedida(query.sesion);
+      const actividades = actividadesDe(sesionDe(sesion));
       const fecha = (iso) => (iso ? new Date(iso).toLocaleString('es-MX', { timeZone: ZONA_HORARIA }) : '');
       const celda = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
@@ -334,14 +366,16 @@ export function crearApp() {
         .alumnos(grupo)
         .sort((a, b) => a.grupo.localeCompare(b.grupo) || a.nombre.localeCompare(b.nombre, 'es'))
         .map((a) => {
-          const e = almacen.entregaDe(a);
+          const e = almacen.entregaDe(a, sesion);
           const porcentaje = e ? Math.round((e.aciertos / e.total) * 1000) / 10 : '';
+          const hechas = actividades.filter((act) => a.completados[act.id] !== undefined);
           return [
             a.nombre,
             a.matricula,
             a.grupo,
-            Object.values(a.completados).reduce((s, x) => s + x, 0),
-            `${Object.keys(a.completados).length}/${TOTAL_ACTIVIDADES}`,
+            sesion,
+            hechas.reduce((s, act) => s + a.completados[act.id], 0),
+            `${hechas.length}/${actividades.length}`,
             e?.aciertos ?? '',
             e?.total ?? '',
             porcentaje,
@@ -352,13 +386,13 @@ export function crearApp() {
         });
 
       const csv = [
-        ['nombre', 'matricula', 'grupo', 'xp', 'actividades', 'practica_aciertos', 'practica_total', 'practica_porcentaje', 'calificacion', 'folio', 'entregada'],
+        ['nombre', 'matricula', 'grupo', 'sesion', 'xp', 'actividades', 'practica_aciertos', 'practica_total', 'practica_porcentaje', 'calificacion', 'folio', 'entregada'],
         ...filas
       ]
         .map((fila) => fila.map(celda).join(','))
         .join('\n');
 
-      const nombre = `aws-practitioner-${(grupo || 'todos').replace(/[^\w-]+/g, '-').toLowerCase()}.csv`;
+      const nombre = `aws-practitioner-sesion${sesion}-${(grupo || 'todos').replace(/[^\w-]+/g, '-').toLowerCase()}.csv`;
       // El BOM hace que Excel abra los acentos bien.
       enviarDescarga(res, nombre, 'text/csv; charset=utf-8', '﻿' + csv);
     })

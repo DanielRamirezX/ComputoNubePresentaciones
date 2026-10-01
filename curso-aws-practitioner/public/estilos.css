@@ -2295,3 +2295,33 @@ kbd {
   /* En el celular el visor muestra la captura más grande y se desliza. */
   .visor__lienzo { width: 680px; max-width: none; }
 }
+
+/* Pestañas de sesión arriba del índice: una tarjeta por sesión construida. */
+.sesiones {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.sesiones__boton {
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  color: inherit;
+  text-decoration: none;
+}
+
+.sesiones__boton:hover { border-color: var(--ink); }
+.sesiones__boton:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.sesiones__boton[aria-current="page"] { border-color: var(--ink); background: var(--yellow-soft); box-shadow: var(--shadow); }
+.sesiones__numero { color: var(--muted); font-family: var(--mono); font-size: .72rem; font-weight: 700; text-transform: uppercase; }
+.sesiones__titulo { font-family: var(--display); font-weight: 700; line-height: 1.2; }
+.sesiones__avance { display: inline-flex; align-items: center; gap: 4px; color: var(--green-text); font-family: var(--mono); font-size: .78rem; font-weight: 700; }
+.sesiones__avance .icono { width: 14px; height: 14px; }
+
+.sesion--lista:not(.sesion--actual) .sesion__numero { background: var(--ink); }
+.sesion h3 a { color: inherit; }

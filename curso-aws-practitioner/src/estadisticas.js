@@ -1,5 +1,3 @@
-import { PREGUNTAS, TEMAS } from './practica.js';
-
 // Mismo umbral que el examen diagnóstico: debajo de 60 % se pinta en rojo.
 export const APROBATORIO = 60;
 
@@ -24,8 +22,9 @@ function mediana(valores) {
  * Todo lo que necesita la pestaña "Práctica final" del panel: promedio,
  * reparto, dominio por tema y, por pregunta, cuántos eligieron cada opción
  * (el distractor más elegido dice qué confusión repasar en el cierre).
+ * `banco` es el examen de la sesión: sus PREGUNTAS y sus TEMAS.
  */
-export function resumirPractica(entregas) {
+export function resumirPractica(entregas, { PREGUNTAS, TEMAS }) {
   const calificaciones = entregas.map((e) => pct(e.aciertos, e.total));
   const n = entregas.length;
 

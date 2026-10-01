@@ -25,7 +25,23 @@ const ARCHIVO = path.join(DIR, 'aws-practitioner.json');
 // Un tope generoso para que nadie llene la memoria del servidor a propósito.
 const MAX_ALUMNOS = 3000;
 
-const vacio = () => ({ version: 1, practicaAbierta: false, alumnos: {}, entregas: {} });
+// Cada sesión de la ruta tiene su propio examen: si está abierto y sus entregas.
+const vacio = () => ({ version: 2, alumnos: {}, practicas: {} });
+
+/** El archivo de cuando la ruta tenía una sola sesión: todo era de la sesión 1. */
+function migrar(datos) {
+  if (datos.version >= 2) return datos;
+  for (const a of Object.values(datos.alumnos ?? {})) {
+    if (a.inicioPractica) a.inicioPracticas = { 1: a.inicioPractica };
+    delete a.inicioPractica;
+  }
+  for (const e of Object.values(datos.entregas ?? {})) e.sesion = 1;
+  return {
+    version: 2,
+    alumnos: datos.alumnos ?? {},
+    practicas: { 1: { abierta: Boolean(datos.practicaAbierta), entregas: datos.entregas ?? {} } }
+  };
+}
 
 function cargar() {
   let texto;
@@ -36,7 +52,7 @@ function cargar() {
     return vacio();
   }
   try {
-    return { ...vacio(), ...JSON.parse(texto) };
+    return { ...vacio(), ...migrar(JSON.parse(texto)) };
   } catch {
     // Nunca se sobrescribe un archivo que no se entendió: se aparta para revisarlo.
     const copia = `${ARCHIVO}.danado-${Date.now()}`;
@@ -75,18 +91,28 @@ const normal = (t) =>
 const llave = (a) => (a.matricula ? `m:${normal(a.matricula)}` : `n:${normal(a.nombre)}|${a.grupo}`);
 const delGrupo = (grupo) => (x) => !grupo || x.grupo === grupo;
 
+/** El examen de una sesión, creándolo si todavía no existe. */
+function practica(sesion) {
+  estado.practicas[sesion] ??= { abierta: false, entregas: {} };
+  return estado.practicas[sesion];
+}
+const todasLasEntregas = () => Object.values(estado.practicas).flatMap((p) => Object.values(p.entregas));
+
 export const almacen = {
   motor: 'archivo JSON',
   archivo: ARCHIVO,
 
-  practicaAbierta: () => estado.practicaAbierta,
+  practicaAbierta: (sesion) => Boolean(estado.practicas[sesion]?.abierta),
+
+  /** { 1: true, 2: false, … } para las sesiones que se piden. */
+  practicasAbiertas: (sesiones) => Object.fromEntries(sesiones.map((n) => [n, Boolean(estado.practicas[n]?.abierta)])),
 
   existe: (id) => Object.hasOwn(estado.alumnos, id),
 
   alumno: (id) => (Object.hasOwn(estado.alumnos, id) ? estado.alumnos[id] : null),
 
-  abrirPractica(abierta) {
-    estado.practicaAbierta = Boolean(abierta);
+  abrirPractica(sesion, abierta) {
+    practica(sesion).abierta = Boolean(abierta);
     guardar();
   },
 
@@ -109,10 +135,10 @@ export const almacen = {
     return alumno;
   },
 
-  iniciarPractica(id) {
+  iniciarPractica(id, sesion) {
     const alumno = estado.alumnos[id];
-    if (alumno && !alumno.inicioPractica) {
-      alumno.inicioPractica = new Date().toISOString();
+    if (alumno && !alumno.inicioPracticas?.[sesion]) {
+      alumno.inicioPracticas = { ...alumno.inicioPracticas, [sesion]: new Date().toISOString() };
       guardar();
     }
   },
@@ -127,7 +153,13 @@ export const almacen = {
       const k = llave(a);
       const previo = porLlave.get(k);
       if (!previo) {
-        porLlave.set(k, { ...a, ids: [a.id], completados: { ...a.completados }, pasos: { ...a.pasos } });
+        porLlave.set(k, {
+          ...a,
+          ids: [a.id],
+          completados: { ...a.completados },
+          pasos: { ...a.pasos },
+          inicioPracticas: { ...a.inicioPracticas }
+        });
         continue;
       }
       previo.ids.push(a.id);
@@ -140,37 +172,38 @@ export const almacen = {
         Object.assign(previo, { nombre: a.nombre, matricula: a.matricula, ultimoAvance: a.ultimoAvance });
       }
       if (a.alta < previo.alta) previo.alta = a.alta;
-      if (a.inicioPractica && (!previo.inicioPractica || a.inicioPractica < previo.inicioPractica)) {
-        previo.inicioPractica = a.inicioPractica;
+      for (const [n, inicio] of Object.entries(a.inicioPracticas ?? {})) {
+        if (!previo.inicioPracticas[n] || inicio < previo.inicioPracticas[n]) previo.inicioPracticas[n] = inicio;
       }
     }
     return [...porLlave.values()];
   },
 
-  /** La entrega de este alumno, o la de otro registro suyo (otro celular). */
-  entregaDe(alumno) {
-    return estado.entregas[alumno.id] ?? Object.values(estado.entregas).find((e) => e.llave === llave(alumno)) ?? null;
+  /** La entrega de este alumno en una sesión, o la de otro registro suyo (otro celular). */
+  entregaDe(alumno, sesion) {
+    const entregas = estado.practicas[sesion]?.entregas ?? {};
+    return entregas[alumno.id] ?? Object.values(entregas).find((e) => e.llave === llave(alumno)) ?? null;
   },
 
   guardarEntrega(entrega) {
-    estado.entregas[entrega.alumnoId] = { ...entrega, llave: llave(entrega) };
+    practica(entrega.sesion).entregas[entrega.alumnoId] = { ...entrega, llave: llave(entrega) };
     guardar();
   },
 
-  entregas: (grupo) => Object.values(estado.entregas).filter(delGrupo(grupo)),
+  entregas: (grupo, sesion) => Object.values(estado.practicas[sesion]?.entregas ?? {}).filter(delGrupo(grupo)),
 
-  grupos: () =>
-    [...new Set([...Object.values(estado.alumnos), ...Object.values(estado.entregas)].map((x) => x.grupo))].sort(),
+  grupos: () => [...new Set([...Object.values(estado.alumnos), ...todasLasEntregas()].map((x) => x.grupo))].sort(),
 
-  /** Permite que un alumno vuelva a contestar la práctica. */
-  borrarEntrega(alumnoId) {
-    if (!estado.entregas[alumnoId]) return false;
-    delete estado.entregas[alumnoId];
+  /** Permite que un alumno vuelva a contestar la práctica de una sesión. */
+  borrarEntrega(alumnoId, sesion) {
+    const entregas = estado.practicas[sesion]?.entregas;
+    if (!entregas?.[alumnoId]) return false;
+    delete entregas[alumnoId];
     guardar();
     return true;
   },
 
-  /** Borra alumnos y entregas de un grupo, o de todos. */
+  /** Borra alumnos y entregas (de todas las sesiones) de un grupo, o de todos. */
   borrar(grupo) {
     let alumnos = 0;
     let entregas = 0;
@@ -180,10 +213,12 @@ export const almacen = {
         alumnos += 1;
       }
     }
-    for (const [id, e] of Object.entries(estado.entregas)) {
-      if (delGrupo(grupo)(e)) {
-        delete estado.entregas[id];
-        entregas += 1;
+    for (const p of Object.values(estado.practicas)) {
+      for (const [id, e] of Object.entries(p.entregas)) {
+        if (delGrupo(grupo)(e)) {
+          delete p.entregas[id];
+          entregas += 1;
+        }
       }
     }
     guardar();

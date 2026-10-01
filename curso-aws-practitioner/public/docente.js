@@ -1,10 +1,11 @@
 // Panel del docente: el plan de la clase con cronómetro, el avance del grupo
-// en vivo y la práctica final (abrirla, calificaciones y repaso).
+// en vivo y la práctica final (abrirla, calificaciones y repaso). Todo se ve
+// por sesión: el selector de arriba elige cuál.
 //
 // Se refresca solo cada 5 segundos. Está pensado para abrirse en el celular
 // del docente mientras la laptop proyecta el curso.
 
-import { CURSO, PLAN } from './contenido.js';
+import { SESIONES, sesionDe } from './contenido.js';
 
 const PREFIJO = 'aws-practitioner:';
 const LETRAS = ['A', 'B', 'C', 'D', 'E'];
@@ -41,7 +42,18 @@ const escribir = (donde, clave, valor) => {
   }
 };
 
-const ACTIVIDADES = CURSO.capitulos.flatMap((c) => c.actividades.map((a) => ({ ...a, capitulo: c.numero })));
+// La sesión que se mira en el panel: la última elegida o la más reciente.
+let S = sesionDe(leer(sesion, PREFIJO + 'sesion-panel')) ?? SESIONES.at(-1);
+let ACTIVIDADES = [];
+const usarSesion = (elegida) => {
+  S = elegida;
+  ACTIVIDADES = S.capitulos.flatMap((c) => c.actividades.map((a) => ({ ...a, capitulo: c.numero })));
+  escribir(sesion, PREFIJO + 'sesion-panel', String(S.numero));
+  $('titulo-panel').textContent = `Ruta AWS · Sesión ${S.numero}`;
+};
+$('sesion-panel').innerHTML = SESIONES.map((x) => `<option value="${x.numero}">${x.numero}. ${escapar(x.titulo)}</option>`).join('');
+usarSesion(S);
+$('sesion-panel').value = String(S.numero);
 
 // Misma llave que el panel del examen: en la plataforma, entrar a uno te deja
 // entrar al otro sin volver a escribir la clave.
@@ -114,7 +126,7 @@ async function llamar(ruta, opciones = {}) {
 
 async function cargar() {
   try {
-    datos = await llamar(`api/docente/resumen?grupo=${encodeURIComponent($('grupo').value)}`);
+    datos = await llamar(`api/docente/resumen?grupo=${encodeURIComponent($('grupo').value)}&sesion=${S.numero}`);
     $('error-panel').textContent = '';
     pintarTodo();
   } catch (e) {
@@ -124,6 +136,12 @@ async function cargar() {
 }
 
 $('grupo').addEventListener('change', cargar);
+$('sesion-panel').addEventListener('change', () => {
+  usarSesion(sesionDe($('sesion-panel').value));
+  datos = null;
+  pintarPlan();
+  cargar();
+});
 
 setInterval(() => {
   if (clave && !$('pantalla-panel').hidden && !document.hidden) cargar();
@@ -157,9 +175,9 @@ function pintarPlan() {
   const transcurrido = minutosDeClase();
   const alumnos = datos?.alumnos ?? [];
 
-  $('plan').innerHTML = PLAN.map((bloque) => {
+  $('plan').innerHTML = S.plan.map((bloque) => {
     const actual = transcurrido !== null && transcurrido >= bloque.desde && transcurrido < bloque.hasta;
-    const capitulo = CURSO.capitulos.find((c) => c.numero === bloque.capitulo);
+    const capitulo = S.capitulos.find((c) => c.numero === bloque.capitulo);
     let terminaron = '';
     if (capitulo && alumnos.length) {
       const n = alumnos.filter((a) => capitulo.actividades.every((act) => a.completados[act.id] !== undefined)).length;
@@ -194,7 +212,7 @@ function actualizarCronometro() {
   const segundos = Math.floor(transcurrido * 60);
   $('reloj').textContent = `${Math.floor(segundos / 3600)}:${String(Math.floor((segundos % 3600) / 60)).padStart(2, '0')}:${String(segundos % 60).padStart(2, '0')}`;
 
-  const bloque = PLAN.find((b) => transcurrido >= b.desde && transcurrido < b.hasta);
+  const bloque = S.plan.find((b) => transcurrido >= b.desde && transcurrido < b.hasta);
   if (!bloque) {
     $('ahora').textContent = 'Se acabó el tiempo de la clase.';
     $('ahora-detalle').textContent = 'Cierra la práctica y descarga el CSV.';
@@ -204,8 +222,9 @@ function actualizarCronometro() {
     $('ahora-detalle').textContent = `${quedan === 1 ? 'Queda 1 minuto' : `Quedan ${quedan} minutos`} de este bloque.`;
   }
   // Repinta el resaltado solo cuando cambia de bloque.
-  const indice = PLAN.indexOf(bloque);
-  if (indice !== actualizarCronometro.ultimo) {
+  const indice = S.plan.indexOf(bloque);
+  if (indice !== actualizarCronometro.ultimo || S !== actualizarCronometro.sesion) {
+    actualizarCronometro.sesion = S;
     actualizarCronometro.ultimo = indice;
     document.querySelectorAll('.bloque').forEach((el, i) => el.classList.toggle('bloque--actual', i === indice));
   }
@@ -227,7 +246,8 @@ function pintarVivo() {
   const alumnos = datos.alumnos;
   const n = alumnos.length;
   const activos = alumnos.filter((a) => a.activo).length;
-  const xpPromedio = n ? Math.round(alumnos.reduce((s, a) => s + a.xp, 0) / n) : 0;
+  const xpDeLaSesion = (a) => ACTIVIDADES.reduce((suma, act) => suma + (a.completados[act.id] ?? 0), 0);
+  const xpPromedio = n ? Math.round(alumnos.reduce((suma, a) => suma + xpDeLaSesion(a), 0) / n) : 0;
   const terminaron = (capitulo) =>
     alumnos.filter((a) => capitulo.actividades.every((act) => a.completados[act.id] !== undefined)).length;
 
@@ -235,10 +255,10 @@ function pintarVivo() {
     <div class="metrica"><b>${n}</b><span>registrados</span></div>
     <div class="metrica"><b>${activos}</b><span>activos en los últimos 2 min</span></div>
     <div class="metrica"><b>${xpPromedio.toLocaleString('es-MX')}</b><span>XP promedio</span></div>
-    ${CURSO.capitulos.map((c) => `<div class="metrica"><b>${terminaron(c)}</b><span>terminaron el capítulo ${c.numero}</span></div>`).join('')}`;
+    ${S.capitulos.map((c) => `<div class="metrica"><b>${terminaron(c)}</b><span>terminaron el capítulo ${c.numero}</span></div>`).join('')}`;
 
   $('por-actividad').innerHTML = n
-    ? CURSO.capitulos
+    ? S.capitulos
         .map(
           (c) => `
         <h3 style="margin:10px 0 4px">${c.numero}. ${escapar(c.titulo)}</h3>
@@ -286,23 +306,24 @@ function pintarVivo() {
         .join('')
     : '<p class="sutil">Todavía no se registra nadie.</p>';
 
-  const porAvance = [...alumnos].sort(
-    (a, b) => Object.keys(a.completados).length - Object.keys(b.completados).length || a.nombre.localeCompare(b.nombre, 'es')
-  );
+  // Solo cuenta lo hecho en la sesión que se mira.
+  const hechasEn = (a) => ACTIVIDADES.filter((act) => a.completados[act.id] !== undefined).length;
+  const xpEn = (a) => ACTIVIDADES.reduce((suma, act) => suma + (a.completados[act.id] ?? 0), 0);
+  const porAvance = [...alumnos].sort((a, b) => hechasEn(a) - hechasEn(b) || a.nombre.localeCompare(b.nombre, 'es'));
 
   $('tabla-vivo').innerHTML = porAvance.length
     ? porAvance
         .map((a) => {
           const siguiente = ACTIVIDADES.find((act) => a.completados[act.id] === undefined);
-          const matriz = CURSO.capitulos
+          const matriz = S.capitulos
             .map((c) => c.actividades.map((act) => `<span class="${a.completados[act.id] !== undefined ? 'hecho' : ''}" title="${escapar(act.titulo)}"></span>`).join(''))
             .join('<span class="separador"></span>');
           return `<tr>
             <td><span class="punto-activo ${a.activo ? 'punto-activo--si' : ''}" title="${a.activo ? 'Activo ahora' : `Visto por última vez: ${hora(a.visto) || 'sin señal desde que arrancó el servidor'}`}"></span>${escapar(a.nombre)}</td>
             <td>${escapar(a.grupo)}</td>
-            <td class="num">${a.xp}</td>
-            <td class="num">${Object.keys(a.completados).length}/${datos.totalActividades}</td>
-            <td><div class="matriz" aria-label="${Object.keys(a.completados).length} de ${datos.totalActividades} actividades">${matriz}</div></td>
+            <td class="num">${xpEn(a)}</td>
+            <td class="num">${hechasEn(a)}/${datos.totalActividades}</td>
+            <td><div class="matriz" aria-label="${hechasEn(a)} de ${datos.totalActividades} actividades">${matriz}</div></td>
             <td>${
               siguiente
                 ? `${siguiente.capitulo}. ${escapar(siguiente.titulo)}${
@@ -421,7 +442,7 @@ $('btn-practica').addEventListener('click', async () => {
     await llamar('api/docente/practica', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ abierta: abrir })
+      body: JSON.stringify({ abierta: abrir, sesion: S.numero })
     });
     await cargar();
   } catch (e) {
@@ -434,7 +455,7 @@ $('tabla-practica').addEventListener('click', async (e) => {
   if (!boton) return;
   if (!confirm(`Se borra la entrega de ${boton.dataset.nombre} y podrá contestar de nuevo. ¿Continuar?`)) return;
   try {
-    await llamar(`api/docente/entregas/${encodeURIComponent(boton.dataset.reintento)}`, { method: 'DELETE' });
+    await llamar(`api/docente/entregas/${encodeURIComponent(boton.dataset.reintento)}?sesion=${S.numero}`, { method: 'DELETE' });
     await cargar();
   } catch (err) {
     $('error-panel').textContent = `No se pudo borrar la entrega: ${err.message}`;
@@ -443,7 +464,7 @@ $('tabla-practica').addEventListener('click', async (e) => {
 
 $('btn-csv').addEventListener('click', () => {
   window.open(
-    `api/docente/datos.csv?grupo=${encodeURIComponent($('grupo').value)}&clave=${encodeURIComponent(clave)}`,
+    `api/docente/datos.csv?grupo=${encodeURIComponent($('grupo').value)}&sesion=${S.numero}&clave=${encodeURIComponent(clave)}`,
     '_blank'
   );
 });
@@ -451,7 +472,7 @@ $('btn-csv').addEventListener('click', () => {
 $('btn-borrar').addEventListener('click', async () => {
   const grupo = $('grupo').value;
   const cual = grupo ? `del grupo ${grupo}` : 'de todos los grupos';
-  if (!confirm(`Se borran los alumnos, su avance y sus prácticas ${cual}. Descarga antes el CSV. Esto no se puede deshacer. ¿Continuar?`)) return;
+  if (!confirm(`Se borran los alumnos, su avance y sus prácticas de TODAS las sesiones ${cual}. Descarga antes el CSV. Esto no se puede deshacer. ¿Continuar?`)) return;
   try {
     await llamar(`api/docente/datos?grupo=${encodeURIComponent(grupo)}`, { method: 'DELETE' });
     await cargar();

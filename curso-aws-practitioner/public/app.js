@@ -3,7 +3,10 @@
 // examen de práctica. Es el mismo motor del curso "Comprender la computación en
 // la nube", con el laboratorio y el contador como piezas nuevas.
 //
-// Todo cuelga del hash (#/c1-intro, #/practica) y las llamadas al servidor
+// La ruta tiene varias sesiones; el índice muestra una a la vez y el alumno
+// cambia entre ellas desde arriba o desde "La ruta completa".
+//
+// Todo cuelga del hash (#/s1-ruta, #/sesion/2, #/practica/2) y las llamadas al servidor
 // son relativas (api/…): así la misma página sirve suelta en la raíz y montada
 // en /m/aws-practitioner/ dentro de la plataforma.
 //
@@ -11,7 +14,7 @@
 // vea en vivo. Si el servidor no contesta, el curso sigue funcionando y la
 // copia se reintenta en el siguiente movimiento.
 
-import { CURSO, RUTA, SANDBOX } from './contenido.js';
+import { CURSO, RUTA, SANDBOX, SESIONES, sesionDe } from './contenido.js';
 import {
   almacenDuradero,
   borrarEvidencia,
@@ -68,11 +71,24 @@ const PROYECTOR = leer('proyectar', false, sesion) === true;
 
 /* ------------------------------------------------------------- el curso */
 
-const ACTIVIDADES = CURSO.capitulos.flatMap((capitulo) =>
-  capitulo.actividades.map((actividad) => ({ ...actividad, capitulo }))
+// Todas las actividades de todas las sesiones, cada una con su capítulo y su sesión.
+const ACTIVIDADES = SESIONES.flatMap((sesionCurso) =>
+  sesionCurso.capitulos.flatMap((capitulo) =>
+    capitulo.actividades.map((actividad) => ({ ...actividad, capitulo, sesion: sesionCurso }))
+  )
 );
 const INDICE = new Map(ACTIVIDADES.map((a, i) => [a.id, i]));
-const XP_TOTAL = ACTIVIDADES.reduce((suma, a) => suma + a.xp, 0);
+const actividadesDe = (sesionCurso) => ACTIVIDADES.filter((a) => a.sesion === sesionCurso);
+const xpTotalDe = (sesionCurso) => actividadesDe(sesionCurso).reduce((suma, a) => suma + a.xp, 0);
+
+// La sesión que se ve en el índice: la última que eligió el alumno o, si es
+// nuevo, la más reciente de la ruta (la que se da en clase esta semana).
+let sesionActual = sesionDe(leer('sesion', 0)) ?? SESIONES.at(-1);
+
+function elegirSesion(sesionCurso) {
+  sesionActual = sesionCurso;
+  guardar('sesion', sesionCurso.numero);
+}
 
 let perfil = leer('perfil', null);
 let avance = leer('avance', { completados: {} });
@@ -84,6 +100,12 @@ const pasosLab = () =>
 
 const hecha = (id) => avance.completados[id] !== undefined;
 const xpGanada = () => Object.values(avance.completados).reduce((suma, xp) => suma + xp, 0);
+const xpGanadaEn = (sesionCurso) => actividadesDe(sesionCurso).reduce((suma, a) => suma + (avance.completados[a.id] ?? 0), 0);
+
+// El comprobante y las respuestas a medias de cada examen. Los de la sesión 1
+// conservan su nombre de antes para no perder lo que ya estaba guardado.
+const claveResultado = (n) => `resultado-${perfil.id}${n === 1 ? '' : `-s${n}`}`;
+const claveRespuestas = (n) => `practica-${perfil.id}${n === 1 ? '' : `-s${n}`}`;
 
 /* ------------------------------------------------------------ utilidades */
 
@@ -155,7 +177,8 @@ async function api(ruta, cuerpo) {
 
 /* ------------------------------------------------- copia hacia el servidor */
 
-let practicaAbierta = null;
+// Qué exámenes están abiertos, por sesión: { 1: false, 2: true }.
+let practicas = {};
 let esperaCopia = null;
 
 function sincronizar(inmediato = false) {
@@ -163,7 +186,7 @@ function sincronizar(inmediato = false) {
   clearTimeout(esperaCopia);
   esperaCopia = setTimeout(() => {
     api('api/progreso', { alumno: perfil, completados: avance.completados, pasos: pasosLab() })
-      .then((d) => cambiarEstadoPractica(d.practicaAbierta))
+      .then((d) => cambiarEstadoPracticas(d.practicas))
       .catch(() => {}); // se reintenta con el siguiente movimiento o el latido
   }, inmediato ? 0 : 400);
 }
@@ -171,15 +194,17 @@ function sincronizar(inmediato = false) {
 async function latido() {
   try {
     const d = await api(`api/estado${perfil && !PROYECTOR ? `?a=${perfil.id}` : ''}`);
-    cambiarEstadoPractica(d.practicaAbierta);
+    cambiarEstadoPracticas(d.practicas);
   } catch {
     /* sin servidor por ahora */
   }
 }
 
-function cambiarEstadoPractica(abierta) {
-  if (typeof abierta !== 'boolean' || abierta === practicaAbierta) return;
-  practicaAbierta = abierta;
+function cambiarEstadoPracticas(nuevas) {
+  if (!nuevas || typeof nuevas !== 'object') return;
+  const antes = practicas[sesionActual.numero];
+  practicas = nuevas;
+  if (practicas[sesionActual.numero] === antes) return;
   const tarjeta = document.getElementById('tarjeta-practica');
   if (tarjeta) tarjeta.innerHTML = contenidoTarjetaPractica();
 }
@@ -200,7 +225,11 @@ function completar(actividad, xp) {
   }
 }
 
-const siguienteDe = (actividad) => ACTIVIDADES[INDICE.get(actividad.id) + 1]?.id ?? 'practica';
+// Lo que sigue dentro de la misma sesión; al final, su examen de práctica.
+function siguienteDe(actividad) {
+  const siguiente = ACTIVIDADES[INDICE.get(actividad.id) + 1];
+  return siguiente?.sesion === actividad.sesion ? siguiente.id : `practica/${actividad.sesion.numero}`;
+}
 
 /* ---------------------------------------------------------------- rutas */
 
@@ -231,12 +260,23 @@ function pintar() {
   const [primera = '', segunda] = ruta();
   if (!perfil && !PROYECTOR) return vistaRegistro();
   if (primera === '') return vistaCurso();
-  if (primera === 'practica') return vistaPractica();
   if (primera === 'registro') return vistaRegistro();
+  if (primera === 'sesion') {
+    const elegida = sesionDe(segunda);
+    if (elegida) elegirSesion(elegida);
+    return ir('');
+  }
+  if (primera === 'practica') {
+    const elegida = sesionDe(segunda);
+    if (segunda !== undefined && !elegida) return ir('');
+    if (elegida) elegirSesion(elegida);
+    return vistaPractica();
+  }
 
   const i = INDICE.get(primera);
   if (i === undefined) return ir('');
   const actividad = ACTIVIDADES[i];
+  if (actividad.sesion !== sesionActual) elegirSesion(actividad.sesion);
   if (actividad.tipo === 'leccion') return vistaLeccion(actividad, Number(segunda) || 1);
   if (actividad.tipo === 'laboratorio') return vistaLaboratorio(actividad, Number(segunda) || 0);
   return vistaEjercicio(actividad);
@@ -311,10 +351,13 @@ function vistaRegistro() {
 /* ---------------------------------------------------------------- índice */
 
 function vistaCurso() {
-  const hechas = ACTIVIDADES.filter((a) => hecha(a.id)).length;
-  const siguiente = ACTIVIDADES.find((a) => !hecha(a.id));
+  const S = sesionActual;
+  const actividades = actividadesDe(S);
+  const hechas = actividades.filter((a) => hecha(a.id)).length;
+  const siguiente = actividades.find((a) => !hecha(a.id));
   const abierto = siguiente?.capitulo.numero ?? null;
-  const pct = Math.round((hechas / ACTIVIDADES.length) * 100);
+  const pct = Math.round((hechas / actividades.length) * 100);
+  const xpTotal = xpTotalDe(S);
 
   app.innerHTML = `
     ${avisoProyector()}
@@ -324,32 +367,34 @@ function vistaCurso() {
         ${perfil && !PROYECTOR ? `<span class="perfil">${escapar(nombreCorto(perfil.nombre))} · <b>${numero(xpGanada())} XP</b></span>` : ''}
       </nav>
 
+      ${selectorSesiones()}
+
       <header class="portada">
-        <p class="etiqueta">${escapar(CURSO.titulo)} · ${escapar(CURSO.duracion)}</p>
-        <h1>${escapar(CURSO.subtitulo)}</h1>
-        <p class="portada__resumen">${escapar(CURSO.resumen)}</p>
+        <p class="etiqueta">${escapar(CURSO.titulo)} · ${escapar(S.duracion)}</p>
+        <h1>${escapar(S.subtitulo)}</h1>
+        <p class="portada__resumen">${escapar(S.resumen)}</p>
         <ul class="portada__datos">
-          <li>${icono('i-reloj')} ${escapar(CURSO.duracion)}</li>
-          <li>${icono('i-libro')} ${CURSO.capitulos.length} capítulos</li>
-          <li>${icono('i-check')} ${ACTIVIDADES.length} actividades</li>
-          <li>${icono('i-estrella')} ${numero(XP_TOTAL)} XP</li>
+          <li>${icono('i-reloj')} ${escapar(S.duracion)}</li>
+          <li>${icono('i-libro')} ${S.capitulos.length} capítulos</li>
+          <li>${icono('i-check')} ${actividades.length} actividades</li>
+          <li>${icono('i-estrella')} ${numero(xpTotal)} XP</li>
         </ul>
         ${
           PROYECTOR
             ? ''
             : `<div class="portada__avance">
-                <div class="progreso progreso--grande" role="progressbar" aria-label="Avance del curso" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
-                <p>${hechas} de ${ACTIVIDADES.length} actividades · ${numero(xpGanada())} de ${numero(XP_TOTAL)} XP</p>
+                <div class="progreso progreso--grande" role="progressbar" aria-label="Avance de la sesión ${S.numero}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
+                <p>${hechas} de ${actividades.length} actividades · ${numero(xpGanadaEn(S))} de ${numero(xpTotal)} XP</p>
               </div>`
         }
-        <a class="boton boton--primario" href="#/${siguiente ? siguiente.id : 'practica'}">
-          ${siguiente ? `${hechas ? 'Continuar' : 'Empezar'}: ${escapar(siguiente.titulo)}` : 'Ir a la práctica final'} →
+        <a class="boton boton--primario" href="#/${siguiente ? siguiente.id : `practica/${S.numero}`}">
+          ${siguiente ? `${hechas ? 'Continuar' : 'Empezar'}: ${escapar(siguiente.titulo)}` : 'Ir al examen de práctica'} →
         </a>
       </header>
 
       ${PROYECTOR ? '' : contadorSandbox(false)}
 
-      ${CURSO.capitulos.map((c) => tarjetaCapitulo(c, siguiente, abierto)).join('')}
+      ${S.capitulos.map((c) => tarjetaCapitulo(c, siguiente, abierto)).join('')}
 
       <section class="practica-tarjeta" id="tarjeta-practica" aria-live="polite">${contenidoTarjetaPractica()}</section>
 
@@ -369,7 +414,7 @@ function vistaCurso() {
       lista.hidden = !lista.hidden;
       boton.setAttribute('aria-expanded', String(!lista.hidden));
       boton.firstChild.textContent = lista.hidden ? 'Mostrar detalles ' : 'Ocultar detalles ';
-      guardar(`plegado-${numeroCap}`, lista.hidden, sesion);
+      guardar(`plegado-${sesionActual.numero}-${numeroCap}`, lista.hidden, sesion);
     })
   );
 
@@ -382,7 +427,7 @@ function tarjetaCapitulo(capitulo, siguiente, abierto) {
   const pct = Math.round((hechas / actividades.length) * 100);
   const xp = actividades.reduce((s, a) => s + a.xp, 0);
   const minutos = actividades.reduce((s, a) => s + a.minutos, 0);
-  const plegado = leer(`plegado-${capitulo.numero}`, abierto !== null && capitulo.numero !== abierto, sesion);
+  const plegado = leer(`plegado-${sesionActual.numero}-${capitulo.numero}`, abierto !== null && capitulo.numero !== abierto, sesion);
 
   return `
     <section class="capitulo" id="capitulo-${capitulo.numero}" aria-labelledby="titulo-capitulo-${capitulo.numero}">
@@ -407,6 +452,23 @@ function tarjetaCapitulo(capitulo, siguiente, abierto) {
     </section>`;
 }
 
+// Pestañas para cambiar de sesión, arriba del índice.
+function selectorSesiones() {
+  if (SESIONES.length < 2) return '';
+  return `
+    <nav class="sesiones" aria-label="Sesiones de la ruta">
+      ${SESIONES.map((s) => {
+        const actividades = actividadesDe(s);
+        const pct = PROYECTOR ? 0 : Math.round((actividades.filter((a) => hecha(a.id)).length / actividades.length) * 100);
+        return `<a class="sesiones__boton" href="#/sesion/${s.numero}" ${s === sesionActual ? 'aria-current="page"' : ''}>
+          <span class="sesiones__numero">Sesión ${s.numero}</span>
+          <span class="sesiones__titulo">${escapar(s.titulo)}</span>
+          ${PROYECTOR ? '' : `<span class="sesiones__avance">${pct === 100 ? `${icono('i-check')} Completa` : `${pct}%`}</span>`}
+        </a>`;
+      }).join('')}
+    </nav>`;
+}
+
 function filaActividad(actividad, siguiente) {
   const lista = hecha(actividad.id) && !PROYECTOR;
   const esSiguiente = siguiente?.id === actividad.id && !PROYECTOR;
@@ -424,35 +486,37 @@ function filaActividad(actividad, siguiente) {
 }
 
 function contenidoTarjetaPractica() {
-  const resultado = perfil ? leer(`resultado-${perfil.id}`, null) : null;
+  const S = sesionActual;
+  const resultado = perfil ? leer(claveResultado(S.numero), null) : null;
+  const abierta = practicas[S.numero] === true;
 
   if (PROYECTOR) {
     return `
       <span class="practica-tarjeta__estado">${icono('i-candado')} Se contesta en el celular</span>
-      <h2>${escapar(CURSO.practica.titulo)}</h2>
+      <h2>${escapar(S.practica.titulo)}</h2>
       <p>Cada alumno lo contesta en su dispositivo. Aquí puedes proyectar las instrucciones.</p>
-      <a class="boton" href="#/practica">Ver las instrucciones</a>`;
+      <a class="boton" href="#/practica/${S.numero}">Ver las instrucciones</a>`;
   }
 
   if (resultado) {
     return `
       <span class="practica-tarjeta__estado practica-tarjeta__estado--abierta">${icono('i-check')} Entregada</span>
-      <h2>${escapar(CURSO.practica.titulo)}</h2>
+      <h2>${escapar(S.practica.titulo)}</h2>
       <p>${resultado.aciertos !== undefined ? `Obtuviste ${resultado.aciertos} de ${resultado.total} aciertos.` : 'Tu práctica quedó registrada.'} Folio ${escapar(resultado.folio)}.</p>
-      <a class="boton" href="#/practica">Ver mi comprobante</a>`;
+      <a class="boton" href="#/practica/${S.numero}">Ver mi comprobante</a>`;
   }
 
-  if (practicaAbierta) {
+  if (abierta) {
     return `
       <span class="practica-tarjeta__estado practica-tarjeta__estado--abierta">${icono('i-check')} Abierta</span>
-      <h2>${escapar(CURSO.practica.titulo)}</h2>
-      <p>${escapar(CURSO.practica.resumen)}</p>
-      <a class="boton boton--primario" href="#/practica">Empezar →</a>`;
+      <h2>${escapar(S.practica.titulo)}</h2>
+      <p>${escapar(S.practica.resumen)}</p>
+      <a class="boton boton--primario" href="#/practica/${S.numero}">Empezar →</a>`;
   }
 
   return `
     <span class="practica-tarjeta__estado">${icono('i-candado')} Todavía cerrada</span>
-    <h2>${escapar(CURSO.practica.titulo)}</h2>
+    <h2>${escapar(S.practica.titulo)}</h2>
     <p>Tu docente la abre al final de la clase. Esta tarjeta se actualiza sola: no tienes que recargar.</p>`;
 }
 
@@ -464,7 +528,7 @@ function barraActividad(actividad) {
     <header class="barra">
       <a class="barra__volver" href="#/" aria-label="Volver al índice del curso">${icono('i-flecha', 'icono icono--atras')}<span>Curso</span></a>
       <div class="barra__centro">
-        <span class="barra__capitulo">Capítulo ${actividad.capitulo.numero} · ${TIPOS[actividad.tipo]}</span>
+        <span class="barra__capitulo">Sesión ${actividad.sesion.numero} · Capítulo ${actividad.capitulo.numero} · ${TIPOS[actividad.tipo]}</span>
         <span class="barra__titulo">${escapar(actividad.titulo)}</span>
       </div>
       <span class="barra__xp">${PROYECTOR ? 'Proyector' : `${numero(xpGanada())} XP`}</span>
@@ -941,7 +1005,8 @@ function contadorSandbox(conBoton = true) {
   const sesion = minutosSesion(s);
   const pct = Math.min(100, (semana / SANDBOX.minutosSemana) * 100);
   const tokens = Math.round((semana * SANDBOX.tokensSemana) / SANDBOX.minutosSemana);
-  const excedido = s.inicio && sesion > SANDBOX.minutosLaboratorio;
+  const planeados = sesionActual.minutosSandbox ?? SANDBOX.minutosLaboratorio;
+  const excedido = s.inicio && sesion > planeados;
   const textoSesion = s.inicio
     ? `esta sesión: ${cronometro(sesion)}`
     : sesion
@@ -952,7 +1017,7 @@ function contadorSandbox(conBoton = true) {
       <div class="sandbox__estado">
         <span class="sandbox__luz" aria-hidden="true"></span>
         <strong>${s.inicio ? 'Sandbox encendido' : 'Sandbox apagado'}</strong>
-        <span class="sandbox__sesion ${excedido ? 'sandbox__sesion--excedida' : ''}">${textoSesion}${excedido ? ` · ya pasaste los ${SANDBOX.minutosLaboratorio} min planeados` : ''}</span>
+        <span class="sandbox__sesion ${excedido ? 'sandbox__sesion--excedida' : ''}">${textoSesion}${excedido ? ` · ya pasaste los ${planeados} min planeados` : ''}</span>
       </div>
       <div class="sandbox__semana">
         <span>Esta semana: <b>${Math.round(semana)}</b> de ${SANDBOX.minutosSemana} min · ≈ ${numero(tokens)} de ${numero(SANDBOX.tokensSemana)} tokens</span>
@@ -995,16 +1060,16 @@ function rutaCompleta() {
       <ol class="ruta__sesiones">
         ${RUTA.map(
           (r) => `
-          <li class="sesion ${r.lista ? 'sesion--actual' : ''}">
+          <li class="sesion ${r.numero === sesionActual.numero ? 'sesion--actual' : ''} ${r.lista ? 'sesion--lista' : ''}">
             <span class="sesion__numero">${r.numero}</span>
             <div class="sesion__texto">
-              <h3>${escapar(r.titulo)}</h3>
+              <h3>${r.lista ? `<a href="#/sesion/${r.numero}">${escapar(r.titulo)}</a>` : escapar(r.titulo)}</h3>
               <p>${escapar(r.temas)}</p>
               <p class="sesion__meta">${r.dominios.map((d) => `<span class="chip">${escapar(d)}</span>`).join('')}${
                 r.sandbox ? `<span class="sesion__sandbox">${icono('i-reloj')} ≈ ${r.sandbox} min de sandbox</span>` : ''
               }</p>
             </div>
-            <span class="sesion__estado">${r.lista ? 'Estás aquí' : 'Próximamente'}</span>
+            <span class="sesion__estado">${r.numero === sesionActual.numero ? 'Estás aquí' : r.lista ? 'Disponible' : 'Próximamente'}</span>
           </li>`
         ).join('')}
       </ol>
@@ -1273,7 +1338,7 @@ function vistaLaboratorio(actividad, numeroPaso) {
       }
       const bytes = documentoEvidencias({
         curso: CURSO.titulo,
-        sesion: CURSO.subtitulo,
+        sesion: actividad.sesion.subtitulo,
         laboratorio: actividad.titulo,
         alumno: perfil,
         evidencias,
@@ -1430,35 +1495,37 @@ function barraPractica(detalle = '') {
     <header class="barra">
       <a class="barra__volver" href="#/" aria-label="Volver al índice del curso">${icono('i-flecha', 'icono icono--atras')}<span>Curso</span></a>
       <div class="barra__centro">
-        <span class="barra__capitulo">Práctica final</span>
-        <span class="barra__titulo">${escapar(CURSO.practica.titulo)}</span>
+        <span class="barra__capitulo">Sesión ${sesionActual.numero} · Práctica final</span>
+        <span class="barra__titulo">${escapar(sesionActual.practica.titulo)}</span>
       </div>
       <span class="barra__xp" id="barra-detalle">${detalle}</span>
     </header>`;
 }
 
 async function vistaPractica() {
+  const n = sesionActual.numero;
   app.innerHTML = `${barraPractica()}<main class="pagina pagina--angosta"><p class="cargando">Cargando la práctica…</p></main>`;
 
   if (PROYECTOR) return practicaProyector();
 
   let datos;
   try {
-    datos = await api('api/practica', { alumno: perfil });
+    datos = await api('api/practica', { alumno: perfil, sesion: n });
   } catch (e) {
-    const guardado = leer(`resultado-${perfil.id}`, null);
+    const guardado = leer(claveResultado(n), null);
     if (guardado) return practicaResultado(guardado);
     return practicaError(e.message);
   }
-  if (ruta()[0] !== 'practica') return; // el alumno ya se fue a otra parte
+  // El alumno ya se fue a otra parte (u otra sesión) mientras cargaba.
+  if (ruta()[0] !== 'practica' || sesionActual.numero !== n) return;
 
   if (datos.estado === 'entregada') {
-    guardar(`resultado-${perfil.id}`, datos.resultado);
+    guardar(claveResultado(n), datos.resultado);
     return practicaResultado(datos.resultado);
   }
   // El servidor manda: si el docente permitió un reintento, se olvida el comprobante viejo.
-  guardar(`resultado-${perfil.id}`, null);
-  cambiarEstadoPractica(datos.estado === 'abierta');
+  guardar(claveResultado(n), null);
+  cambiarEstadoPracticas({ ...practicas, [n]: datos.estado === 'abierta' });
   if (datos.estado === 'cerrada') return practicaCerrada();
   practicaAbiertaVista(datos);
 }
@@ -1485,12 +1552,12 @@ function practicaCerrada() {
       <div class="hoja">
         <p>Tu docente la abre cuando todo el grupo termine el curso. En cuanto la abra, esta pantalla cambia sola.</p>
         <p class="sutil">Mientras tanto, repasa las lecciones que se te hicieron más difíciles.</p>
-        <a class="boton" href="#/">Volver al curso</a>
+        <a class="boton" href="#/">Volver a la sesión</a>
       </div>
     </main>`;
   const espera = setInterval(async () => {
     try {
-      const d = await api(`api/estado?a=${perfil.id}`);
+      const d = await api(`api/estado?a=${perfil.id}&s=${sesionActual.numero}`);
       if (d.practicaAbierta) pintar();
     } catch {
       /* sigue esperando */
@@ -1502,7 +1569,7 @@ function practicaCerrada() {
 async function practicaProyector() {
   let caso = '';
   try {
-    caso = (await api('api/caso')).caso;
+    caso = (await api(`api/caso?s=${sesionActual.numero}`)).caso;
   } catch {
     caso = '<p>No pude cargar las instrucciones.</p>';
   }
@@ -1510,7 +1577,7 @@ async function practicaProyector() {
     ${barraPractica('Proyector')}
     <main class="pagina pagina--angosta practica">
       <p class="etiqueta">Práctica final</p>
-      <h1>${escapar(CURSO.practica.titulo)}</h1>
+      <h1>${escapar(sesionActual.practica.titulo)}</h1>
       <div class="hoja caso">${caso}</div>
       <p class="sutil">Las preguntas se contestan en el celular de cada alumno.</p>
     </main>`;
@@ -1518,7 +1585,8 @@ async function practicaProyector() {
 
 function practicaAbiertaVista(datos) {
   const { preguntas, caso } = datos;
-  const clave = `practica-${perfil.id}`;
+  const n = sesionActual.numero;
+  const clave = claveRespuestas(n);
   const estado = leer(clave, { respuestas: {}, actual: 0, fase: 'inicio' });
   // Si cambió el banco de preguntas, se descartan respuestas que ya no existen.
   const ids = new Set(preguntas.map((p) => p.id));
@@ -1545,10 +1613,10 @@ function practicaAbiertaVista(datos) {
       ${barraPractica()}
       <main class="pagina pagina--angosta practica">
         <p class="etiqueta">Práctica final</p>
-        <h1>${escapar(CURSO.practica.titulo)}</h1>
+        <h1>${escapar(sesionActual.practica.titulo)}</h1>
         <div class="hoja caso">${caso}</div>
         <ul class="reglas">
-          <li><strong>${preguntas.length} preguntas</strong> de opción múltiple sobre todo el curso, en unos 20 minutos.</li>
+          <li><strong>${preguntas.length} preguntas</strong> de opción múltiple sobre la sesión ${n}, en unos 20 minutos.</li>
           <li>Las instrucciones siempre están a un toque de distancia, arriba de cada pregunta.</li>
           <li>Tus respuestas se guardan en este celular mientras contestas.</li>
           <li><strong>Solo puedes entregar una vez.</strong> Revisa antes de enviar.</li>
@@ -1581,7 +1649,7 @@ function practicaAbiertaVista(datos) {
     app.innerHTML = `
       ${barraPractica(`${contestadas()}/${preguntas.length}`)}
       <main class="pagina pagina--angosta practica">
-        <details class="caso-plegable"><summary>${escapar(CURSO.practica.plegable)}</summary><div class="caso">${caso}</div></details>
+        <details class="caso-plegable"><summary>${escapar(sesionActual.practica.plegable)}</summary><div class="caso">${caso}</div></details>
         ${regla()}
         <p class="practica__conteo"><span>Pregunta ${estado.actual + 1} de ${preguntas.length}</span><span>${faltan ? `Faltan ${faltan}` : 'Ya contestaste todas'}</span></p>
         <div class="hoja">
@@ -1613,7 +1681,7 @@ function practicaAbiertaVista(datos) {
       // Avanza solo, como el examen diagnóstico, sin brincarse la última.
       if (!ultima) {
         setTimeout(() => {
-          if (ruta()[0] !== 'practica' || preguntas[estado.actual] !== p) return;
+          if (ruta()[0] !== 'practica' || sesionActual.numero !== n || preguntas[estado.actual] !== p) return;
           estado.actual += 1;
           mostrar();
         }, 220);
@@ -1699,7 +1767,7 @@ function practicaAbiertaVista(datos) {
     boton.disabled = true;
     error.textContent = '';
     try {
-      const datosEntrega = await api('api/practica/entregar', { alumno: perfil, respuestas: estado.respuestas });
+      const datosEntrega = await api('api/practica/entregar', { alumno: perfil, sesion: n, respuestas: estado.respuestas });
       terminar(datosEntrega.resultado);
     } catch (e) {
       if (e.estado === 409 && e.datos?.resultado) return terminar(e.datos.resultado);
@@ -1711,7 +1779,7 @@ function practicaAbiertaVista(datos) {
 
   function terminar(resultado) {
     guardar(clave, null);
-    guardar(`resultado-${perfil.id}`, resultado);
+    guardar(claveResultado(n), resultado);
     practicaResultado(resultado);
   }
 
@@ -1720,6 +1788,7 @@ function practicaAbiertaVista(datos) {
 
 function practicaResultado(r) {
   alTeclado = null;
+  const n = r.sesion ?? sesionActual.numero;
   const conCalificacion = r.aciertos !== undefined;
   const temas = (r.porTema ?? [])
     .map((t) => {
@@ -1768,8 +1837,8 @@ function practicaResultado(r) {
         <p class="sutil">Tómale captura a esta pantalla: es tu comprobante de entrega.</p>
       </section>
       <div class="acciones">
-        ${conCalificacion ? `<a class="boton boton--primario" href="api/practica/reporte.pdf?a=${perfil.id}" download>${icono('i-libro')} Descargar mi reporte en PDF</a>` : ''}
-        <a class="boton" href="#/">Volver al curso</a>
+        ${conCalificacion ? `<a class="boton boton--primario" href="api/practica/reporte.pdf?a=${perfil.id}&s=${n}" download>${icono('i-libro')} Descargar mi reporte en PDF</a>` : ''}
+        <a class="boton" href="#/">Volver a la sesión</a>
       </div>
       ${conCalificacion ? '<p class="sutil">El reporte trae tu dominio por tema y por concepto, comparado con tu grupo, y qué lecciones repasar.</p>' : ''}
     </main>`;

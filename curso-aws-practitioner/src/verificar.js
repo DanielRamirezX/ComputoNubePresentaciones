@@ -1,14 +1,23 @@
-// Audita el curso antes de darlo: npm run verificar
+// Audita la ruta antes de darla: npm run verificar
 //
-// Práctica final: las tres formas más comunes de acertar sin saber (una letra
-// que domina la clave, rachas de la misma letra y la correcta siempre como la
-// opción más larga) y que cada pregunta esté completa.
-// Curso: que cada ejercicio tenga solución, que los ids no choquen y que los
-// minutos de cada capítulo quepan en su bloque del plan de la clase.
+// Por cada sesión:
+//  - Examen de práctica: las tres formas más comunes de acertar sin saber (una
+//    letra que domina la clave, rachas de la misma letra y la correcta siempre
+//    como la opción más larga) y que cada pregunta esté completa.
+//  - Curso: que cada ejercicio tenga solución, que los minutos de cada capítulo
+//    quepan en su bloque del plan de la clase y que el plan dure 120 minutos.
+// En toda la ruta: ids de actividad únicos, un examen por sesión y que cada
+// captura de la consola exista en public/capturas.
 
-import { CURSO, PLAN } from '../public/contenido.js';
-import { PREGUNTAS, REPASO, TEMAS } from './practica.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+import { SESIONES } from '../public/contenido.js';
+import { TAMANOS } from '../public/piezas.js';
+import { BANCOS } from './practicas.js';
+
+const PUBLICO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const LETRAS = ['A', 'B', 'C', 'D'];
 let problemas = 0;
 const falla = (m) => {
@@ -16,55 +25,53 @@ const falla = (m) => {
   problemas++;
 };
 
-/* ------------------------------------------------------ práctica final */
+/* ------------------------------------------------------ examen de práctica */
 
-console.log('PRÁCTICA FINAL');
-const clave = PREGUNTAS.map((p) => LETRAS[p.correcta]);
-console.log('Clave:', clave.join(' '), '\n');
+function revisarBanco({ PREGUNTAS, REPASO, TEMAS }, idsSesion) {
+  const clave = PREGUNTAS.map((p) => LETRAS[p.correcta]);
+  console.log('Clave:', clave.join(' '));
 
-console.log('Reparto de la clave');
-const esperado = PREGUNTAS.length / LETRAS.length;
-for (const l of LETRAS) {
-  const n = clave.filter((c) => c === l).length;
-  console.log(`  ${l}: ${n}`);
-  if (Math.abs(n - esperado) > 1) falla(`la letra ${l} aparece ${n} veces; se esperaban ~${esperado}`);
+  const esperado = PREGUNTAS.length / LETRAS.length;
+  console.log('Reparto: ' + LETRAS.map((l) => `${l} ${clave.filter((c) => c === l).length}`).join(' · '));
+  for (const l of LETRAS) {
+    const n = clave.filter((c) => c === l).length;
+    if (Math.abs(n - esperado) > 1) falla(`la letra ${l} aparece ${n} veces; se esperaban ~${esperado}`);
+  }
+
+  let racha = 1;
+  for (let i = 1; i < clave.length; i++) {
+    racha = clave[i] === clave[i - 1] ? racha + 1 : 1;
+    if (racha >= 3) falla(`racha de ${racha} ${clave[i]} seguidas que termina en la pregunta ${i + 1}`);
+  }
+
+  const masLarga = PREGUNTAS.filter((p) => {
+    const largos = p.opciones.map((o) => o.length);
+    return largos[p.correcta] === Math.max(...largos);
+  }).length;
+  console.log(`La correcta es (o empata como) la opción más larga en ${masLarga} de ${PREGUNTAS.length}`);
+  if (masLarga > PREGUNTAS.length * 0.45) falla('la correcta tiende a ser la opción más larga');
+
+  for (const p of PREGUNTAS) {
+    if (p.opciones.length !== 4) falla(`${p.id} no tiene 4 opciones`);
+    if (!Number.isInteger(p.correcta) || !p.opciones[p.correcta]) falla(`${p.id} apunta a una opción inexistente`);
+    if (new Set(p.opciones).size !== p.opciones.length) falla(`${p.id} tiene opciones repetidas`);
+    if (!TEMAS.includes(p.tema)) falla(`${p.id} usa un tema que no está en TEMAS`);
+    if (!p.explicacion) falla(`${p.id} no tiene explicación para el repaso`);
+    if (!p.concepto) falla(`${p.id} no tiene concepto para el reporte del alumno`);
+  }
+  const ids = PREGUNTAS.map((p) => p.id);
+  if (new Set(ids).size !== ids.length) falla('hay ids de pregunta repetidos');
+
+  console.log('Preguntas por tema: ' + TEMAS.map((t) => `${PREGUNTAS.filter((p) => p.tema === t).length} ${t}`).join(' · '));
+  for (const t of TEMAS) if (!REPASO[t]?.length) falla(`el tema "${t}" no dice qué repasar`);
+  for (const id of Object.values(REPASO).flat()) {
+    if (!idsSesion.includes(id)) falla(`REPASO apunta a una actividad que no es de esta sesión: ${id}`);
+  }
 }
 
-let racha = 1;
-for (let i = 1; i < clave.length; i++) {
-  racha = clave[i] === clave[i - 1] ? racha + 1 : 1;
-  if (racha >= 3) falla(`racha de ${racha} ${clave[i]} seguidas que termina en la pregunta ${i + 1}`);
-}
+/* ------------------------------------------------------------------ curso */
 
-const masLarga = PREGUNTAS.filter((p) => {
-  const largos = p.opciones.map((o) => o.length);
-  return largos[p.correcta] === Math.max(...largos);
-}).length;
-console.log(`\nLa correcta es (o empata como) la opción más larga en ${masLarga} de ${PREGUNTAS.length}`);
-if (masLarga > PREGUNTAS.length * 0.45) falla('la correcta tiende a ser la opción más larga');
-
-for (const p of PREGUNTAS) {
-  if (p.opciones.length !== 4) falla(`${p.id} no tiene 4 opciones`);
-  if (!Number.isInteger(p.correcta) || !p.opciones[p.correcta]) falla(`${p.id} apunta a una opción inexistente`);
-  if (new Set(p.opciones).size !== p.opciones.length) falla(`${p.id} tiene opciones repetidas`);
-  if (!TEMAS.includes(p.tema)) falla(`${p.id} usa un tema que no está en TEMAS`);
-  if (!p.explicacion) falla(`${p.id} no tiene explicación para el repaso`);
-  if (!p.concepto) falla(`${p.id} no tiene concepto para el reporte del alumno`);
-}
-const ids = PREGUNTAS.map((p) => p.id);
-if (new Set(ids).size !== ids.length) falla('hay ids de pregunta repetidos');
-
-console.log('\nPreguntas por tema');
-for (const t of TEMAS) console.log(`  ${PREGUNTAS.filter((p) => p.tema === t).length}  ${t}`);
-
-/* --------------------------------------------------------------- curso */
-
-console.log('\nCURSO');
-const actividades = CURSO.capitulos.flatMap((c) => c.actividades);
-const idsCurso = actividades.map((a) => a.id);
-if (new Set(idsCurso).size !== idsCurso.length) falla('hay ids de actividad repetidos');
-
-for (const a of actividades) {
+function revisarActividad(a) {
   if (!/^[a-z0-9-]{1,40}$/.test(a.id)) falla(`${a.id}: el id solo puede llevar minúsculas, números y guiones`);
   if (!(a.xp > 0) || !(a.minutos > 0)) falla(`${a.id}: le faltan xp o minutos`);
 
@@ -95,7 +102,7 @@ for (const a of actividades) {
       idsEvidencia.add(id);
     }
     if (a.pasos?.at(-1)?.evidencia) falla(`${a.id}: el último paso arma el PDF, no puede pedir captura`);
-    if (idsEvidencia.size) console.log(`  ${a.id}: ${idsEvidencia.size} evidencias para el PDF (${[...idsEvidencia].join(', ')})`);
+    console.log(`  ${a.id}: ${a.pasos.length} pasos, ${idsEvidencia.size} evidencias para el PDF (${[...idsEvidencia].join(', ')})`);
   } else if (a.tipo === 'clasificar') {
     const grupos = new Set(a.grupos.map((g) => g.id));
     for (const f of a.fichas) {
@@ -111,34 +118,64 @@ for (const a of actividades) {
   }
 }
 
-console.log('Posición de la correcta en los ejercicios de opción múltiple');
-const posiciones = actividades
-  .filter((a) => a.tipo === 'opcion')
-  .map((a) => LETRAS[a.opciones.findIndex((o) => o.correcta)]);
-console.log('  ' + posiciones.join(' '));
-for (const l of LETRAS) {
-  if (posiciones.filter((x) => x === l).length > Math.ceil(posiciones.length / 2)) falla(`demasiadas correctas en ${l}`);
+function revisarSesion(sesion) {
+  const actividades = sesion.capitulos.flatMap((c) => c.actividades);
+  for (const k of ['titulo', 'subtitulo', 'resumen', 'duracion', 'practica', 'plan']) {
+    if (!sesion[k]) falla(`la sesión ${sesion.numero} no tiene ${k}`);
+  }
+  for (const a of actividades) {
+    revisarActividad(a);
+    if (!a.id.startsWith(`s${sesion.numero}-`)) falla(`${a.id}: los ids de la sesión ${sesion.numero} empiezan con s${sesion.numero}-`);
+  }
+
+  const posiciones = actividades.filter((a) => a.tipo === 'opcion').map((a) => LETRAS[a.opciones.findIndex((o) => o.correcta)]);
+  console.log('Correcta en los ejercicios de opción múltiple: ' + posiciones.join(' '));
+  for (const l of LETRAS) {
+    if (posiciones.filter((x) => x === l).length > Math.ceil(posiciones.length / 2)) falla(`demasiadas correctas en ${l}`);
+  }
+
+  console.log('Minutos por capítulo contra el plan');
+  for (const c of sesion.capitulos) {
+    const minutos = c.actividades.reduce((s, a) => s + a.minutos, 0);
+    const bloque = sesion.plan.find((b) => b.capitulo === c.numero);
+    const disponible = bloque ? bloque.hasta - bloque.desde : 0;
+    const xp = c.actividades.reduce((s, a) => s + a.xp, 0);
+    console.log(`  Capítulo ${c.numero}: ${minutos} min de ${disponible} · ${c.actividades.length} actividades · ${xp} XP`);
+    if (!bloque) falla(`el capítulo ${c.numero} no tiene bloque en el plan`);
+    else if (minutos > disponible) falla(`el capítulo ${c.numero} no cabe en su bloque (${minutos} > ${disponible} min)`);
+  }
+  const duracion = sesion.plan.at(-1).hasta;
+  console.log(`  Clase completa: ${duracion} min`);
+  if (duracion !== 120) falla(`el plan dura ${duracion} min, no 120`);
+  for (let i = 1; i < sesion.plan.length; i++) {
+    if (sesion.plan[i].desde !== sesion.plan[i - 1].hasta) falla(`hay un hueco o un traslape antes de "${sesion.plan[i].titulo}"`);
+  }
+  return actividades.map((a) => a.id);
 }
 
-console.log('\nMinutos por capítulo contra el plan');
-for (const c of CURSO.capitulos) {
-  const minutos = c.actividades.reduce((s, a) => s + a.minutos, 0);
-  const bloque = PLAN.find((b) => b.capitulo === c.numero);
-  const disponible = bloque ? bloque.hasta - bloque.desde : 0;
-  const xp = c.actividades.reduce((s, a) => s + a.xp, 0);
-  console.log(`  Capítulo ${c.numero}: ${minutos} min de ${disponible} · ${c.actividades.length} actividades · ${xp} XP`);
-  if (!bloque) falla(`el capítulo ${c.numero} no tiene bloque en el plan`);
-  else if (minutos > disponible) falla(`el capítulo ${c.numero} no cabe en su bloque (${minutos} > ${disponible} min)`);
+/* ------------------------------------------------------------------ la ruta */
+
+const todos = [];
+for (const sesion of SESIONES) {
+  console.log(`\n=========== SESIÓN ${sesion.numero} · ${sesion.titulo.toUpperCase()}`);
+  const ids = revisarSesion(sesion);
+  todos.push(...ids);
+  const banco = BANCOS.get(sesion.numero);
+  console.log('\nExamen de práctica');
+  if (!banco) falla(`la sesión ${sesion.numero} no tiene banco de preguntas en src/practicas.js`);
+  else revisarBanco(banco, ids);
 }
-const duracion = PLAN.at(-1).hasta;
-for (const id of Object.values(REPASO).flat()) {
-  if (!idsCurso.includes(id)) falla(`REPASO apunta a una actividad que no existe: ${id}`);
+
+console.log('\n=========== TODA LA RUTA');
+const repetidos = todos.filter((id, i) => todos.indexOf(id) !== i);
+if (repetidos.length) falla(`ids de actividad repetidos entre sesiones: ${[...new Set(repetidos)].join(', ')}`);
+for (const n of BANCOS.keys()) if (!SESIONES.some((s) => s.numero === n)) falla(`hay banco de preguntas para la sesión ${n}, que no existe`);
+
+const capturas = Object.keys(TAMANOS);
+for (const ruta of capturas) {
+  if (!fs.existsSync(path.join(PUBLICO, 'capturas', `${ruta}.webp`))) falla(`falta la imagen capturas/${ruta}.webp`);
 }
-console.log(`  Clase completa: ${duracion} min`);
-if (duracion !== 120) falla(`el plan dura ${duracion} min, no 120`);
-for (let i = 1; i < PLAN.length; i++) {
-  if (PLAN[i].desde !== PLAN[i - 1].hasta) falla(`hay un hueco o un traslape antes de "${PLAN[i].titulo}"`);
-}
+console.log(`${SESIONES.length} sesiones · ${todos.length} actividades · ${capturas.length} capturas de la consola`);
 
 console.log(problemas === 0 ? '\nTodo en orden.' : `\n${problemas} problema(s) por revisar.`);
 process.exit(problemas === 0 ? 0 : 1);

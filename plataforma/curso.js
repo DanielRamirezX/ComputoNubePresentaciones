@@ -52,7 +52,7 @@ export const CURSO = {
     {
       id: 'aws-practitioner',
       titulo: 'Ruta AWS Cloud Practitioner',
-      resumen: 'Guía paso a paso en el sandbox de AWS hacia la certificación. Sesión 1: tu primera máquina en EC2.',
+      resumen: 'Guía paso a paso en el sandbox de AWS hacia la certificación. Sesión 1: tu primera máquina en EC2. Sesión 2: identidad y seguridad.',
       etiqueta: 'Laboratorio',
       tipo: 'express',
       ruta: '../curso-aws-practitioner'
