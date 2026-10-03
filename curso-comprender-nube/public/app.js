@@ -590,6 +590,7 @@ function vistaEjercicio(actividad) {
         <div class="ejercicio__acciones">
           <button class="boton boton--primario" type="button" id="btn-enviar" disabled>Enviar respuesta</button>
           <button class="boton boton--sutil" type="button" id="btn-solucion" ${PROYECTOR ? '' : 'hidden'}>Ver la respuesta</button>
+          <button class="boton boton--sutil" type="button" id="btn-saltar">${libre ? 'Siguiente actividad →' : 'Saltar →'}</button>
         </div>
         <div class="retro" id="retro" role="status" aria-live="polite" hidden></div>
       </section>
@@ -620,6 +621,13 @@ function vistaEjercicio(actividad) {
     else fallo(resultado.retro);
   });
 
+  // Nadie se queda atorado: saltar cuenta el ejercicio como hecho, con el XP
+  // mínimo, para que el avance siga y el alumno pueda volver después.
+  document.getElementById('btn-saltar').addEventListener('click', () => {
+    if (!estado.terminado && !libre) completar(actividad, minimo);
+    ir(siguienteDe(actividad));
+  });
+
   btnSolucion.addEventListener('click', () => {
     estado.fallos = Math.max(estado.fallos, 99); // ver la respuesta deja el mínimo de XP
     exito(control.solucion(), true);
@@ -629,6 +637,7 @@ function vistaEjercicio(actividad) {
     estado.terminado = true;
     btnEnviar.disabled = true;
     btnSolucion.hidden = true;
+    document.getElementById('btn-saltar').hidden = true;
     const xp = vale();
     const nueva = !yaHecha && !PROYECTOR;
     if (nueva) completar(actividad, xp);

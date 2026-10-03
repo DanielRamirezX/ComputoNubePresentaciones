@@ -678,6 +678,7 @@ function vistaEjercicio(actividad) {
         <div class="ejercicio__acciones">
           <button class="boton boton--primario" type="button" id="btn-enviar" disabled>Enviar respuesta</button>
           <button class="boton boton--sutil" type="button" id="btn-solucion" ${PROYECTOR ? '' : 'hidden'}>Ver la respuesta</button>
+          <button class="boton boton--sutil" type="button" id="btn-saltar">${libre ? 'Siguiente actividad →' : 'Saltar →'}</button>
         </div>
         <div class="retro" id="retro" role="status" aria-live="polite" hidden></div>
       </section>
@@ -708,6 +709,13 @@ function vistaEjercicio(actividad) {
     else fallo(resultado.retro);
   });
 
+  // Nadie se queda atorado: saltar cuenta el ejercicio como hecho, con el XP
+  // mínimo, para que el avance siga y el alumno pueda volver después.
+  document.getElementById('btn-saltar').addEventListener('click', () => {
+    if (!estado.terminado && !libre) completar(actividad, minimo);
+    ir(siguienteDe(actividad));
+  });
+
   btnSolucion.addEventListener('click', () => {
     estado.fallos = Math.max(estado.fallos, 99); // ver la respuesta deja el mínimo de XP
     exito(control.solucion(), true);
@@ -717,6 +725,7 @@ function vistaEjercicio(actividad) {
     estado.terminado = true;
     btnEnviar.disabled = true;
     btnSolucion.hidden = true;
+    document.getElementById('btn-saltar').hidden = true;
     const xp = vale();
     const nueva = !yaHecha && !PROYECTOR;
     if (nueva) completar(actividad, xp);
@@ -1438,35 +1447,28 @@ function vistaLaboratorio(actividad, numeroPaso) {
     mostrar(true);
   }
 
-  // Sin su captura no se avanza: al cerrar el sandbox se borra todo y ya no
-  // habría de dónde sacarla. En el proyector no se exige.
+  // Nunca se bloquea el avance. Si falta la captura solo se avisa: al cerrar
+  // el sandbox se borra todo y ya no habría de dónde sacarla.
   async function marcar() {
     const paso = actividad.pasos[i];
     if (paso.evidencia && !PROYECTOR && !(await leerEvidencia(claveDe(paso)).catch(() => null))) {
-      aviso('Primero pega tu captura');
-      const caja = app.querySelector('[data-evidencia]');
-      caja?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const estado = caja?.querySelector('[data-estado]');
-      if (estado) estado.textContent = 'Falta tu captura. Tómala antes de seguir: al cerrar el sandbox ya no podrás.';
-      caja?.querySelector('[data-elegir]')?.focus({ preventScroll: true });
-      return;
+      aviso('Avanzaste sin tu captura: la puedes pegar después en este paso');
     }
     hechos.add(i);
     recordar();
     irAlPaso(i + 1);
   }
 
+  // Terminar marca el laboratorio completo aunque falten pasos. El XP sí
+  // refleja cuántos pasos marcó el alumno (con un mínimo del 10 %).
   function terminar() {
     hechos.add(i);
+    const marcados = hechos.size;
+    actividad.pasos.forEach((_, j) => hechos.add(j));
     recordar();
-    const faltan = actividad.pasos.map((_, j) => j).filter((j) => !hechos.has(j));
-    if (faltan.length && !PROYECTOR) {
-      aviso(`Te falta marcar el paso ${faltan[0] + 1}`);
-      irAlPaso(faltan[0]);
-      return;
-    }
     apagarSandbox();
-    completar(actividad, actividad.xp);
+    const xp = Math.max(Math.round(actividad.xp * 0.1), Math.round((actividad.xp * marcados) / total));
+    completar(actividad, xp);
     ir(siguienteDe(actividad));
   }
 
