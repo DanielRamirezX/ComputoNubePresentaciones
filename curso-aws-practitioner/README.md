@@ -36,7 +36,7 @@ Dentro de la plataforma vive en `/m/aws-practitioner/`; el panel del docente, en
 |---|---|---|---|
 | 1 | Tu primera máquina en AWS: infraestructura global, EC2 y sus precios | ≈ 45 min | **Lista** |
 | 2 | Identidad y seguridad: IAM, políticas y SCP, responsabilidad compartida, servicios de seguridad | ≈ 30 min | **Lista** |
-| 3 | Redes: VPC, subredes, tablas de rutas, grupos de seguridad y NACL, Route 53, CloudFront | ≈ 60 min | Pendiente |
+| 3 | Redes: VPC, subredes, tablas de rutas y gateways, VPN y Direct Connect, Route 53, CloudFront | ≈ 25 min | **Lista** |
 | 4 | Almacenamiento: S3, sitio estático, EBS, EFS, Glacier | ≈ 45 min | Pendiente |
 | 5 | Bases de datos: RDS, Aurora, DynamoDB, ElastiCache, Redshift | ≈ 60 min | Pendiente |
 | 6 | Escalar y automatizar: ELB, Auto Scaling, CloudWatch, Lambda, SNS y SQS | ≈ 60 min | Pendiente |
@@ -68,9 +68,21 @@ repetir el laboratorio en casa.
 | 1:40 – 1:57 | Examen de práctica: 20 preguntas de seguridad, con reporte PDF | Apagado |
 | 1:57 – 2:00 | Cierre | — |
 
+## Sesión 3: Redes en AWS (2 horas)
+
+| Minutos | Bloque | Sandbox |
+|---|---|---|
+| 0:00 – 0:05 | Arranque | Apagado |
+| 0:05 – 0:38 | Capítulo 1: VPC y CIDR, subredes públicas y privadas, conectar redes (peering, Transit Gateway, VPN, Direct Connect, endpoints), Route 53, CloudFront y Global Accelerator | Apagado |
+| 0:38 – 1:32 | Capítulo 2: laboratorio de 15 pasos; leer la VPC por omisión y su ruta al Internet Gateway, crear una VPC con dos subredes, comprobar que sin esa ruta son privadas y borrarla | **Encendido ≈ 25 min** |
+| 1:32 – 1:40 | Capítulo 3: hoja de repaso y verdadero o falso | Apagado |
+| 1:40 – 1:57 | Examen de práctica: 20 preguntas de redes, con reporte PDF | Apagado |
+| 1:57 – 2:00 | Cierre | — |
+
 ## Lo que permite el sandbox de DataCamp
 
-Verificado en el sandbox del docente el 27 y el 30 de septiembre de 2026. Las
+Verificado en el sandbox del docente el 27 y el 30 de septiembre y el 4 de
+octubre de 2026. Las
 guías ya lo toman en cuenta; sirve para diseñar las sesiones que faltan.
 
 - Región **us-east-1** (N. Virginia). Una sola sesión a la vez; al salir se
@@ -87,6 +99,10 @@ guías ya lo toman en cuenta; sirve para diseñar las sesiones que faltan.
 - **CloudTrail**: *AccessDeniedException*. **RDS**: negado por una SCP de la
   organización (*explicit deny*). Tampoco Redshift ni DocumentDB.
 - **Grupos de seguridad y NACL**: se pueden crear, ver y borrar.
+- **VPC**: se pueden crear VPC y subredes y editar tablas de rutas, pero crear
+  un **Internet Gateway** está negado por una SCP (*explicit deny*). La VPC por
+  omisión (172.31.0.0/16) trae 6 subredes, una por zona, y su igw.
+- **CloudFront** y **Route 53**: se pueden abrir y ver (región *Global*).
 - Según la tabla de DataCamp: sin Lambda, DynamoDB, SNS/SQS ni API Gateway; S3
   sin subir archivos; balanceadores con *Access denied*; no se puede crear un
   Internet Gateway; CloudWatch completo; Auto Scaling hasta 3 instancias.
@@ -103,15 +119,16 @@ npm start            # suelto, en http://localhost:3000
 npm run verificar    # revisa ejercicios, laboratorios, examen y tiempos
 ```
 
-- Cada sesión vive en su archivo: `public/sesion1.js`, `public/sesion2.js`
+- Cada sesión vive en su archivo: `public/sesion1.js`, `public/sesion2.js`,
+  `public/sesion3.js`
   (lecciones, ejercicios, laboratorio, examen y plan de clase).
   `public/contenido.js` las junta y tiene la ruta completa; los números del
   sandbox están en `public/sandbox.js`.
 - Las piezas para escribir sesiones (recuadros, código, botones de la consola y
   capturas con marcas) están en `public/piezas.js`; las imágenes, en
   `public/capturas/s1`, `s2`…, con su tamaño registrado en `TAMANOS`.
-- Exámenes de práctica: `src/practica.js` (sesión 1) y `src/practica2.js`
-  (sesión 2), juntos en `src/practicas.js`. Misma estructura del otro curso:
+- Exámenes de práctica: `src/practica.js` (sesión 1), `src/practica2.js` y
+  `src/practica3.js`, juntos en `src/practicas.js`. Misma estructura del otro curso:
   `correcta`, `explicacion`, `concepto` y el mapa `REPASO`.
 - **Para agregar una sesión:** escribe `public/sesionN.js` y `src/practicaN.js`,
   agrégalos a `public/contenido.js` y `src/practicas.js`, y corre
