@@ -22,6 +22,7 @@
 import { SESION_1 } from './sesion1.js';
 import { SESION_2 } from './sesion2.js';
 import { SESION_3 } from './sesion3.js';
+import { SESION_4 } from './sesion4.js';
 
 export { SANDBOX } from './sandbox.js';
 
@@ -31,7 +32,7 @@ export const CURSO = {
 };
 
 /** Las sesiones ya construidas, en orden. */
-export const SESIONES = [SESION_1, SESION_2, SESION_3];
+export const SESIONES = [SESION_1, SESION_2, SESION_3, SESION_4];
 
 export const sesionDe = (numero) => SESIONES.find((s) => s.numero === Number(numero)) ?? null;
 
@@ -41,7 +42,7 @@ export const RUTA = [
   { numero: 1, titulo: 'Tu primera máquina en AWS', temas: 'Infraestructura global · EC2 · precios de cómputo', dominios: ['Tecnología', 'Facturación'], sandbox: 45 },
   { numero: 2, titulo: 'Identidad y seguridad', temas: 'IAM: usuarios, grupos, roles y políticas · MFA · responsabilidad compartida · servicios de seguridad', dominios: ['Seguridad'], sandbox: 30 },
   { numero: 3, titulo: 'Redes en AWS', temas: 'VPC, subredes, tablas de rutas y gateways · VPN, Direct Connect y peering · Route 53 · CloudFront', dominios: ['Tecnología'], sandbox: 25 },
-  { numero: 4, titulo: 'Almacenamiento', temas: 'Amazon S3 y sus clases · EBS, EFS y Glacier', dominios: ['Tecnología'], sandbox: 45 },
+  { numero: 4, titulo: 'Almacenamiento', temas: 'Amazon S3 y sus clases · ciclo de vida y Glacier · EBS, EFS y snapshots · Snowball y Storage Gateway', dominios: ['Tecnología'], sandbox: 25 },
   { numero: 5, titulo: 'Bases de datos', temas: 'Amazon RDS y Aurora · DynamoDB · ElastiCache · Redshift', dominios: ['Tecnología'], sandbox: 60 },
   { numero: 6, titulo: 'Escalar y automatizar', temas: 'Balanceadores de carga · Auto Scaling · CloudWatch · Lambda · SNS y SQS', dominios: ['Tecnología', 'Conceptos'], sandbox: 60 },
   { numero: 7, titulo: 'Costos, soporte y buenas prácticas', temas: 'Pricing Calculator · Budgets · Cost Explorer · Organizations · planes de soporte · Well-Architected', dominios: ['Facturación', 'Conceptos'], sandbox: 20 },
