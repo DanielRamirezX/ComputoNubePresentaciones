@@ -54,6 +54,8 @@
 
     <p class="nota-panel">Si proyectas tu laptop en modo duplicado, el grupo verá este panel con nombres y calificaciones. Ábrelo en tu celular o usa el modo “Extender”.</p>
 
+    <p class="error error--panel" id="error-panel" role="alert"></p>
+
     <nav class="pestanas" role="tablist" aria-label="Secciones del panel">
       <button type="button" role="tab" id="tab-plan" aria-controls="panel-plan" data-pestana="plan">Plan de la clase</button>
       <button type="button" role="tab" id="tab-vivo" aria-controls="panel-vivo" data-pestana="vivo">Avance en vivo</button>
@@ -108,6 +110,7 @@
           <p class="estado-practica__resumen" id="estado-practica-resumen"></p>
           <p class="estado-practica__temas" id="estado-practica-temas"></p>
           <p id="estado-practica-texto">Los alumnos ven la tarjeta con candado. Ábrelo cuando el grupo termine el capítulo 3.</p>
+          <p class="error" id="error-practica" role="alert"></p>
         </div>
         <button class="boton boton--primario" type="button" id="btn-practica">Abrir el examen</button>
       </div>
@@ -144,8 +147,6 @@
         <button class="boton boton--peligro" type="button" id="btn-borrar">Borrar los datos del grupo</button>
       </div>
     </section>
-
-    <p class="error" id="error-panel" role="alert"></p>
   </section>
 </main>
 

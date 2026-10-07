@@ -1783,6 +1783,9 @@ button { cursor: pointer; }
 .estado-practica .etiqueta { margin: 0 0 8px; color: var(--ink); }
 .estado-practica .estado-practica__resumen { color: var(--ink); }
 .estado-practica .estado-practica__temas { font-size: .9rem; }
+.estado-practica .error:empty, .error--panel:empty { display: none; }
+.error--panel { margin: 0 0 12px; }
+.estado-practica .error { color: var(--red, #c8102e); font-weight: 700; }
 
 .barra-panel { display: grid; grid-template-columns: minmax(0, 1fr) 4.2em; gap: 4px 12px; align-items: center; margin-bottom: 10px; font-size: .92rem; }
 .barra-panel .progreso { grid-column: 1 / -1; height: 12px; }

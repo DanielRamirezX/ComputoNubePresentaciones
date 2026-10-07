@@ -126,7 +126,11 @@ async function llamar(ruta, opciones = {}) {
 
 async function cargar() {
   try {
-    datos = await llamar(`api/docente/resumen?grupo=${encodeURIComponent($('grupo').value)}&sesion=${S.numero}`);
+    const pedida = S.numero;
+    const nuevos = await llamar(`api/docente/resumen?grupo=${encodeURIComponent($('grupo').value)}&sesion=${pedida}`);
+    // Si el docente cambió de sesión mientras llegaba la respuesta, ya no sirve.
+    if (pedida !== S.numero) return;
+    datos = nuevos;
     $('error-panel').textContent = '';
     pintarTodo();
   } catch (e) {
@@ -140,6 +144,16 @@ $('sesion-panel').addEventListener('change', () => {
   usarSesion(sesionDe($('sesion-panel').value));
   datos = null;
   pintarPlan();
+  // La tarjeta del examen cambia de sesión al instante, aunque los datos tarden.
+  $('estado-practica').classList.remove('estado-practica--abierta');
+  $('estado-practica-sesion').textContent = `Sesión ${S.numero} · ${S.titulo}`;
+  $('estado-practica-titulo').textContent = `${S.practica.titulo}: cargando…`;
+  $('estado-practica-resumen').textContent = S.practica.resumen;
+  $('estado-practica-temas').textContent = '';
+  $('estado-practica-texto').textContent = '';
+  $('error-practica').textContent = '';
+  $('btn-practica').textContent = `Abrir el examen de la sesión ${S.numero}`;
+  $('btn-practica').className = 'boton boton--primario';
   cargar();
 });
 
@@ -442,17 +456,32 @@ function opcionesConBarras(q, total) {
 }
 
 $('btn-practica').addEventListener('click', async () => {
-  const abrir = !datos.practicaAbierta;
-  if (!abrir && !confirm(`Al cerrar el examen de la sesión ${S.numero}, quien no haya entregado ya no podrá hacerlo. ¿Cerrarlo?`)) return;
+  const boton = $('btn-practica');
+  const aviso = $('error-practica');
+  aviso.textContent = '';
+  boton.disabled = true;
   try {
-    await llamar('api/docente/practica', {
+    // Sin datos de ESTA sesión (recién cambiada o sin conexión) no se sabe si toca abrir o cerrar.
+    if (datos?.sesion !== S.numero) await cargar();
+    if (datos?.sesion !== S.numero) throw new Error('el servidor no respondió. Espera unos segundos y vuelve a intentarlo');
+    const n = S.numero;
+    const abrir = !datos.practicaAbierta;
+    if (!abrir && !confirm(`Al cerrar el examen de la sesión ${n}, quien no haya entregado ya no podrá hacerlo. ¿Cerrarlo?`)) return;
+    const r = await llamar('api/docente/practica', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ abierta: abrir, sesion: S.numero })
+      body: JSON.stringify({ abierta: abrir, sesion: n })
     });
+    // El cambio ya quedó en el servidor: se pinta aunque falle la recarga de la tabla.
+    if (datos?.sesion === n) {
+      datos.practicaAbierta = r.practicaAbierta;
+      pintarPractica();
+    }
     await cargar();
   } catch (e) {
-    $('error-panel').textContent = `No se pudo cambiar la práctica: ${e.message}`;
+    aviso.textContent = `No se pudo cambiar el examen de la sesión ${S.numero}: ${e.estado === 401 ? 'la clave ya no es válida. Recarga la página y vuelve a entrar' : e.message}.`;
+  } finally {
+    boton.disabled = false;
   }
 });
 
