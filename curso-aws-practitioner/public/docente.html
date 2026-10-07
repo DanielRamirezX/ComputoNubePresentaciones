@@ -102,11 +102,14 @@
     <!-- Práctica final -->
     <section id="panel-practica" role="tabpanel" aria-labelledby="tab-practica" data-panel="practica" hidden>
       <div class="estado-practica" id="estado-practica">
-        <div>
-          <h2 id="estado-practica-titulo">La práctica está cerrada</h2>
-          <p id="estado-practica-texto">Los alumnos ven la tarjeta con candado. Ábrela cuando el grupo termine el capítulo 3.</p>
+        <div class="estado-practica__cual">
+          <p class="etiqueta" id="estado-practica-sesion"></p>
+          <h2 id="estado-practica-titulo">Examen cerrado</h2>
+          <p class="estado-practica__resumen" id="estado-practica-resumen"></p>
+          <p class="estado-practica__temas" id="estado-practica-temas"></p>
+          <p id="estado-practica-texto">Los alumnos ven la tarjeta con candado. Ábrelo cuando el grupo termine el capítulo 3.</p>
         </div>
-        <button class="boton boton--primario" type="button" id="btn-practica">Abrir la práctica</button>
+        <button class="boton boton--primario" type="button" id="btn-practica">Abrir el examen</button>
       </div>
 
       <div class="metricas" id="metricas-practica"></div>

@@ -349,11 +349,17 @@ function pintarPractica() {
   const alumnos = datos.alumnos;
 
   $('estado-practica').classList.toggle('estado-practica--abierta', abierta);
-  $('estado-practica-titulo').textContent = abierta ? 'La práctica está abierta' : 'La práctica está cerrada';
+  // Que se vea CUÁL examen se abre: el de la sesión elegida arriba, con lo que trae.
+  const porTema = new Map();
+  for (const q of p.preguntas) porTema.set(q.tema, (porTema.get(q.tema) ?? 0) + 1);
+  $('estado-practica-sesion').textContent = `Sesión ${S.numero} · ${S.titulo}`;
+  $('estado-practica-titulo').textContent = `${S.practica.titulo}: ${abierta ? 'abierto' : 'cerrado'}`;
+  $('estado-practica-resumen').textContent = S.practica.resumen;
+  $('estado-practica-temas').textContent = `Temas: ${[...porTema].map(([tema, n]) => `${tema} (${n})`).join(' · ')}.`;
   $('estado-practica-texto').textContent = abierta
-    ? 'Los alumnos ya pueden contestarla. Al cerrarla, nadie más puede entregar.'
-    : 'Los alumnos ven la tarjeta con candado. Ábrela cuando el grupo termine el capítulo 3.';
-  $('btn-practica').textContent = abierta ? 'Cerrar la práctica' : 'Abrir la práctica';
+    ? 'Los alumnos ya pueden contestarlo. Al cerrarlo, nadie más puede entregar.'
+    : 'Los alumnos ven la tarjeta con candado. Ábrelo cuando el grupo termine el capítulo 3. Para abrir el de otra sesión, cámbiala en el selector “Sesión” de arriba.';
+  $('btn-practica').textContent = `${abierta ? 'Cerrar' : 'Abrir'} el examen de la sesión ${S.numero}`;
   $('btn-practica').className = abierta ? 'boton boton--peligro' : 'boton boton--primario';
 
   $('metricas-practica').innerHTML = `
@@ -437,7 +443,7 @@ function opcionesConBarras(q, total) {
 
 $('btn-practica').addEventListener('click', async () => {
   const abrir = !datos.practicaAbierta;
-  if (!abrir && !confirm('Al cerrar la práctica, quien no haya entregado ya no podrá hacerlo. ¿Cerrarla?')) return;
+  if (!abrir && !confirm(`Al cerrar el examen de la sesión ${S.numero}, quien no haya entregado ya no podrá hacerlo. ¿Cerrarlo?`)) return;
   try {
     await llamar('api/docente/practica', {
       method: 'PUT',

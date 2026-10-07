@@ -1779,6 +1779,10 @@ button { cursor: pointer; }
 .estado-practica--abierta { background: var(--green-soft); }
 .estado-practica h2 { margin: 0; font-size: 1.3rem; }
 .estado-practica p { margin: 4px 0 0; color: var(--muted); }
+.estado-practica__cual { flex: 1 1 320px; min-width: 0; }
+.estado-practica .etiqueta { margin: 0 0 8px; color: var(--ink); }
+.estado-practica .estado-practica__resumen { color: var(--ink); }
+.estado-practica .estado-practica__temas { font-size: .9rem; }
 
 .barra-panel { display: grid; grid-template-columns: minmax(0, 1fr) 4.2em; gap: 4px 12px; align-items: center; margin-bottom: 10px; font-size: .92rem; }
 .barra-panel .progreso { grid-column: 1 / -1; height: 12px; }
