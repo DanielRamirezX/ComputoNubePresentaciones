@@ -49,7 +49,8 @@ export function reporteDominio({ entrega, preguntas, temas, detalle, grupo, repa
   };
 
   const seccion = (titulo) => {
-    asegurar(60);
+    // Que el título no se quede solo al pie de la página: caben él y tres renglones.
+    asegurar(110);
     y += 16;
     pdf.texto(MARGEN, y + 14, titulo, { tamano: 14, negrita: true });
     y += 22;
@@ -137,7 +138,7 @@ export function reporteDominio({ entrega, preguntas, temas, detalle, grupo, repa
     return pct(delTema.filter((d) => d.correcta).length, delTema.length) < 80;
   });
   if (flojos.length === 0) {
-    for (const renglon of partir('Dominaste los cinco temas de esta sesión. Sigue así: la certificación se aprueba con 700 de 1000, así que un 80 % constante te deja con margen.', ANCHO_UTIL, 10.5)) {
+    for (const renglon of partir('Dominaste todos los temas de este examen. Sigue así: la certificación se aprueba con 700 de 1000, así que un 80 % constante te deja con margen.', ANCHO_UTIL, 10.5)) {
       asegurar(16);
       pdf.texto(MARGEN, y + 11, renglon, { tamano: 10.5 });
       y += 15;

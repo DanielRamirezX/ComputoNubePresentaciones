@@ -61,12 +61,14 @@ repetir el laboratorio en casa.
 
 | Minutos | Bloque | Sandbox |
 |---|---|---|
-| 0:00 – 0:05 | Arranque | Apagado |
-| 0:05 – 0:41 | Capítulo 1: IAM (raíz, usuarios, grupos, roles), políticas y SCP, responsabilidad compartida y Artifact, servicios de seguridad | Apagado |
-| 0:41 – 1:32 | Capítulo 2: laboratorio de 17 pasos; leer los “Access denied”, guardar un secreto cifrado con KMS, grupo de seguridad con mínimo privilegio, NACL y limpieza | **Encendido ≈ 30 min** |
-| 1:32 – 1:40 | Capítulo 3: hoja de repaso y verdadero o falso | Apagado |
-| 1:40 – 1:57 | Examen de práctica: 20 preguntas de seguridad, con reporte PDF | Apagado |
-| 1:57 – 2:00 | Cierre | — |
+| 0:00 – 0:04 | Arranque | Apagado |
+| 0:04 – 0:39 | Capítulo 1: IAM (raíz, usuarios, grupos, roles), políticas y SCP, responsabilidad compartida y Artifact, servicios de seguridad | Apagado |
+| 0:39 – 1:30 | Capítulo 2: laboratorio de 17 pasos; leer los “Access denied”, guardar un secreto cifrado con KMS, grupo de seguridad con mínimo privilegio, NACL y limpieza | **Encendido ≈ 30 min** |
+| 1:30 – 1:38 | Capítulo 3: hoja de repaso y verdadero o falso | Apagado |
+| 1:38 – 1:58 | Examen acumulativo: 25 preguntas (15 de seguridad y 10 de repaso de fundamentos de la nube y de la sesión 1), con reporte PDF | Apagado |
+| 1:58 – 2:00 | Cierre | — |
+
+El examen de esta sesión es acumulativo. En el panel, los temas «Repaso: fundamentos de la nube» y «Repaso: EC2 e infraestructura» muestran qué se olvidó de las clases anteriores.
 
 ## Sesión 3: Redes en AWS (2 horas)
 

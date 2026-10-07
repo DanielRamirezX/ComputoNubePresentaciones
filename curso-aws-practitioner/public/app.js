@@ -1618,7 +1618,7 @@ function practicaAbiertaVista(datos) {
         <h1>${escapar(sesionActual.practica.titulo)}</h1>
         <div class="hoja caso">${caso}</div>
         <ul class="reglas">
-          <li><strong>${preguntas.length} preguntas</strong> de opción múltiple sobre la sesión ${n}, en unos 20 minutos.</li>
+          <li><strong>${preguntas.length} preguntas</strong> de opción múltiple sobre ${escapar(sesionActual.practica.sobre ?? `la sesión ${n}`)}, en unos 20 minutos.</li>
           <li>Las instrucciones siempre están a un toque de distancia, arriba de cada pregunta.</li>
           <li>Tus respuestas se guardan en este celular mientras contestas.</li>
           <li><strong>Solo puedes entregar una vez.</strong> Revisa antes de enviar.</li>

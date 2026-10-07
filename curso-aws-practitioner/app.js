@@ -256,7 +256,7 @@ export function crearApp() {
       temas: TEMAS,
       detalle: calificar(entrega.respuestas).detalle,
       grupo,
-      repaso: Object.fromEntries(Object.entries(REPASO).map(([t, ids]) => [t, ids.map((id) => TITULOS.get(id))])),
+      repaso: Object.fromEntries(Object.entries(REPASO).map(([t, ids]) => [t, ids.map((id) => TITULOS.get(id) ?? id)])),
       conRespuestas: RETRO === 'completo',
       materia: MATERIA,
       etiqueta: datosSesion.practica.titulo,

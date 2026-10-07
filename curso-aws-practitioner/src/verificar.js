@@ -27,7 +27,7 @@ const falla = (m) => {
 
 /* ------------------------------------------------------ examen de práctica */
 
-function revisarBanco({ PREGUNTAS, REPASO, TEMAS }, idsSesion) {
+function revisarBanco({ PREGUNTAS, REPASO, TEMAS }, idsVistos) {
   const clave = PREGUNTAS.map((p) => LETRAS[p.correcta]);
   console.log('Clave:', clave.join(' '));
 
@@ -64,8 +64,10 @@ function revisarBanco({ PREGUNTAS, REPASO, TEMAS }, idsSesion) {
 
   console.log('Preguntas por tema: ' + TEMAS.map((t) => `${PREGUNTAS.filter((p) => p.tema === t).length} ${t}`).join(' · '));
   for (const t of TEMAS) if (!REPASO[t]?.length) falla(`el tema "${t}" no dice qué repasar`);
+  // Un examen acumulativo puede mandar a repasar sesiones anteriores, o un
+  // material de fuera de la ruta (texto libre, que no parece id de actividad).
   for (const id of Object.values(REPASO).flat()) {
-    if (!idsSesion.includes(id)) falla(`REPASO apunta a una actividad que no es de esta sesión: ${id}`);
+    if (/^s\d+-/.test(id) && !idsVistos.includes(id)) falla(`REPASO apunta a una actividad que no es de esta sesión ni de las anteriores: ${id}`);
   }
 }
 
@@ -163,7 +165,7 @@ for (const sesion of SESIONES) {
   const banco = BANCOS.get(sesion.numero);
   console.log('\nExamen de práctica');
   if (!banco) falla(`la sesión ${sesion.numero} no tiene banco de preguntas en src/practicas.js`);
-  else revisarBanco(banco, ids);
+  else revisarBanco(banco, todos);
 }
 
 console.log('\n=========== TODA LA RUTA');

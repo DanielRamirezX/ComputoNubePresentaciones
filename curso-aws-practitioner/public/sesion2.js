@@ -28,9 +28,10 @@ export const SESION_2 = {
   minutosSandbox: 30,
 
   practica: {
-    titulo: 'Examen de práctica · Sesión 2',
-    corto: 'Examen de práctica',
-    resumen: '20 preguntas de seguridad al estilo del examen de certificación, unos 17 minutos, una sola entrega.',
+    titulo: 'Examen acumulativo · Sesión 2',
+    corto: 'Examen acumulativo',
+    sobre: 'la sesión 2 y las clases anteriores',
+    resumen: '25 preguntas al estilo del examen de certificación: 15 de identidad y seguridad (lo de hoy) y 10 de repaso de las clases anteriores. Unos 20 minutos, una sola entrega.',
     plegable: 'Ver cómo es el examen real'
   },
 
@@ -820,7 +821,7 @@ export const SESION_2 = {
     {
       numero: 3,
       titulo: 'Repaso para el examen',
-      descripcion: 'Lo que la certificación pregunta de seguridad, en una sola página, y un verdadero o falso para calentar antes del examen de práctica.',
+      descripcion: 'Lo que la certificación pregunta de seguridad, en una sola página, y un verdadero o falso para calentar antes del examen acumulativo.',
       actividades: [
         {
           id: 's2-repaso',
@@ -859,7 +860,7 @@ export const SESION_2 = {
           titulo: '¿Verdadero o falso?',
           xp: 100,
           minutos: 3,
-          contexto: '<p>Calentamiento antes del examen de práctica.</p>',
+          contexto: '<p>Calentamiento antes del examen acumulativo.</p>',
           pregunta: 'Decide si cada afirmación es verdadera o falsa.',
           grupos: [
             { id: 'v', nombre: 'Verdadero', color: 'green' },
@@ -887,7 +888,7 @@ export const SESION_2 = {
   plan: [
     {
       desde: 0,
-      hasta: 5,
+      hasta: 4,
       titulo: 'Arranque',
       pasos: [
         'Proyecta el QR de la plataforma y que abran “Ruta AWS Cloud Practitioner”, sesión 2.',
@@ -896,8 +897,8 @@ export const SESION_2 = {
       vigila: 'Que nadie encienda el sandbox todavía.'
     },
     {
-      desde: 5,
-      hasta: 41,
+      desde: 4,
+      hasta: 39,
       titulo: 'Capítulo 1 · Antes de encender el sandbox',
       capitulo: 1,
       pasos: [
@@ -908,8 +909,8 @@ export const SESION_2 = {
       vigila: 'La tabla de servicios es larga: no la lean palabra por palabra, quédense con la columna de palabras clave.'
     },
     {
-      desde: 41,
-      hasta: 92,
+      desde: 39,
+      hasta: 90,
       titulo: 'Capítulo 2 · Laboratorio guiado',
       capitulo: 2,
       pasos: [
@@ -921,29 +922,29 @@ export const SESION_2 = {
       vigila: 'En “Avance en vivo” se ve en qué paso va cada quien. El paso 13 (nombre que empieza con “sg-”) es donde más se atoran.'
     },
     {
-      desde: 92,
-      hasta: 100,
+      desde: 90,
+      hasta: 98,
       titulo: 'Capítulo 3 · Repaso',
       capitulo: 3,
       pasos: ['Proyecta la hoja de repaso.', 'El verdadero o falso es el termómetro antes del examen.'],
-      vigila: 'Cuando casi todos terminen, abre el examen de práctica de la sesión 2.'
+      vigila: 'Cuando casi todos terminen, abre el examen acumulativo de la sesión 2.'
     },
     {
-      desde: 100,
-      hasta: 117,
-      titulo: 'Examen de práctica',
+      desde: 98,
+      hasta: 118,
+      titulo: 'Examen acumulativo',
       pasos: [
         'En el panel elige la sesión 2 y abre el examen en la pestaña “Práctica final”.',
-        '20 preguntas de seguridad al estilo de la certificación, una sola entrega.',
+        '25 preguntas, una sola entrega: 15 de seguridad (lo de hoy) y 10 de repaso de fundamentos de la nube y de la sesión 1.',
         'Al entregar, cada alumno puede descargar su reporte en PDF.'
       ],
       vigila: 'No proyectes el panel mientras contestan: muestra nombres y calificaciones.'
     },
     {
-      desde: 117,
+      desde: 118,
       hasta: 120,
       titulo: 'Cierre',
-      pasos: ['Cierra el examen y proyecta el repaso de las preguntas más falladas.', 'Descarga el CSV antes de apagar.'],
+      pasos: ['Cierra el examen y mira en el panel el acierto por tema: los dos temas de “Repaso” dicen qué se olvidó de las clases anteriores.', 'Descarga el CSV antes de apagar.'],
       vigila: 'Recuérdales subir su PDF de evidencias a Blackboard.'
     }
   ]
