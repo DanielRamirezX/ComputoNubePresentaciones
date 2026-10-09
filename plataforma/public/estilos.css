@@ -56,6 +56,20 @@ body {
 
 .cabecera__pie { margin: 0; color: var(--muted); font-size: .95rem; }
 
+/* --------------------------------------------------------------- secciones */
+
+.seccion {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 40px 0 18px;
+  font-family: var(--display);
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.seccion::after { content: ""; flex: 1; height: 3px; border-radius: 2px; background: var(--ink); }
+
 /* --------------------------------------------------------------- tarjetas */
 
 .rejilla { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }

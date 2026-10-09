@@ -61,6 +61,7 @@ Computo en la nube/
 ├─ presentacion-virtualizacion/ ← carpeta hermana
 ├─ curso-comprender-nube/       ← carpeta hermana
 ├─ curso-aws-practitioner/      ← carpeta hermana
+├─ recurso-viaje-paquete/       ← carpeta hermana (sección «Recursos didácticos»)
 └─ examen-diagnostico/          ← carpeta hermana
 ```
 
@@ -90,6 +91,10 @@ Tres tipos:
 | `estatico` | Una presentación o cualquier sitio de archivos | Un `index.html` |
 | `express` | Un proyecto Node con su propio servidor | Un `app.js` que exporte `crearApp()` |
 | `enlace` | Algo que vive fuera (Classroom, un video) | Nada; pon `url: 'https://…'` |
+
+Un módulo con `seccion: 'Recursos didácticos'` sale en el índice bajo ese título,
+después de las clases. Ahí van los apoyos sueltos (animaciones, simuladores) que
+no son una clase completa.
 
 No hay que reiniciar para cambiar contenido de una presentación, pero **sí** para
 que `curso.js` se vuelva a leer.

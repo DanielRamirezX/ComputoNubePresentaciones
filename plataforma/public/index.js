@@ -41,7 +41,20 @@ async function cargar() {
     $('pie').textContent = partes.join(' · ');
 
     $('etiqueta').textContent = `${datos.modulos.length} material${datos.modulos.length === 1 ? '' : 'es'}`;
-    $('rejilla').innerHTML = datos.modulos.map(tarjeta).join('');
+    // Primero las clases; después, cada sección con su título (por ejemplo,
+    // «Recursos didácticos»), en el orden en que aparecen en curso.js.
+    const secciones = new Map([['', []]]);
+    for (const m of datos.modulos) {
+      const nombre = m.seccion || '';
+      if (!secciones.has(nombre)) secciones.set(nombre, []);
+      secciones.get(nombre).push(m);
+    }
+    $('rejilla').innerHTML = [...secciones]
+      .filter(([, modulos]) => modulos.length)
+      .map(([nombre, modulos]) => `
+        ${nombre ? `<h2 class="seccion">${escapar(nombre)}</h2>` : ''}
+        <div class="rejilla">${modulos.map(tarjeta).join('')}</div>`)
+      .join('');
     // El mismo texto no puede ser cierto en los dos lados: local, este servidor
     // es la laptop del docente; desplegado, es un servidor rentado. Decirlo bien
     // es media clase de la materia.

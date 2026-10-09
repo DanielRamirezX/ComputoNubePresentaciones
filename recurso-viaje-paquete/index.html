@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>¿Cómo llega un paquete a su domicilio?</title>
+<meta name="description" content="Animación paso a paso: el viaje de un paquete por una red de AWS, con direcciones IP en lugar de nombres de calles.">
+<meta name="theme-color" content="#0b0e3c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect x=%278%27 y=%2710%27 width=%2748%27 height=%2746%27 rx=%2712%27 fill=%27%23ffcf3f%27/%3E%3Ccircle cx=%2724%27 cy=%2730%27 r=%275%27 fill=%27%230a0c2c%27/%3E%3Ccircle cx=%2741%27 cy=%2730%27 r=%275%27 fill=%27%230a0c2c%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<div class="sala">
+  <main class="escenario" id="escenario">
+    <div class="lienzo">
+      <svg id="mundo" viewBox="150 330 3000 1688" preserveAspectRatio="xMidYMid slice" role="img"
+        aria-label="Mapa animado: el celular de Ana, la agenda de internet, la autopista y un fraccionamiento amurallado con dos calles."></svg>
+      <div class="velo"></div>
+    </div>
+
+    <p class="marca">Recursos didácticos · Redes en AWS</p>
+
+    <!-- ============================================================ tarjetas -->
+    <section class="tarjeta tarjeta--portada" id="t-portada">
+      <p class="chip">Cómputo en la Nube · Sesión 3</p>
+      <h1>¿Cómo llega un paquete<br>a su <em>domicilio</em>?</h1>
+      <p class="bajada">Un viaje por la red sin nombres de calles: solo direcciones IP, letreros y guardias.</p>
+      <p class="pista"><kbd>→</kbd> o toca la pantalla para avanzar</p>
+    </section>
+
+    <section class="tarjeta" id="t-direccion">
+      <p class="chip">Antes de salir</p>
+      <h2>Toda entrega necesita una dirección</h2>
+      <div class="duo">
+        <article class="sobre">
+          <p class="sobre__donde">En la ciudad</p>
+          <div class="sobre__etq"><b>Av. Reforma 222</b><span>Col. Centro</span></div>
+          <p>Calle, número y colonia.</p>
+        </article>
+        <div class="duo__flecha" aria-hidden="true">→</div>
+        <article class="sobre sobre--red">
+          <p class="sobre__donde">En internet</p>
+          <div class="sobre__etq mono"><b>203.0.113.10</b></div>
+          <p>No hay nombres de calles: solo un número. Se llama <b>dirección IP</b>.</p>
+        </article>
+      </div>
+      <p class="remate">Cada equipo conectado tiene la suya, igual que cada casa tiene su domicilio.</p>
+    </section>
+
+    <section class="tarjeta" id="t-anatomia">
+      <p class="chip" id="an-chip"></p>
+      <h2 id="an-titulo"></h2>
+      <div class="ip" id="an-ip"></div>
+      <p class="cuenta" id="an-cuenta"></p>
+      <p class="remate" id="an-remate"></p>
+    </section>
+
+    <section class="tarjeta" id="t-repaso">
+      <p class="chip">Para llevar</p>
+      <h2>El mismo mapa, con sus nombres de AWS</h2>
+      <ul class="pares">
+        <li><span>Fraccionamiento con barda</span><b>VPC</b></li>
+        <li><span>Calle: un grupo de direcciones</span><b>Subred</b></li>
+        <li><span>Número de la casa</span><b>IP privada</b></li>
+        <li><span>La agenda de internet</span><b>DNS · Route 53</b></li>
+        <li><span>La puerta principal</span><b>Internet Gateway</b></li>
+        <li><span>El letrero de la esquina</span><b>Tabla de rutas</b></li>
+        <li><span>La caseta de la calle</span><b>NACL</b></li>
+        <li><span>El guardia de la casa</span><b>Grupo de seguridad</b></li>
+        <li><span>Puerta giratoria de salida</span><b>NAT Gateway</b></li>
+      </ul>
+    </section>
+
+    <section class="tarjeta" id="t-ruta">
+      <p class="chip">La ruta completa</p>
+      <h2>¿Cómo llego a <span class="mono">10.0.1.25</span>?</h2>
+      <ol class="gps">
+        <li><b>Pregunta en la agenda</b><span>DNS · Route 53: del nombre al número</span></li>
+        <li><b>Toma la autopista</b><span>Internet, hacia la dirección pública</span></li>
+        <li><b>Entra por la puerta</b><span>Internet Gateway</span></li>
+        <li><b>Lee el letrero de la esquina</b><span>Tabla de rutas: «10.0…» es local</span></li>
+        <li><b>Pasa la caseta de la calle</b><span>NACL: permite y niega, sin memoria</span></li>
+        <li><b>Toca en la casa</b><span>Grupo de seguridad: solo permite, con memoria</span></li>
+      </ol>
+      <p class="remate">Has llegado a tu destino.</p>
+    </section>
+
+    <section class="tarjeta" id="t-quiz">
+      <p class="chip">Antes del laboratorio</p>
+      <h2>Tres preguntas rápidas</h2>
+      <div class="quiz">
+        <fieldset class="pregunta">
+          <legend>Una calle (subred) es pública cuando…</legend>
+          <button type="button">se llama «pública»</button>
+          <button type="button" data-ok>su letrero manda 0.0.0.0/0 a la puerta</button>
+          <button type="button">tiene muchas casas</button>
+          <p class="pregunta__por">Lo que manda es la tabla de rutas: 0.0.0.0/0 → Internet Gateway.</p>
+        </fieldset>
+        <fieldset class="pregunta">
+          <legend>¿Qué guardia tiene memoria y solo sabe permitir?</legend>
+          <button type="button">La caseta (NACL)</button>
+          <button type="button" data-ok>El de la casa (grupo de seguridad)</button>
+          <button type="button">La puerta giratoria (NAT)</button>
+          <p class="pregunta__por">El grupo de seguridad recuerda a quién dejó entrar; la NACL revisa de ida y de vuelta.</p>
+        </fieldset>
+        <fieldset class="pregunta">
+          <legend>La base de datos vive en una calle privada y necesita actualizarse. ¿Por dónde sale?</legend>
+          <button type="button">Por la agenda (Route 53)</button>
+          <button type="button">Nadie puede salir de ahí</button>
+          <button type="button" data-ok>Por la puerta giratoria (NAT Gateway)</button>
+          <p class="pregunta__por">El NAT Gateway deja salir a internet sin que nadie pueda entrar.</p>
+        </fieldset>
+      </div>
+    </section>
+
+    <section class="tarjeta tarjeta--portada" id="t-fin">
+      <p class="chip">Ahora te toca</p>
+      <h1>Construye tu propio <em>fraccionamiento</em></h1>
+      <p class="bajada">En el laboratorio de hoy recorres este mismo mapa en la consola de AWS: una VPC, dos subredes, sus letreros… y una puerta que el sandbox no te va a dejar abrir.</p>
+      <p class="acciones">
+        <a class="boton boton--fuerte" href="../aws-practitioner/">Ir a la Ruta AWS, sesión 3</a>
+        <button class="boton" type="button" id="btn-reiniciar">Ver de nuevo</button>
+      </p>
+    </section>
+
+    <!-- ============================================================== rótulo -->
+    <div class="rotulo" id="rotulo" aria-live="polite">
+      <div class="rotulo__cuerpo">
+        <p class="rotulo__parada" id="r-parada"></p>
+        <h2 id="r-titulo"></h2>
+        <p class="rotulo__texto" id="r-texto"></p>
+      </div>
+      <p class="rotulo__aws" id="r-aws"><span>En AWS se llama</span><b id="r-aws-nombre"></b></p>
+    </div>
+
+    <aside class="nota" id="nota" hidden></aside>
+
+    <nav class="controles" aria-label="Controles de la animación">
+      <button type="button" id="btn-ant" aria-label="Anterior" title="Anterior (←)">←</button>
+      <span class="controles__cuenta" id="cuenta">1 / 1</span>
+      <button type="button" id="btn-sig" class="controles__sig" aria-label="Siguiente" title="Siguiente (→)">→</button>
+      <button type="button" id="btn-repetir" aria-label="Repetir la animación" title="Repetir (R)">↻</button>
+      <button type="button" id="btn-pantalla" aria-label="Pantalla completa" title="Pantalla completa (F)">⛶</button>
+    </nav>
+    <div class="avance" id="avance" role="group" aria-label="Avance"></div>
+  </main>
+</div>
+<noscript><p style="padding:24px;color:#fff;font-family:sans-serif">Esta animación necesita JavaScript.</p></noscript>
+<script type="module" src="motor.js"></script>
+</body>
+</html>

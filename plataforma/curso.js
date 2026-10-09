@@ -9,6 +9,9 @@
 //   'estatico' — una carpeta con index.html (una presentación). No necesita nada.
 //   'express'  — un proyecto Node que exporta `crearApp()` desde `app.js`.
 //   'enlace'   — algo que vive fuera (una liga). Solo aparece en el índice.
+//
+// `seccion` (opcional) agrupa el módulo bajo un título aparte en el índice,
+// después de las clases. Hoy existe una: «Recursos didácticos».
 // ---------------------------------------------------------------------------
 
 export const CURSO = {
@@ -56,6 +59,15 @@ export const CURSO = {
       etiqueta: 'Laboratorio',
       tipo: 'express',
       ruta: '../curso-aws-practitioner'
+    },
+    {
+      id: 'viaje-paquete',
+      titulo: '¿Cómo llega un paquete a su domicilio?',
+      resumen: 'Animación paso a paso: el viaje de un paquete por una red de AWS, con direcciones IP, letreros y guardias en lugar de nombres de calles. Acompaña la sesión 3 (redes).',
+      etiqueta: 'Animación',
+      tipo: 'estatico',
+      ruta: '../recurso-viaje-paquete',
+      seccion: 'Recursos didácticos'
     }
   ]
 };

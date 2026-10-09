@@ -70,6 +70,7 @@ export async function montarModulos(app, curso, raiz) {
       titulo: modulo.titulo,
       resumen: modulo.resumen ?? '',
       etiqueta: modulo.etiqueta ?? '',
+      seccion: modulo.seccion ?? '',
       tipo: modulo.tipo
     };
 
