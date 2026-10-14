@@ -68,6 +68,15 @@ export const CURSO = {
       tipo: 'estatico',
       ruta: '../recurso-viaje-paquete',
       seccion: 'Recursos didácticos'
+    },
+    {
+      id: 'donde-guardo',
+      titulo: '¿Dónde guardo cada cosa?',
+      resumen: 'Animación paso a paso: el viaje de una foto por el almacenamiento de AWS, con una bodega, sótanos fríos, un cajón y un estante en lugar de siglas. Acompaña la sesión 4 (almacenamiento).',
+      etiqueta: 'Animación',
+      tipo: 'estatico',
+      ruta: '../recurso-donde-guardo',
+      seccion: 'Recursos didácticos'
     }
   ]
 };

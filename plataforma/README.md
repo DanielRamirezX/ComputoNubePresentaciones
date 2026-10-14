@@ -62,6 +62,7 @@ Computo en la nube/
 ├─ curso-comprender-nube/       ← carpeta hermana
 ├─ curso-aws-practitioner/      ← carpeta hermana
 ├─ recurso-viaje-paquete/       ← carpeta hermana (sección «Recursos didácticos»)
+├─ recurso-donde-guardo/        ← carpeta hermana (sección «Recursos didácticos»)
 └─ examen-diagnostico/          ← carpeta hermana
 ```
 

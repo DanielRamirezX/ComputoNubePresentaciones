@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>¿Dónde guardo cada cosa?</title>
+<meta name="description" content="Animación paso a paso: el viaje de una foto por el almacenamiento de AWS, con una bodega, sótanos fríos, un cajón y un estante en lugar de siglas.">
+<meta name="theme-color" content="#0b0e3c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect x=%2710%27 y=%276%27 width=%2744%27 height=%2752%27 rx=%278%27 fill=%27%23f7f4ff%27/%3E%3Crect x=%2715%27 y=%2711%27 width=%2734%27 height=%2732%27 rx=%274%27 fill=%27%234cc9f0%27/%3E%3Ccircle cx=%2726%27 cy=%2726%27 r=%274%27 fill=%27%230a0c2c%27/%3E%3Ccircle cx=%2739%27 cy=%2726%27 r=%274%27 fill=%27%230a0c2c%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<div class="sala">
+  <main class="escenario" id="escenario">
+    <div class="lienzo">
+      <svg id="mundo" viewBox="80 240 3120 1755" preserveAspectRatio="xMidYMid slice" role="img"
+        aria-label="Mapa animado: el celular de Ana, una bodega con forma de cubeta y tres sótanos cada vez más fríos, y un barrio de servidores con su cajón y un estante compartido."></svg>
+      <div class="velo"></div>
+    </div>
+
+    <p class="marca">Recursos didácticos · Almacenamiento en AWS</p>
+
+    <!-- ============================================================ tarjetas -->
+    <section class="tarjeta tarjeta--portada" id="t-portada">
+      <p class="chip">Cómputo en la Nube · Sesión 4</p>
+      <h1>¿Dónde guardo<br><em>cada cosa</em>?</h1>
+      <p class="bajada">El viaje de una foto por la nube: una bodega que nunca se llena, sótanos fríos, un cajón propio y un estante para todos.</p>
+      <p class="pista"><kbd>→</kbd> o toca la pantalla para avanzar</p>
+    </section>
+
+    <section class="tarjeta" id="t-tres" data-sub="0">
+      <p class="chip"><span class="solo-0">Antes de salir</span><span class="solo-1">Parada 3 · Los servidores</span></p>
+      <h2><span class="solo-0">En casa no guardas todo en el mismo lugar</span><span class="solo-1">En una bodega no se trabaja</span></h2>
+      <div class="trio">
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M18 30C18 6 62 6 62 30" fill="none" stroke="#8f7bd6" stroke-width="5" stroke-linecap="round"/><path d="M14 30h52l-6 36a5 5 0 0 1-5 4H25a5 5 0 0 1-5-4z" fill="#ff8a3c"/><rect x="10" y="25" width="60" height="11" rx="5.5" fill="#ffcf3f"/><rect x="27" y="44" width="11" height="11" rx="3" fill="#f7f4ff"/><rect x="42" y="44" width="11" height="11" rx="3" fill="#0a0c2c" opacity=".45"/></svg>
+          <h3>La bodega</h3>
+          <p>Cajas con etiqueta, las que quieras. Entra y sale la caja completa.</p>
+          <p class="lugar__aws"><span>Objetos</span><b>Amazon S3</b></p>
+        </article>
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><rect x="16" y="10" width="48" height="62" rx="9" fill="#ffcf3f"/><rect x="22" y="17" width="36" height="21" rx="5" fill="#0a0c2c" opacity=".22"/><rect x="22" y="44" width="36" height="21" rx="5" fill="#0a0c2c" opacity=".22"/><rect x="33" y="25" width="14" height="5" rx="2.5" fill="#0a0c2c"/><rect x="33" y="52" width="14" height="5" rx="2.5" fill="#0a0c2c"/></svg>
+          <h3>El cajón de tu escritorio</h3>
+          <p>Lo de diario. Es solo tuyo y lo tienes a la mano mientras trabajas.</p>
+          <p class="lugar__aws"><span>Bloques</span><b>Amazon EBS</b></p>
+        </article>
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><rect x="10" y="8" width="60" height="64" rx="8" fill="#5b3f8f"/><rect x="16" y="14" width="48" height="52" rx="4" fill="#0a0c2c" opacity=".5"/><g><rect x="20" y="20" width="7" height="16" rx="2" fill="#ff4f8b"/><rect x="29" y="16" width="7" height="20" rx="2" fill="#2ee6c5"/><rect x="38" y="22" width="7" height="14" rx="2" fill="#ffcf3f"/><rect x="47" y="18" width="7" height="18" rx="2" fill="#4cc9f0"/><rect x="20" y="44" width="7" height="18" rx="2" fill="#7be495"/><rect x="29" y="48" width="7" height="14" rx="2" fill="#b69cff"/><rect x="38" y="42" width="7" height="20" rx="2" fill="#ff8a3c"/><rect x="50" y="46" width="7" height="16" rx="2" fill="#ff4f8b"/></g><rect x="14" y="36" width="52" height="5" rx="2.5" fill="#8f7bd6"/><rect x="14" y="62" width="52" height="5" rx="2.5" fill="#8f7bd6"/></svg>
+          <h3>El estante de la sala</h3>
+          <p>Lo que usan todos en la casa, a veces al mismo tiempo.</p>
+          <p class="lugar__aws"><span>Archivos</span><b>Amazon EFS</b></p>
+        </article>
+      </div>
+      <p class="remate"><span class="solo-0">En la nube pasa igual: hay un lugar para cada cosa. Empecemos por la bodega.</span><span class="solo-1">Para cambiar una letra de un archivo de la bodega hay que volver a guardarlo completo. Un servidor necesita otro tipo de lugar.</span></p>
+    </section>
+
+    <section class="tarjeta" id="t-repaso">
+      <p class="chip">Para llevar</p>
+      <h2>El mismo mapa, con sus nombres de AWS</h2>
+      <ul class="pares pares--4">
+        <li><span>La bodega que nunca se llena</span><b>Amazon S3</b></li>
+        <li><span>Tu cubeta, con nombre único</span><b>Bucket</b></li>
+        <li><span>La cosa y su etiqueta</span><b>Objeto y llave</b></li>
+        <li><span>La cortina cerrada</span><b>Block Public Access</b></li>
+        <li><span>La copia anterior</span><b>Versionado</b></li>
+        <li><span>Los sótanos fríos</span><b>Clases · Glacier</b></li>
+        <li><span>La regla del calendario</span><b>Ciclo de vida</b></li>
+        <li><span>El bodeguero automático</span><b>Intelligent-Tiering</b></li>
+        <li><span>El cajón del servidor</span><b>Amazon EBS</b></li>
+        <li><span>El retrato del cajón</span><b>Snapshot</b></li>
+        <li><span>El estante de todos</span><b>Amazon EFS</b></li>
+        <li><span>El camión de la mudanza</span><b>AWS Snowball</b></li>
+      </ul>
+    </section>
+
+    <section class="tarjeta" id="t-guia">
+      <p class="chip">La guía rápida</p>
+      <h2>Entonces, ¿dónde lo guardo?</h2>
+      <ol class="gps">
+        <li><b>Fotos, videos, respaldos</b><span>Amazon S3: objetos, sin límite</span></li>
+        <li><b>No sé qué tan seguido se usará</b><span>S3 Intelligent-Tiering</span></li>
+        <li><b>Años guardado y casi nunca leído</b><span>S3 Glacier Deep Archive</span></li>
+        <li><b>El disco de un servidor</b><span>Amazon EBS: una instancia, una zona</span></li>
+        <li><b>Archivos para muchos servidores</b><span>Amazon EFS: carpeta compartida</span></li>
+        <li><b>Demasiados datos para el cable</b><span>AWS Snowball: se van en camión</span></li>
+      </ol>
+      <p class="remate">Dos preguntas lo deciden casi todo: ¿quién lo usa? y ¿qué tan seguido?</p>
+    </section>
+
+    <section class="tarjeta" id="t-quiz">
+      <p class="chip">Antes del laboratorio</p>
+      <h2>Tres preguntas rápidas</h2>
+      <div class="quiz">
+        <fieldset class="pregunta">
+          <legend>Expedientes que la ley obliga a guardar 10 años y nadie consulta. ¿A qué piso van?</legend>
+          <button type="button">Al mostrador (S3 Standard)</button>
+          <button type="button">A la trastienda (Standard-IA)</button>
+          <button type="button" data-ok>Al congelador (Glacier Deep Archive)</button>
+          <p class="pregunta__por">Es la clase más barata para guardar; a cambio, sacar algo tarda hasta 12 horas.</p>
+        </fieldset>
+        <fieldset class="pregunta">
+          <legend>Diez servidores Linux deben abrir los mismos archivos al mismo tiempo. ¿Qué usan?</legend>
+          <button type="button">Un cajón para los diez (EBS)</button>
+          <button type="button" data-ok>El estante de todos (EFS)</button>
+          <button type="button">El pizarrón (instance store)</button>
+          <p class="pregunta__por">Un disco EBS es de un solo servidor; EFS lo comparten muchos, desde varias zonas.</p>
+        </fieldset>
+        <fieldset class="pregunta">
+          <legend>Ana borró una foto por error. ¿Qué se la devuelve?</legend>
+          <button type="button">La cortina cerrada (Block Public Access)</button>
+          <button type="button" data-ok>El versionado</button>
+          <button type="button">El candado (cifrado)</button>
+          <p class="pregunta__por">El versionado guarda las versiones anteriores; la cortina y el candado protegen de otras cosas.</p>
+        </fieldset>
+      </div>
+    </section>
+
+    <section class="tarjeta tarjeta--portada" id="t-fin">
+      <p class="chip">Ahora te toca</p>
+      <h1>Arma tu propia <em>bodega</em></h1>
+      <p class="bajada">En el laboratorio de hoy recorres este mismo mapa en la consola de AWS: una cubeta con cortina, versionado y regla hacia el congelador, un cajón y su retrato… y un permiso que el sandbox no te va a dar.</p>
+      <p class="acciones">
+        <a class="boton boton--fuerte" href="../aws-practitioner/#/sesion/4">Ir a la Ruta AWS, sesión 4</a>
+        <button class="boton" type="button" id="btn-reiniciar">Ver de nuevo</button>
+      </p>
+    </section>
+
+    <!-- ============================================================== rótulo -->
+    <div class="rotulo" id="rotulo" aria-live="polite">
+      <div class="rotulo__cuerpo">
+        <p class="rotulo__parada" id="r-parada"></p>
+        <h2 id="r-titulo"></h2>
+        <p class="rotulo__texto" id="r-texto"></p>
+      </div>
+      <p class="rotulo__aws" id="r-aws"><span>En AWS se llama</span><b id="r-aws-nombre"></b></p>
+    </div>
+
+    <aside class="nota" id="nota" hidden></aside>
+
+    <nav class="controles" aria-label="Controles de la animación">
+      <button type="button" id="btn-ant" aria-label="Anterior" title="Anterior (←)">←</button>
+      <span class="controles__cuenta" id="cuenta">1 / 1</span>
+      <button type="button" id="btn-sig" class="controles__sig" aria-label="Siguiente" title="Siguiente (→)">→</button>
+      <button type="button" id="btn-repetir" aria-label="Repetir la animación" title="Repetir (R)">↻</button>
+      <button type="button" id="btn-pantalla" aria-label="Pantalla completa" title="Pantalla completa (F)">⛶</button>
+    </nav>
+    <div class="avance" id="avance" role="group" aria-label="Avance"></div>
+  </main>
+</div>
+<noscript><p style="padding:24px;color:#fff;font-family:sans-serif">Esta animación necesita JavaScript.</p></noscript>
+<script type="module" src="motor.js"></script>
+</body>
+</html>
