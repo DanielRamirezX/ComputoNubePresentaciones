@@ -6,12 +6,18 @@ import * as sesion1 from './practica.js';
 import * as sesion2 from './practica2.js';
 import * as sesion3 from './practica3.js';
 import * as sesion4 from './practica4.js';
+import * as sesion5 from './practica5.js';
+import * as sesion6 from './practica6.js';
+import * as sesion7 from './practica7.js';
 
 export const BANCOS = new Map([
   [1, sesion1],
   [2, sesion2],
   [3, sesion3],
-  [4, sesion4]
+  [4, sesion4],
+  [5, sesion5],
+  [6, sesion6],
+  [7, sesion7]
 ]);
 
 /** El número de sesión que pide el navegador, o null si no existe. */

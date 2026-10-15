@@ -38,9 +38,9 @@ Dentro de la plataforma vive en `/m/aws-practitioner/`; el panel del docente, en
 | 2 | Identidad y seguridad: IAM, políticas y SCP, responsabilidad compartida, servicios de seguridad | ≈ 30 min | **Lista** |
 | 3 | Redes: VPC, subredes, tablas de rutas y gateways, VPN y Direct Connect, Route 53, CloudFront | ≈ 25 min | **Lista** |
 | 4 | Almacenamiento: S3 y sus clases, ciclo de vida, EBS y snapshots, EFS, Snowball y Storage Gateway | ≈ 25 min | **Lista** |
-| 5 | Bases de datos: RDS, Aurora, DynamoDB, ElastiCache, Redshift | ≈ 60 min | Pendiente |
-| 6 | Escalar y automatizar: ELB, Auto Scaling, CloudWatch, Lambda, SNS y SQS | ≈ 60 min | Pendiente |
-| 7 | Costos, soporte y buenas prácticas: calculadora, Budgets, Organizations, Well-Architected | ≈ 20 min | Pendiente |
+| 5 | Bases de datos: RDS y Aurora, Multi-AZ y réplicas, DynamoDB, ElastiCache, Redshift, migración | ≈ 25 min | **Lista** |
+| 6 | Escalar y automatizar: ELB, Auto Scaling, CloudWatch, Lambda, SNS y SQS | ≈ 35 min | **Lista** |
+| 7 | Costos, soporte y buenas prácticas: calculadora, Budgets, Organizations, Well-Architected | ≈ 15 min | **Lista** |
 | 8 | Simulacro completo de 65 preguntas | — | Pendiente |
 
 Con 330 minutos de sandbox a la semana, cada sesión deja tiempo de sobra para
@@ -92,10 +92,43 @@ El examen de esta sesión es acumulativo. En el panel, los temas «Repaso: funda
 | 1:40 – 1:57 | Examen de práctica: 20 preguntas de almacenamiento, con reporte PDF | Apagado |
 | 1:57 – 2:00 | Cierre | — |
 
+## Sesión 5: Bases de datos (2 horas)
+
+| Minutos | Bloque | Sandbox |
+|---|---|---|
+| 0:00 – 0:05 | Arranque | Apagado |
+| 0:05 – 0:38 | Capítulo 1: RDS y Aurora, quién administra qué, Multi-AZ, réplicas y respaldos, DynamoDB, bases de propósito específico y migración (DMS) | Apagado |
+| 0:38 – 1:32 | Capítulo 2: laboratorio de 15 pasos; una base MariaDB instalada a mano en EC2 (se lee en el System log), el intento de crear Aurora y su *explicit deny*, una tabla de DynamoDB con elementos de forma distinta y una consulta por llave, y limpieza | **Encendido ≈ 25 min** |
+| 1:32 – 1:40 | Capítulo 3: hoja de repaso y verdadero o falso | Apagado |
+| 1:40 – 1:57 | Examen de práctica: 20 preguntas de bases de datos, con reporte PDF | Apagado |
+| 1:57 – 2:00 | Cierre | — |
+
+## Sesión 6: Escalar y automatizar (2 horas)
+
+| Minutos | Bloque | Sandbox |
+|---|---|---|
+| 0:00 – 0:04 | Arranque | Apagado |
+| 0:04 – 0:36 | Capítulo 1: elasticidad y escalado, balanceadores (ALB, NLB, GWLB), CloudWatch contra CloudTrail, Lambda y contenedores, SQS, SNS y EventBridge | Apagado |
+| 0:36 – 1:32 | Capítulo 2: laboratorio de 19 pasos; plantilla de lanzamiento, grupo de Auto Scaling con dos instancias en dos zonas, una instancia terminada que el grupo reemplaza solo, crecer a tres, métricas de CloudWatch, la alarma negada, un vistazo a balanceadores y Lambda, y limpieza | **Encendido ≈ 35 min** |
+| 1:32 – 1:40 | Capítulo 3: hoja de repaso y verdadero o falso | Apagado |
+| 1:40 – 1:57 | Examen de práctica: 20 preguntas de escalado y automatización, con reporte PDF | Apagado |
+| 1:57 – 2:00 | Cierre | — |
+
+## Sesión 7: Costos, soporte y buenas prácticas (2 horas)
+
+| Minutos | Bloque | Sandbox |
+|---|---|---|
+| 0:00 – 0:05 | Arranque | Apagado |
+| 0:05 – 0:40 | Capítulo 1: formas de pago de EC2, herramientas de costos, Organizations, planes de soporte, Trusted Advisor y Well-Architected | Apagado |
+| 0:40 – 1:32 | Capítulo 2: laboratorio de 12 pasos; primero una estimación en AWS Pricing Calculator (sin sandbox), luego en la consola el gasto real con Cost Explorer, un presupuesto que no se deja crear, Trusted Advisor, los planes de soporte, Organizations y Well-Architected | **Encendido ≈ 15 min** |
+| 1:32 – 1:40 | Capítulo 3: hoja de repaso y verdadero o falso | Apagado |
+| 1:40 – 1:57 | Examen de práctica: 20 preguntas de costos, soporte y buenas prácticas, con reporte PDF | Apagado |
+| 1:57 – 2:00 | Cierre | — |
+
 ## Lo que permite el sandbox de DataCamp
 
-Verificado en el sandbox del docente el 27 y el 30 de septiembre y el 4 de
-octubre de 2026 (dos recorridos). Las
+Verificado en el sandbox del docente el 27 y el 30 de septiembre y el 4 y el
+15 de octubre de 2026. Las
 guías ya lo toman en cuenta; sirve para diseñar las sesiones que faltan.
 
 - Región **us-east-1** (N. Virginia). Una sola sesión a la vez; al salir se
@@ -120,11 +153,40 @@ guías ya lo toman en cuenta; sirve para diseñar las sesiones que faltan.
   buckets sí; guardar objetos no (*s3:PutObject* negado, ni carpetas).
 - **EBS**: crear volúmenes gp2/gp3 de hasta 20 GiB y sus snapshots, y
   borrarlos. **EFS** se puede abrir.
+- **RDS y Aurora** (15 oct): la configuración exprés de Aurora Serverless se
+  abre, pero *Create database* da *rds:CreateDBCluster … explicit deny in a
+  service control policy*. La configuración completa no carga los motores
+  (*Error loading resource*).
+- **DynamoDB** (15 oct): **sí funciona**, aunque la tabla de DataCamp diga lo
+  contrario: crear tablas bajo demanda, crear elementos, Scan, Query y borrar.
+  Los respaldos (PITR) salen *Unavailable* y el autoescalado de la tabla no.
+- **EC2 con user data** sirve para «ver por dentro» sin terminal: lo que
+  imprime el script sale en *Get system log* (así se ve la tabla de MariaDB).
+- **ElastiCache**: la portada se abre (no se probó crear).
+- **Auto Scaling** (15 oct): plantillas de lanzamiento y grupos sí (hasta 3
+  instancias, en varias zonas), con reemplazo automático de una instancia
+  terminada. La política de seguimiento de CPU falla al crearse (*Failed to
+  create 1 Scaling policy*) porque necesita una alarma.
+- **CloudWatch**: métricas y tableros automáticos sí; crear alarmas
+  (*cloudwatch:PutMetricAlarm*) y tableros propios, no.
+- **Balanceadores**: *AccessDenied* en *DescribeLoadBalancers*; el asistente
+  muestra los tres tipos. **Lambda**: no se crean funciones, pero la demostración
+  *How it works* de su portada corre sin permisos.
+- **Facturación** (15 oct): la página de Billing and Cost Management y Cost
+  Explorer se leen con datos reales; Budgets se ve pero crear da
+  *budgets:ModifyBudget*; Trusted Advisor y el Support Center (plan Basic y la
+  comparación de planes) se leen; Free Tier da error; Organizations niega el
+  acceso; Well-Architected deja llenar la carga pero falla en
+  *wellarchitected:ListLenses*. AWS Pricing Calculator es pública y no usa el
+  sandbox.
+- Un recorrido de las tres sesiones (5, 6 y 7) costó unos 180 tokens.
 - Si al entrar sale *You already have an active Sandbox Session running*, la
   sesión anterior no se cerró: *Exit Session* y volver a entrar.
 - Según la tabla de DataCamp: sin Lambda, DynamoDB, SNS/SQS ni API Gateway; S3
   sin subir archivos; balanceadores con *Access denied*; no se puede crear un
-  Internet Gateway; CloudWatch completo; Auto Scaling hasta 3 instancias.
+  Internet Gateway; CloudWatch completo; Auto Scaling hasta 3 instancias. Ojo:
+  en la práctica DynamoDB sí funciona y CloudWatch no deja crear alarmas ni
+  tableros (ver arriba).
 
 ## Correr y editar
 
@@ -138,8 +200,7 @@ npm start            # suelto, en http://localhost:3000
 npm run verificar    # revisa ejercicios, laboratorios, examen y tiempos
 ```
 
-- Cada sesión vive en su archivo: `public/sesion1.js`, `public/sesion2.js`,
-  `public/sesion3.js`, `public/sesion4.js`
+- Cada sesión vive en su archivo: `public/sesion1.js` a `public/sesion7.js`
   (lecciones, ejercicios, laboratorio, examen y plan de clase).
   `public/contenido.js` las junta y tiene la ruta completa; los números del
   sandbox están en `public/sandbox.js`.
@@ -147,7 +208,7 @@ npm run verificar    # revisa ejercicios, laboratorios, examen y tiempos
   capturas con marcas) están en `public/piezas.js`; las imágenes, en
   `public/capturas/s1`, `s2`…, con su tamaño registrado en `TAMANOS`.
 - Exámenes de práctica: `src/practica.js` (sesión 1) y `src/practica2.js` a
-  `src/practica4.js`, juntos en `src/practicas.js`. Misma estructura del otro
+  `src/practica7.js`, juntos en `src/practicas.js`. Misma estructura del otro
   curso: `correcta`, `explicacion`, `concepto` y el mapa `REPASO`.
 - **Para agregar una sesión:** escribe `public/sesionN.js` y `src/practicaN.js`,
   agrégalos a `public/contenido.js` y `src/practicas.js`, y corre
