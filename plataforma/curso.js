@@ -77,6 +77,33 @@ export const CURSO = {
       tipo: 'estatico',
       ruta: '../recurso-donde-guardo',
       seccion: 'Recursos didácticos'
+    },
+    {
+      id: 'donde-apunto',
+      titulo: '¿Dónde se apunta cada dato?',
+      resumen: 'Animación paso a paso: el viaje de una nota de venta por las bases de datos de AWS, con una libreta, un archivo con encargado, un guardarropa de fichas y una libretita de lo más pedido en lugar de siglas. Acompaña la sesión 5 (bases de datos).',
+      etiqueta: 'Animación',
+      tipo: 'estatico',
+      ruta: '../recurso-donde-apunto',
+      seccion: 'Recursos didácticos'
+    },
+    {
+      id: 'hora-pico',
+      titulo: 'La taquería en hora pico',
+      resumen: 'Animación paso a paso: una taquería en hora pico explica el escalado vertical y horizontal, Auto Scaling, los balanceadores, CloudWatch, SQS, SNS y Lambda con planchas, un gerente, un anfitrión y un ayudante que llega con el timbre. Acompaña la sesión 6 (escalar y automatizar).',
+      etiqueta: 'Animación',
+      tipo: 'estatico',
+      ruta: '../recurso-hora-pico',
+      seccion: 'Recursos didácticos'
+    },
+    {
+      id: 'cuanto-cuesta',
+      titulo: '¿Cuánto cuesta la nube?',
+      resumen: 'Animación paso a paso: el viaje de una moneda por los costos de AWS, con un cotizador, un taxi, un abono, una tarjeta que avisa, un mecánico y una casa de seis pilares en lugar de siglas. Acompaña la sesión 7 (costos, soporte y buenas prácticas).',
+      etiqueta: 'Animación',
+      tipo: 'estatico',
+      ruta: '../recurso-cuanto-cuesta',
+      seccion: 'Recursos didácticos'
     }
   ]
 };

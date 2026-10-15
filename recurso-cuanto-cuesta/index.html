@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>¿Cuánto cuesta la nube?</title>
+<meta name="description" content="Animación paso a paso: el viaje de una moneda por los costos de AWS, con un taxi, un abono, una tarjeta que avisa y un mecánico en lugar de siglas.">
+<meta name="theme-color" content="#0b0e3c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Ccircle cx=%2732%27 cy=%2732%27 r=%2728%27 fill=%27%23ffb81f%27 stroke=%27%23ff8a3c%27 stroke-width=%275%27/%3E%3Ccircle cx=%2724%27 cy=%2729%27 r=%275%27 fill=%27%23f7f4ff%27/%3E%3Ccircle cx=%2740%27 cy=%2729%27 r=%275%27 fill=%27%23f7f4ff%27/%3E%3Ccircle cx=%2725%27 cy=%2730%27 r=%272.6%27 fill=%27%230a0c2c%27/%3E%3Ccircle cx=%2741%27 cy=%2730%27 r=%272.6%27 fill=%27%230a0c2c%27/%3E%3Cpath d=%27M26 41q6 5 12 0%27 stroke=%27%230a0c2c%27 stroke-width=%273%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<div class="sala">
+  <main class="escenario" id="escenario">
+    <div class="lienzo">
+      <svg id="mundo" viewBox="80 240 3120 1755" preserveAspectRatio="xMidYMid slice" role="img"
+        aria-label="Mapa animado: la tienda de Lupe con su cotizador, una avenida con taxi, abono, renta, autobús y garage, un banco con estado de cuenta, tarjeta con alarma y perro guardián, y a la derecha una cartera familiar, una casa de seis pilares, un taller y los planes de asistencia."></svg>
+      <div class="velo"></div>
+    </div>
+
+    <p class="marca">Recursos didácticos · Costos de AWS</p>
+
+    <!-- ============================================================ tarjetas -->
+    <section class="tarjeta tarjeta--portada" id="t-portada">
+      <p class="chip">Cómputo en la Nube · Sesión 7</p>
+      <h1>¿Cuánto <em>cuesta</em><br>la nube?</h1>
+      <p class="bajada">El viaje de una moneda por los costos de AWS: un cotizador, varias formas de pagar el viaje, una tarjeta que avisa, un mecánico y una casa con seis pilares.</p>
+      <p class="pista"><kbd>→</kbd> o toca la pantalla para avanzar</p>
+    </section>
+
+    <section class="tarjeta" id="t-tres" data-sub="0">
+      <p class="chip"><span class="solo-0">Antes de salir</span><span class="solo-1">Parada 3 · El banco</span></p>
+      <h2><span class="solo-0">En la nube se paga como la luz: por lo que usas</span><span class="solo-1">Antes, durante y después del gasto</span></h2>
+      <div class="trio">
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><rect x="14" y="16" width="52" height="48" rx="10" fill="#4cc9f0"/><rect x="22" y="24" width="36" height="8" rx="4" fill="#0a0c2c" opacity=".45"/><rect x="22" y="38" width="36" height="8" rx="4" fill="#0a0c2c" opacity=".45"/><circle cx="54" cy="56" r="4" fill="#7be495"/><path d="M40 6v8M28 6v8M52 6v8M40 66v8M28 66v8M52 66v8" stroke="#ffcf3f" stroke-width="4" stroke-linecap="round"/></svg>
+          <h3><span class="solo-0">Cómputo</span><span class="solo-1">Antes: cotizar</span></h3>
+          <p><span class="solo-0">Cada segundo que un servidor está encendido, según su tamaño.</span><span class="solo-1">Cuánto costará algo que todavía no creas.</span></p>
+          <p class="lugar__aws solo-0"><span>Se cobra</span><b>por segundo</b></p>
+          <p class="lugar__aws solo-1"><span>En AWS</span><b>Pricing Calculator</b></p>
+        </article>
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M18 30C18 6 62 6 62 30" fill="none" stroke="#8f7bd6" stroke-width="5" stroke-linecap="round"/><path d="M14 30h52l-6 36a5 5 0 0 1-5 4H25a5 5 0 0 1-5-4z" fill="#ff8a3c"/><rect x="10" y="25" width="60" height="11" rx="5.5" fill="#ffcf3f"/><circle cx="58" cy="18" r="9" fill="#ffb81f" stroke="#ff8a3c" stroke-width="3"/></svg>
+          <h3><span class="solo-0">Almacenamiento</span><span class="solo-1">Durante: alertar</span></h3>
+          <p><span class="solo-0">Cada gigabyte que guardas al mes: discos, buckets, respaldos.</span><span class="solo-1">Un aviso cuando el gasto se acerca al límite.</span></p>
+          <p class="lugar__aws solo-0"><span>Se cobra</span><b>por GB al mes</b></p>
+          <p class="lugar__aws solo-1"><span>En AWS</span><b>AWS Budgets</b></p>
+        </article>
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><rect x="12" y="44" width="12" height="24" rx="4" fill="#4cc9f0"/><rect x="30" y="30" width="12" height="38" rx="4" fill="#ff4f8b"/><rect x="48" y="18" width="12" height="50" rx="4" fill="#7be495"/><path d="M10 70h60" stroke="#f7f4ff" stroke-width="4" stroke-linecap="round"/></svg>
+          <h3><span class="solo-0">Datos que salen</span><span class="solo-1">Después: analizar</span></h3>
+          <p><span class="solo-0">Lo que entra a AWS no se cobra; lo que sale a internet, sí.</span><span class="solo-1">En qué se fue el dinero, mes por mes.</span></p>
+          <p class="lugar__aws solo-0"><span>Se cobra</span><b>al salir</b></p>
+          <p class="lugar__aws solo-1"><span>En AWS</span><b>Cost Explorer</b></p>
+        </article>
+      </div>
+      <p class="remate"><span class="solo-0">Lupe quiere saber cuánto le costarán sus dos servidores antes de encenderlos. Vamos al cotizador.</span><span class="solo-1">Ya sabe cuánto costará. Ahora toca vigilar lo que gasta de verdad.</span></p>
+    </section>
+
+    <section class="tarjeta" id="t-repaso">
+      <p class="chip">Para llevar</p>
+      <h2>El mismo mapa, con sus nombres de AWS</h2>
+      <ul class="pares pares--4">
+        <li><span>Cotizar antes de salir</span><b>Pricing Calculator</b></li>
+        <li><span>El taxi: pagas cada viaje</span><b>On-Demand</b></li>
+        <li><span>El abono para cualquier ruta</span><b>Compute Savings Plans</b></li>
+        <li><span>El mismo auto todo el año</span><b>Instance SP · reservadas</b></li>
+        <li><span>El último asiento libre</span><b>Spot</b></li>
+        <li><span>El auto solo tuyo</span><b>Dedicated Hosts</b></li>
+        <li><span>El estado de cuenta</span><b>Cost Explorer</b></li>
+        <li><span>La tarjeta que avisa</span><b>AWS Budgets</b></li>
+        <li><span>El perro guardián</span><b>Anomaly Detection</b></li>
+        <li><span>La cartera de la familia</span><b>Organizations</b></li>
+        <li><span>El mecánico</span><b>Trusted Advisor</b></li>
+        <li><span>La casa de seis pilares</span><b>Well-Architected</b></li>
+      </ul>
+    </section>
+
+    <section class="tarjeta" id="t-guia">
+      <p class="chip">La guía rápida</p>
+      <h2>Entonces, ¿qué herramienta uso?</h2>
+      <ol class="gps">
+        <li><b>¿Cuánto me va a costar?</b><span>Pricing Calculator: antes de crear nada</span></li>
+        <li><b>¿En qué se me fue el dinero?</b><span>Cost Explorer: lo ya gastado, por servicio</span></li>
+        <li><b>Avísame si me paso</b><span>AWS Budgets: límites y alertas</span></li>
+        <li><b>Varias cuentas, una factura</b><span>Organizations: facturación consolidada</span></li>
+        <li><b>¿Qué puedo mejorar?</b><span>Trusted Advisor: ahorro, seguridad, límites</span></li>
+        <li><b>¿Está bien diseñado?</b><span>Well-Architected Tool: los seis pilares</span></li>
+      </ol>
+      <p class="remate">Antes se cotiza, durante se vigila y después se analiza.</p>
+    </section>
+
+    <section class="tarjeta" id="t-quiz">
+      <p class="chip">Antes del laboratorio</p>
+      <h2>Tres preguntas rápidas</h2>
+      <div class="quiz">
+        <fieldset class="pregunta">
+          <legend>Lupe quiere saber cuánto costará su tienda antes de crear cualquier servidor. ¿Qué usa?</legend>
+          <button type="button">El estado de cuenta (Cost Explorer)</button>
+          <button type="button" data-ok>El cotizador (Pricing Calculator)</button>
+          <button type="button">La tarjeta que avisa (Budgets)</button>
+          <p class="pregunta__por">La calculadora estima antes de crear; Cost Explorer y Budgets trabajan con lo que ya se gasta.</p>
+        </fieldset>
+        <fieldset class="pregunta">
+          <legend>Un cálculo puede pausarse y seguir después, y se quiere lo más barato posible. ¿Cómo se paga?</legend>
+          <button type="button">El taxi (On-Demand)</button>
+          <button type="button">El auto solo tuyo (Dedicated Hosts)</button>
+          <button type="button" data-ok>El último asiento (Spot)</button>
+          <p class="pregunta__por">Spot es la capacidad sobrante de AWS: la más barata, a cambio de que te puedan bajar.</p>
+        </fieldset>
+        <fieldset class="pregunta">
+          <legend>¿Con qué plan de soporte llega un asesor personal, el Technical Account Manager?</legend>
+          <button type="button">Basic</button>
+          <button type="button">Business Support+</button>
+          <button type="button" data-ok>Enterprise</button>
+          <p class="pregunta__por">El TAM es de Enterprise (y del plan superior). Basic es gratis y trae Trusted Advisor limitado.</p>
+        </fieldset>
+      </div>
+    </section>
+
+    <section class="tarjeta tarjeta--portada" id="t-fin">
+      <p class="chip">Ahora te toca</p>
+      <h1>Cotiza tu propia <em>tienda</em></h1>
+      <p class="bajada">En el laboratorio de hoy usas el cotizador sin sandbox y luego recorres la facturación real: el estado de cuenta, la tarjeta que avisa, el mecánico y los planes de asistencia… y un presupuesto que el sandbox no te deja crear.</p>
+      <p class="acciones">
+        <a class="boton boton--fuerte" href="../aws-practitioner/#/sesion/7">Ir a la Ruta AWS, sesión 7</a>
+        <button class="boton" type="button" id="btn-reiniciar">Ver de nuevo</button>
+      </p>
+    </section>
+
+    <!-- ============================================================== rótulo -->
+    <div class="rotulo" id="rotulo" aria-live="polite">
+      <div class="rotulo__cuerpo">
+        <p class="rotulo__parada" id="r-parada"></p>
+        <h2 id="r-titulo"></h2>
+        <p class="rotulo__texto" id="r-texto"></p>
+      </div>
+      <p class="rotulo__aws" id="r-aws"><span>En AWS se llama</span><b id="r-aws-nombre"></b></p>
+    </div>
+
+    <aside class="nota" id="nota" hidden></aside>
+
+    <nav class="controles" aria-label="Controles de la animación">
+      <button type="button" id="btn-ant" aria-label="Anterior" title="Anterior (←)">←</button>
+      <span class="controles__cuenta" id="cuenta">1 / 1</span>
+      <button type="button" id="btn-sig" class="controles__sig" aria-label="Siguiente" title="Siguiente (→)">→</button>
+      <button type="button" id="btn-repetir" aria-label="Repetir la animación" title="Repetir (R)">↻</button>
+      <button type="button" id="btn-pantalla" aria-label="Pantalla completa" title="Pantalla completa (F)">⛶</button>
+    </nav>
+    <div class="avance" id="avance" role="group" aria-label="Avance"></div>
+  </main>
+</div>
+<noscript><p style="padding:24px;color:#fff;font-family:sans-serif">Esta animación necesita JavaScript.</p></noscript>
+<script type="module" src="motor.js"></script>
+</body>
+</html>

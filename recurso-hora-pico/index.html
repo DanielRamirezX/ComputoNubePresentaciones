@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>La taquería en hora pico</title>
+<meta name="description" content="Animación paso a paso: cómo una taquería atiende la hora pico sin quebrar, para entender el escalado, los balanceadores, CloudWatch y Lambda en AWS.">
+<meta name="theme-color" content="#0b0e3c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Cpath d=%27M6 44a26 24 0 0 1 52 0z%27 fill=%27%23ffcf3f%27/%3E%3Cpath d=%27M14 44a18 14 0 0 1 36 0z%27 fill=%27%23d9533f%27/%3E%3Ccircle cx=%2726%27 cy=%2736%27 r=%274%27 fill=%27%237be495%27/%3E%3Ccircle cx=%2738%27 cy=%2734%27 r=%273.5%27 fill=%27%23f7f4ff%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<div class="sala">
+  <main class="escenario" id="escenario">
+    <div class="lienzo">
+      <svg id="mundo" viewBox="80 140 3120 1755" preserveAspectRatio="xMidYMid slice" role="img"
+        aria-label="Mapa animado: una calle con la fila de clientes, una taquería de dos pisos con sus planchas, su gerente y su pizarra, y la ventanilla de un ayudante que llega con el timbre."></svg>
+      <div class="velo"></div>
+    </div>
+
+    <p class="marca">Recursos didácticos · Escalar y automatizar en AWS</p>
+
+    <!-- ============================================================ tarjetas -->
+    <section class="tarjeta tarjeta--portada" id="t-portada">
+      <p class="chip">Cómputo en la Nube · Sesión 6</p>
+      <h1>La taquería en<br><em>hora pico</em></h1>
+      <p class="bajada">Cómo atender a mil clientes a la vez sin quebrar y sin pagar taqueros de más: planchas que se abren solas, un anfitrión en la puerta y un ayudante que solo llega con el timbre.</p>
+      <p class="pista"><kbd>→</kbd> o toca la pantalla para avanzar</p>
+    </section>
+
+    <section class="tarjeta" id="t-tres">
+      <p class="chip">La puerta</p>
+      <h2>Tres tipos de anfitrión</h2>
+      <div class="trio">
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><rect x="16" y="12" width="48" height="58" rx="6" fill="#fff3d6"/><rect x="16" y="12" width="48" height="14" rx="6" fill="#ff4f8b"/><path d="M24 38h32M24 48h22M24 58h28" stroke="#0a0c2c" stroke-opacity=".5" stroke-width="5" stroke-linecap="round"/></svg>
+          <h3>El que lee la comanda</h3>
+          <p>Mira qué pide cada cliente: los de tacos a una plancha, los de aguas a otra. Habla HTTP y HTTPS.</p>
+          <p class="lugar__aws"><span>Capa 7</span><b>Application LB</b></p>
+        </article>
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="28" fill="#4cc9f0"/><path d="M40 40V20M40 40l14 10" stroke="#0a0c2c" stroke-width="6" stroke-linecap="round"/><path d="M8 24l10 4M6 40h10M8 56l10-4" stroke="#ffcf3f" stroke-width="5" stroke-linecap="round"/></svg>
+          <h3>El que cuenta rapidísimo</h3>
+          <p>No lee nada: reparte millones de clientes por segundo, con muy poca espera y una dirección fija.</p>
+          <p class="lugar__aws"><span>Capa 4</span><b>Network LB</b></p>
+        </article>
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M40 8l26 10v20c0 18-12 28-26 34C26 66 14 56 14 38V18z" fill="#7be495"/><path d="M28 40l9 9l16-18" fill="none" stroke="#0a0c2c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <h3>El que pasa todo por el guardia</h3>
+          <p>Antes de entrar, cada cliente pasa por la revisión de seguridad: firewalls de otras marcas.</p>
+          <p class="lugar__aws"><span>Seguridad</span><b>Gateway LB</b></p>
+        </article>
+      </div>
+      <p class="remate">Los tres son <b>Elastic Load Balancing</b>: reparten el tráfico y dejan de mandarlo a lo que no responde.</p>
+    </section>
+
+    <section class="tarjeta" id="t-repaso">
+      <p class="chip">Para llevar</p>
+      <h2>La misma taquería, con sus nombres de AWS</h2>
+      <ul class="pares pares--4">
+        <li><span>Un taquero</span><b>Instancia EC2</b></li>
+        <li><span>Uno más grande</span><b>Escalar vertical</b></li>
+        <li><span>Más planchas iguales</span><b>Escalar horizontal</b></li>
+        <li><span>La receta de la casa</span><b>Plantilla de lanzamiento</b></li>
+        <li><span>El gerente y sus números</span><b>EC2 Auto Scaling</b></li>
+        <li><span>Uno en cada local</span><b>Zonas de disponibilidad</b></li>
+        <li><span>El anfitrión de la puerta</span><b>Elastic Load Balancing</b></li>
+        <li><span>La pizarra y la campanita</span><b>CloudWatch</b></li>
+        <li><span>La bitácora</span><b>CloudTrail</b></li>
+        <li><span>El riel de las comandas</span><b>Amazon SQS</b></li>
+        <li><span>El megáfono</span><b>Amazon SNS</b></li>
+        <li><span>El ayudante del timbre</span><b>AWS Lambda</b></li>
+      </ul>
+    </section>
+
+    <section class="tarjeta" id="t-guia">
+      <p class="chip">La guía rápida</p>
+      <h2>Entonces, ¿qué uso?</h2>
+      <ol class="gps">
+        <li><b>Que crezca y se encoja solo</b><span>EC2 Auto Scaling: mínimo, deseado y máximo</span></li>
+        <li><b>Repartir visitas entre servidores</b><span>Elastic Load Balancing: ALB, NLB o GWLB</span></li>
+        <li><b>Avísame si la CPU pasa de 70 %</b><span>Una alarma de Amazon CloudWatch</span></li>
+        <li><b>¿Quién borró la instancia?</b><span>AWS CloudTrail: la bitácora de la cuenta</span></li>
+        <li><b>Que no se pierdan los pedidos</b><span>SQS (una cola) · avisar a muchos: SNS</span></li>
+        <li><b>Código que corre cuando pasa algo</b><span>AWS Lambda · a cierta hora: EventBridge</span></li>
+      </ol>
+      <p class="remate">Elasticidad: crecer cuando llega la gente, encogerse cuando se va y pagar solo lo que usas.</p>
+    </section>
+
+    <section class="tarjeta" id="t-quiz">
+      <p class="chip">Antes del laboratorio</p>
+      <h2>Tres preguntas rápidas</h2>
+      <div class="quiz">
+        <fieldset class="pregunta">
+          <legend>Un taquero se enferma en plena hora pico. ¿Quién pone a otro en su lugar?</legend>
+          <button type="button">El anfitrión de la puerta (balanceador)</button>
+          <button type="button" data-ok>El gerente (Auto Scaling)</button>
+          <button type="button">La pizarra (CloudWatch)</button>
+          <p class="pregunta__por">El balanceador solo deja de mandarle clientes; Auto Scaling reemplaza la instancia que no pasa su revisión de salud.</p>
+        </fieldset>
+        <fieldset class="pregunta">
+          <legend>La caja cuelga las comandas para que no se pierdan si un taquero se tarda. ¿Qué es?</legend>
+          <button type="button">Amazon SNS</button>
+          <button type="button" data-ok>Amazon SQS</button>
+          <button type="button">AWS Lambda</button>
+          <p class="pregunta__por">SQS es una cola: guarda los mensajes hasta que alguien los toma. SNS avisa a muchos a la vez.</p>
+        </fieldset>
+        <fieldset class="pregunta">
+          <legend>Ayer alguien apagó una plancha. ¿Dónde ves quién fue y a qué hora?</legend>
+          <button type="button">En la pizarra (CloudWatch)</button>
+          <button type="button">En el anfitrión (balanceador)</button>
+          <button type="button" data-ok>En la bitácora (CloudTrail)</button>
+          <p class="pregunta__por">CloudTrail registra quién hizo cada cambio; CloudWatch mide cómo va el rendimiento.</p>
+        </fieldset>
+      </div>
+    </section>
+
+    <section class="tarjeta tarjeta--portada" id="t-fin">
+      <p class="chip">Ahora te toca</p>
+      <h1>Arma tu propia <em>taquería</em></h1>
+      <p class="bajada">En el laboratorio de hoy escribes la receta, pones al gerente con dos taqueros en dos locales, despides a uno para ver cómo llega otro solo y subes a tres. La campanita, eso sí, el sandbox no te deja colgarla.</p>
+      <p class="acciones">
+        <a class="boton boton--fuerte" href="../aws-practitioner/#/sesion/6">Ir a la Ruta AWS, sesión 6</a>
+        <button class="boton" type="button" id="btn-reiniciar">Ver de nuevo</button>
+      </p>
+    </section>
+
+    <!-- ============================================================== rótulo -->
+    <div class="rotulo" id="rotulo" aria-live="polite">
+      <div class="rotulo__cuerpo">
+        <p class="rotulo__parada" id="r-parada"></p>
+        <h2 id="r-titulo"></h2>
+        <p class="rotulo__texto" id="r-texto"></p>
+      </div>
+      <p class="rotulo__aws" id="r-aws"><span>En AWS se llama</span><b id="r-aws-nombre"></b></p>
+    </div>
+
+    <aside class="nota" id="nota" hidden></aside>
+
+    <nav class="controles" aria-label="Controles de la animación">
+      <button type="button" id="btn-ant" aria-label="Anterior" title="Anterior (←)">←</button>
+      <span class="controles__cuenta" id="cuenta">1 / 1</span>
+      <button type="button" id="btn-sig" class="controles__sig" aria-label="Siguiente" title="Siguiente (→)">→</button>
+      <button type="button" id="btn-repetir" aria-label="Repetir la animación" title="Repetir (R)">↻</button>
+      <button type="button" id="btn-pantalla" aria-label="Pantalla completa" title="Pantalla completa (F)">⛶</button>
+    </nav>
+    <div class="avance" id="avance" role="group" aria-label="Avance"></div>
+  </main>
+</div>
+<noscript><p style="padding:24px;color:#fff;font-family:sans-serif">Esta animación necesita JavaScript.</p></noscript>
+<script type="module" src="motor.js"></script>
+</body>
+</html>

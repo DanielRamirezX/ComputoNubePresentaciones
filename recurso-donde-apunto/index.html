@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>¿Dónde se apunta cada dato?</title>
+<meta name="description" content="Animación paso a paso: el viaje de un dato por las bases de datos de AWS, con una libreta, un archivo con encargado, un guardarropa de fichas y una libretita de lo más pedido en lugar de siglas.">
+<meta name="theme-color" content="#0b0e3c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Cpath d=%27M10 6h44v44l-6 6-5.5-6-5.5 6-5.5-6-5.5 6-5.5-6-5.5 6-5-6z%27 fill=%27%23fff6dc%27/%3E%3Crect x=%2710%27 y=%276%27 width=%2744%27 height=%279%27 fill=%27%23ff4f8b%27/%3E%3Ccircle cx=%2724%27 cy=%2728%27 r=%274%27 fill=%27%230a0c2c%27/%3E%3Ccircle cx=%2740%27 cy=%2728%27 r=%274%27 fill=%27%230a0c2c%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<div class="sala">
+  <main class="escenario" id="escenario">
+    <div class="lienzo">
+      <svg id="mundo" viewBox="80 240 3120 1755" preserveAspectRatio="xMidYMid slice" role="img"
+        aria-label="Mapa animado: la papelería de don Beto con su libreta, un archivo con su encargado y una sucursal de respaldo, un archivo de lujo de tres edificios, una sala de fotocopias, un guardarropa de fichas, un contador y un tablero de corcho."></svg>
+      <div class="velo"></div>
+    </div>
+
+    <p class="marca">Recursos didácticos · Bases de datos en AWS</p>
+
+    <!-- ============================================================ tarjetas -->
+    <section class="tarjeta tarjeta--portada" id="t-portada">
+      <p class="chip">Cómputo en la Nube · Sesión 5</p>
+      <h1>¿Dónde se apunta<br><em>cada dato</em>?</h1>
+      <p class="bajada">El viaje de una nota de venta por la nube: una libreta que cuidas tú, un archivo con encargado, un guardarropa de fichas y una libretita de lo más pedido.</p>
+      <p class="pista"><kbd>→</kbd> o toca la pantalla para avanzar</p>
+    </section>
+
+    <section class="tarjeta" id="t-formas" data-sub="0">
+      <p class="chip"><span class="solo-0">Antes de salir</span><span class="solo-1">Parada 5 · Otra forma de anotar</span></p>
+      <h2><span class="solo-0">En la papelería no todo se apunta igual</span><span class="solo-1">No todo cabe en una libreta con columnas</span></h2>
+      <div class="trio">
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M8 18l30-4v50l-30 4z" fill="#f7f4ff"/><path d="M72 18l-30-4v50l30 4z" fill="#fff6dc"/><path d="M12 28l22-3M12 37l22-3M12 46l22-3M12 55l22-3M46 25l22 3M46 34l22 3M46 43l22 3M46 52l22 3" stroke="#4cc9f0" stroke-width="2"/><path d="M24 17v48M58 17v48" stroke="#ff4f8b" stroke-width="2"/><path d="M40 14v50" stroke="#8f7bd6" stroke-width="3"/></svg>
+          <h3>La libreta con columnas</h3>
+          <p>Todos los renglones tienen la misma forma. Ideal para cuentas y ventas.</p>
+          <p class="lugar__aws"><span>Relacional</span><b>RDS · Aurora</b></p>
+        </article>
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M10 14h60" stroke="#8a8aa8" stroke-width="5" stroke-linecap="round"/><path d="M20 14v6M40 14v6M60 14v6" stroke="#8a8aa8" stroke-width="3"/><rect x="11" y="22" width="18" height="24" rx="6" fill="#ff4f8b"/><path d="M31 26h18l-2 22H33z" fill="#ffcf3f"/><ellipse cx="60" cy="34" rx="10" ry="12" fill="#7be495"/><rect x="12" y="54" width="16" height="10" rx="5" fill="#f7f4ff"/><rect x="32" y="54" width="16" height="10" rx="5" fill="#f7f4ff"/><rect x="52" y="54" width="16" height="10" rx="5" fill="#f7f4ff"/></svg>
+          <h3>El guardarropa de fichas</h3>
+          <p>Cada bolsa trae algo distinto y se encuentra por su número de ficha.</p>
+          <p class="lugar__aws"><span>Clave-valor</span><b>DynamoDB</b></p>
+        </article>
+        <article class="lugar">
+          <svg viewBox="0 0 80 80" aria-hidden="true"><rect x="12" y="12" width="56" height="56" rx="8" fill="#b47c3c"/><rect x="18" y="18" width="21" height="20" rx="2" fill="#ffcf3f" transform="rotate(-6 28 28)"/><rect x="42" y="19" width="20" height="19" rx="2" fill="#ff4f8b" transform="rotate(5 52 28)"/><rect x="19" y="43" width="20" height="20" rx="2" fill="#7be495" transform="rotate(4 29 53)"/><rect x="43" y="44" width="19" height="19" rx="2" fill="#4cc9f0" transform="rotate(-5 52 53)"/></svg>
+          <h3>La libretita junto a la caja</h3>
+          <p>Lo que más preguntan, apuntado a la mano para contestar al instante.</p>
+          <p class="lugar__aws"><span>Caché</span><b>ElastiCache</b></p>
+        </article>
+      </div>
+      <p class="remate"><span class="solo-0">En la nube pasa igual: hay una forma de anotar para cada cosa. Empecemos por la libreta.</span><span class="solo-1">Hasta aquí todo fue libreta con columnas. Ahora vamos al guardarropa: ahí cada cosa trae lo suyo.</span></p>
+    </section>
+
+    <section class="tarjeta" id="t-repaso">
+      <p class="chip">Para llevar</p>
+      <h2>El mismo mapa, con sus nombres de AWS</h2>
+      <ul class="pares pares--4">
+        <li><span>La libreta con columnas</span><b>Base relacional · SQL</b></li>
+        <li><span>La libreta que cuidas tú</span><b>Base en EC2</b></li>
+        <li><span>El archivo con encargado</span><b>Amazon RDS</b></li>
+        <li><span>El archivo de lujo</span><b>Amazon Aurora</b></li>
+        <li><span>El archivero dormilón</span><b>Aurora Serverless</b></li>
+        <li><span>La copia en otra sucursal</span><b>Multi-AZ</b></li>
+        <li><span>Las fotocopias para leer</span><b>Réplicas de lectura</b></li>
+        <li><span>El álbum de cada día</span><b>Respaldos automáticos</b></li>
+        <li><span>El guardarropa de fichas</span><b>Amazon DynamoDB</b></li>
+        <li><span>La libretita de lo más pedido</span><b>ElastiCache · DAX</b></li>
+        <li><span>El contador y el corcho</span><b>Redshift · Neptune</b></li>
+        <li><span>La mudanza sin cerrar</span><b>AWS DMS</b></li>
+      </ul>
+    </section>
+
+    <section class="tarjeta" id="t-guia">
+      <p class="chip">La guía rápida</p>
+      <h2>Entonces, ¿qué base uso?</h2>
+      <ol class="gps">
+        <li><b>Ventas, cuentas, relaciones y SQL</b><span>Amazon RDS o Aurora</span></li>
+        <li><b>Que siga viva si falla una zona</b><span>Multi-AZ: la copia en espera</span></li>
+        <li><b>Muchísimas más lecturas que escrituras</b><span>Réplicas de lectura</span></li>
+        <li><b>Por llave, a cualquier escala, sin servidores</b><span>Amazon DynamoDB</span></li>
+        <li><b>Lo que se pide a cada rato</b><span>ElastiCache (y DAX para DynamoDB)</span></li>
+        <li><b>Analizar años de datos</b><span>Amazon Redshift</span></li>
+      </ol>
+      <p class="remate">Dos preguntas lo deciden casi todo: ¿cómo es lo que guardo? y ¿cómo lo voy a buscar?</p>
+    </section>
+
+    <section class="tarjeta" id="t-quiz">
+      <p class="chip">Antes del laboratorio</p>
+      <h2>Tres preguntas rápidas</h2>
+      <div class="quiz">
+        <fieldset class="pregunta">
+          <legend>Miles de personas solo consultan el catálogo y la base va lenta. ¿Qué agregas?</legend>
+          <button type="button">La copia en otra sucursal (Multi-AZ)</button>
+          <button type="button" data-ok>Fotocopias para leer (réplicas de lectura)</button>
+          <button type="button">El álbum de cada día (respaldos)</button>
+          <p class="pregunta__por">Las réplicas atienden las lecturas; la copia de Multi-AZ solo espera por si falla la principal.</p>
+        </fieldset>
+        <fieldset class="pregunta">
+          <legend>Alguien borró una tabla a las 10:15. ¿Qué te regresa a las 10:14?</legend>
+          <button type="button">Una réplica de lectura</button>
+          <button type="button">La copia de Multi-AZ</button>
+          <button type="button" data-ok>Los respaldos automáticos</button>
+          <p class="pregunta__por">Las réplicas y la copia en espera también copian el borrado. Los respaldos permiten volver a un punto en el tiempo.</p>
+        </fieldset>
+        <fieldset class="pregunta">
+          <legend>Millones de jugadores, cada uno con cosas distintas, buscados por su id en milisegundos. ¿Qué base?</legend>
+          <button type="button" data-ok>Amazon DynamoDB</button>
+          <button type="button">Amazon Redshift</button>
+          <button type="button">Una base MySQL en EC2</button>
+          <p class="pregunta__por">Por llave, sin esquema fijo y a cualquier escala: el guardarropa.</p>
+        </fieldset>
+      </div>
+    </section>
+
+    <section class="tarjeta tarjeta--portada" id="t-fin">
+      <p class="chip">Ahora te toca</p>
+      <h1>Abre tu propio <em>guardarropa</em></h1>
+      <p class="bajada">En el laboratorio de hoy instalas una libreta en tu propio servidor, te topas con el candado del archivo y llenas un guardarropa de verdad con ana y luis.</p>
+      <p class="acciones">
+        <a class="boton boton--fuerte" href="../aws-practitioner/#/sesion/5">Ir a la Ruta AWS, sesión 5</a>
+        <button class="boton" type="button" id="btn-reiniciar">Ver de nuevo</button>
+      </p>
+    </section>
+
+    <!-- ============================================================== rótulo -->
+    <div class="rotulo" id="rotulo" aria-live="polite">
+      <div class="rotulo__cuerpo">
+        <p class="rotulo__parada" id="r-parada"></p>
+        <h2 id="r-titulo"></h2>
+        <p class="rotulo__texto" id="r-texto"></p>
+      </div>
+      <p class="rotulo__aws" id="r-aws"><span>En AWS se llama</span><b id="r-aws-nombre"></b></p>
+    </div>
+
+    <aside class="nota" id="nota" hidden></aside>
+
+    <nav class="controles" aria-label="Controles de la animación">
+      <button type="button" id="btn-ant" aria-label="Anterior" title="Anterior (←)">←</button>
+      <span class="controles__cuenta" id="cuenta">1 / 1</span>
+      <button type="button" id="btn-sig" class="controles__sig" aria-label="Siguiente" title="Siguiente (→)">→</button>
+      <button type="button" id="btn-repetir" aria-label="Repetir la animación" title="Repetir (R)">↻</button>
+      <button type="button" id="btn-pantalla" aria-label="Pantalla completa" title="Pantalla completa (F)">⛶</button>
+    </nav>
+    <div class="avance" id="avance" role="group" aria-label="Avance"></div>
+  </main>
+</div>
+<noscript><p style="padding:24px;color:#fff;font-family:sans-serif">Esta animación necesita JavaScript.</p></noscript>
+<script type="module" src="motor.js"></script>
+</body>
+</html>
