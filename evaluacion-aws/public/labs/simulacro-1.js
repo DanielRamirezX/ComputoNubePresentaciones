@@ -57,7 +57,7 @@ export const LAB = {
             `Un usuario de IAM llamado ${c(x.usuario)} que pertenezca al grupo ${c(x.grupo)}.`,
             `El usuario ${c(x.usuario)} <strong>no</strong> debe tener políticas puestas directo: sus permisos le llegan por el grupo.`
           ])}`,
-        pista: 'IAM → User groups → Create group (ahí eliges la política). Luego IAM → Users → Create user y, en «Set permissions», «Add user to group». Recuerda: los permisos se dan al grupo y cada usuario los hereda; así, cuando llegue otro barista, basta con meterlo al grupo.'
+        pista: 'IAM → User groups → Create group (ahí eliges la política). Luego IAM → Users → Create user: <strong>no marques</strong> «Provide user access to the AWS Management Console»; no hace falta. En «Set permissions» elige «Add user to group». Recuerda: los permisos se dan al grupo y cada usuario los hereda; así, cuando llegue otro barista, basta con meterlo al grupo.'
       },
       {
         id: 'red',
@@ -70,7 +70,7 @@ export const LAB = {
             `Un Internet Gateway conectado (<em>attached</em>) a tu VPC.`,
             `La subred debe ser <strong>pública</strong>: su tabla de rutas manda ${c('0.0.0.0/0')} a tu Internet Gateway.`
           ])}`,
-        pista: 'VPC → Your VPCs → Create VPC («VPC only»); VPC → Subnets → Create subnet; VPC → Internet gateways → Create internet gateway y luego Actions → Attach to VPC; VPC → Route tables → Edit routes y Subnet associations. Una subred es pública solo si su tabla manda 0.0.0.0/0 al Internet Gateway: el nombre no la hace pública.'
+        pista: 'VPC → Your VPCs → Create VPC («VPC only»); VPC → Subnets → Create subnet; VPC → Internet gateways → Create internet gateway y luego Actions → Attach to VPC. Para la ruta <strong>basta con editar la tabla de rutas que AWS creó junto con tu VPC</strong>: VPC → Route tables → la tabla de tu VPC → Routes → Edit routes → Add route con destino 0.0.0.0/0 y, en Target, «Internet Gateway» y el tuyo. Como tu subred no tiene otra tabla, usa esa. Una subred es pública solo si su tabla manda 0.0.0.0/0 al Internet Gateway: el nombre no la hace pública.'
       },
       {
         id: 'servidor',
@@ -80,17 +80,18 @@ export const LAB = {
           ${vinetas([
             `Una instancia EC2 ${c('t2.micro')} (o ${c('t3.micro')}) con <strong>Amazon Linux 2023</strong>, llamada ${c(x.instancia)}.`,
             `Debe estar <strong>en tu subred pública</strong> de la VPC ${c(x.vpcCidr)} (no en la VPC por omisión) y tener <strong>IP pública</strong>.`,
+            `<span class="tarea__ojo"><strong>¡Ojo, esto cambia respecto a la sesión 1!</strong> En tu propia VPC, «Auto-assign public IP» viene en ${c('Disable')}: <strong>cámbialo a ${c('Enable')}</strong> al lanzar la instancia. En la sesión 1 venía en Enable porque usaste la VPC por omisión; en una VPC tuya, si lo dejas así, la instancia queda sin IP pública y nadie puede abrir su página.</span>`,
             `Un grupo de seguridad (puedes llamarlo ${c(x.sg)}) que deje entrar:
               <ul>
                 <li>HTTP (puerto 80) desde cualquier lugar: ${c('0.0.0.0/0')}.</li>
-                <li>SSH (puerto 22) <strong>solo desde tu casa</strong>: ${c(`${x.ipCasa}/32`)} (es la que pone la opción «My IP»).</li>
+                <li>SSH (puerto 22) <strong>solo desde tu casa</strong>: ${c(`${x.ipCasa}/32`)}. En «Allow SSH traffic from» elige <strong>My IP</strong>, no Anywhere (en la sesión 1 lo dejaste en Anywhere; aquí eso pierde puntos).</li>
               </ul>`,
             'No necesitas par de llaves: puedes elegir «Proceed without a key pair».',
             'En <strong>User data</strong> pega este script tal cual (instala Apache y escribe la página):'
           ])}
           ${bloque(x.userData)}
           <p>Al final, <strong>la página debe abrir</strong> en el navegador escribiendo ${c('http://')} y la IP pública de tu instancia, y debe decir «${x.textoPagina}» y «${x.textoSucursal}».</p>`,
-        pista: 'EC2 → Instances → Launch instances. En «Network settings» pulsa Edit para elegir tu VPC, tu subred y «Auto-assign public IP: Enable»; ahí mismo creas el grupo de seguridad. User data está hasta abajo, en «Advanced details». El grupo de seguridad es el guardia de la instancia: solo deja entrar lo que anotas en sus reglas.'
+        pista: 'EC2 → Instances → Launch instances. En «Network settings» pulsa Edit para elegir tu VPC y tu subred, y <strong>cambia «Auto-assign public IP» de Disable a Enable</strong> (en tu VPC viene apagado). Ahí mismo creas el grupo de seguridad: marca Allow HTTP y, en «Allow SSH traffic from», elige <strong>My IP</strong> en lugar de Anywhere. User data está hasta abajo, en «Advanced details». El grupo de seguridad es el guardia de la instancia: solo deja entrar lo que anotas en sus reglas.'
       },
       {
         id: 's3',

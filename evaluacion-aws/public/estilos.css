@@ -601,6 +601,16 @@ code { font-family: var(--mono); font-size: .92em; background: var(--marino-suav
 .resultado-tarea--mal { border-left: 10px solid var(--rojo); }
 .resultado-tarea--media .progreso span { background: var(--naranja); }
 .resultado-tarea--mal .progreso span { background: var(--rojo); }
+/* Tarea bono (opcional): sin hacer no es un error, así que no va en rojo. */
+.resultado-tarea--bono { border-style: dashed; border-left: 10px solid var(--marino-3); }
+.resultado-tarea--bono.resultado-tarea--bien { border-left-color: var(--verde); }
+.resultado-tarea--bono.resultado-tarea--media { border-left-color: var(--naranja); }
+.resultado-tarea--bono .progreso span { background: var(--verde); }
+.resultado-tarea--bono.resultado-tarea--media .progreso span { background: var(--naranja); }
+.check--bono { background: var(--marino-suave); }
+.check--bono .check__icono { color: var(--marino-3); }
+.etiqueta-bono { display: inline-block; margin: 0 0 6px; padding: 1px 9px; border-radius: 999px; background: var(--marino-3); color: #fff; font-size: .78rem; font-weight: 700; letter-spacing: .02em; }
+.nota-bono { margin: 0 0 12px; padding: 9px 12px; border-left: 4px solid var(--naranja); border-radius: 9px; background: var(--naranja-suave); font-size: .94rem; }
 .resultado-tarea__cabeza { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .resultado-tarea__cabeza h3 { margin: 0; font-size: 1.08rem; }
 .resultado-tarea__puntos { flex: none; font-family: var(--mono); font-weight: 700; }
@@ -614,6 +624,12 @@ code { font-family: var(--mono); font-size: .92em; background: var(--marino-suav
 .check__texto { margin: 0; font-weight: 700; }
 .check__puntos { color: var(--gris); font-family: var(--mono); font-size: .82rem; font-weight: 600; white-space: nowrap; }
 .check__retro { margin: 3px 0 0; font-size: .93rem; }
+
+/* «Repásalo en»: dónde está ese tema en la Ruta AWS. */
+.repaso { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0 0; padding: 7px 10px; border-radius: 8px; background: var(--naranja-suave); font-size: .9rem; }
+.repaso strong { color: var(--naranja-texto); }
+.repaso a { color: var(--tinta); text-underline-offset: 2px; overflow-wrap: anywhere; }
+.repaso__icono { flex: none; width: 1.1em; height: 1.1em; margin-top: 2px; color: var(--naranja-texto); }
 
 .comprobante dl { display: grid; gap: 8px; margin: 0 0 12px; }
 .comprobante dl div { display: grid; grid-template-columns: 7em 1fr; gap: 10px; }
@@ -692,6 +708,11 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
 .tarea__html > :first-child { margin-top: 0; }
 .tarea__html > :last-child { margin-bottom: 0; }
 .tarea__html ul, .tarea__html ol { padding-left: 1.3em; }
+.tarea--bono { border-style: dashed; background: var(--papel); }
+.tarea--bono .tarea__num { background: var(--marino-3); color: #fff; }
+.tarea--bono .tarea__puntos { background: var(--marino-suave); color: var(--marino-3); }
+/* Lo que cambia respecto a lo que se hizo en la Ruta: que no se pase. */
+.tarea__ojo { display: block; margin: 4px 0; padding: 8px 10px; border-left: 4px solid var(--naranja); border-radius: 8px; background: var(--ambar-suave); }
 /* El script de user data (y cualquier bloque para copiar) de las tareas. */
 .lab-codigo {
   position: relative;

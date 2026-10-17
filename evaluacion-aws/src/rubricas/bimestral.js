@@ -70,6 +70,51 @@ import {
 const MICROS = ['t2.micro', 't3.micro'];
 const IP_ATACANTE = '203.0.113.77';
 
+/**
+ * Dónde repasar cada punto en la Ruta AWS (ver src/repaso.js). La clave
+ * 'tarea/check' gana sobre la de la tarea. La NACL y el IAM solo se vieron en
+ * teoría (y en el simulacro): apuntan a la lámina o al paso de la sesión 2.
+ */
+export const REPASO = {
+  red: 's3-vpc/3',
+  'red/igw': ['s3-vpc/1', 's3-lab-vpc/10'],
+  'red/publica': ['s3-vpc/3', 's3-lab-vpc/5'],
+  'red/publica-cidr': ['s3-vpc/2', 's3-lab-vpc/8'],
+
+  servidor: 's1-lab-ec2/8',
+  'servidor/instancia': ['s1-lab-ec2/8', 's3-lab-vpc/4'],
+  'servidor/tipo': ['s1-lab-ec2/5', 's1-lab-ec2/6'],
+  'servidor/ip': 's1-lab-ec2/8',
+  'servidor/http': ['s2-lab-seguridad/14', 's1-lab-ec2/8'],
+  'servidor/ssh': ['s2-lab-seguridad/14', 's2-identidades/3'],
+  'servidor/pagina': ['s1-lab-ec2/11', 's3-vpc/3'],
+  'servidor/texto': 's1-lab-ec2/9',
+
+  nacl: 's2-servicios/3',
+  'nacl/nacl-bloqueo': ['s2-servicios/3', 's2-lab-seguridad/15'],
+  'nacl/nacl-http': ['s2-lab-seguridad/15', 's2-servicios/3'],
+
+  discos: 's4-discos/2',
+  'discos/volumen': ['s4-lab-almacenamiento/9', 's4-discos/2'],
+  'discos/adjunto': ['s4-discos/2', 's4-lab-almacenamiento/9'],
+  'discos/snapshot': ['s4-lab-almacenamiento/11', 's4-discos/2'],
+
+  s3: 's4-seguridad/1',
+  's3/bucket': ['s4-lab-almacenamiento/3', 's4-s3/1'],
+  's3/bloqueo': ['s4-lab-almacenamiento/4', 's4-seguridad/1'],
+  's3/versionado': ['s4-lab-almacenamiento/5', 's4-seguridad/1'],
+  's3/ciclo': ['s4-lab-almacenamiento/8', 's4-s3/3'],
+
+  iam: 's2-identidades/1',
+  'iam/grupo': ['s2-identidades/3', 's2-identidades/1'],
+  'iam/usuario': 's2-identidades/1',
+  'iam/directo': ['s2-identidades/1', 's2-identidades/3'],
+
+  privada: 's3-vpc/3',
+  'privada/subred': ['s3-vpc/3', 's3-lab-vpc/9'],
+  'privada/cidr': ['s3-lab-vpc/9', 's1-global/1']
+};
+
 /* ================================================================== red */
 
 function elegirSubredes(estado, vpc, x) {
@@ -86,16 +131,14 @@ function revisarRed(estado, x) {
   if (!vpc) {
     const r = `${sinVpc(estado, x.vpcCidr)} La VPC ${x.vpcNombre} venía hecha: todo lo de red va dentro de ella.`;
     return [
-      check('igw', `Un Internet Gateway conectado a ${x.vpcNombre}`, 5, false, r),
-      check('publica', `Una subred pública en ${x.azPublica}`, 8, false, r),
-      check('publica-cidr', `La subred pública usa ${x.publicaCidr}`, 2, false, r),
-      check('privada', `Una subred privada (sin 0.0.0.0/0) en ${x.azPrivada}`, 5, false, r),
-      check('privada-cidr', `La subred privada usa ${x.privadaCidr}`, 2, false, r)
+      check('igw', `Un Internet Gateway conectado a ${x.vpcNombre}`, 6, false, r),
+      check('publica', `Una subred pública en ${x.azPublica} (0.0.0.0/0 → Internet Gateway)`, 11, false, r),
+      check('publica-cidr', `La subred pública usa ${x.publicaCidr}`, 3, false, r)
     ];
   }
-  const { enVpc, publica, privada } = elegirSubredes(estado, vpc, x);
+  const { enVpc, publica } = elegirSubredes(estado, vpc, x);
   const igw = igwDeVpc(estado, vpc.id);
-  const checks = [check('igw', `Un Internet Gateway conectado a ${x.vpcNombre}`, 5, igw, retroIgw(estado, vpc))];
+  const checks = [check('igw', `Un Internet Gateway conectado a ${x.vpcNombre}`, 6, igw, retroIgw(estado, vpc))];
 
   const esPub = publica && esSubredPublica(estado, publica.id);
   let retroPub;
@@ -103,7 +146,7 @@ function revisarRed(estado, x) {
   else if (publica) retroPub = explicarRuta(estado, publica);
   else if (enVpc.length) retroPub = `Ninguna de tus subredes (${enVpc.map(fmtSubred).join('; ')}) está en ${x.azPublica}. La zona no se cambia: crea la subred pública en ${x.azPublica}.`;
   else retroPub = `Tu VPC ${vpc.id} no tiene subredes todavía. Crea la pública ${x.publicaCidr} en ${x.azPublica}.`;
-  checks.push(check('publica', `Una subred pública en ${x.azPublica} (0.0.0.0/0 → Internet Gateway)`, 8, esPub, retroPub));
+  checks.push(check('publica', `Una subred pública en ${x.azPublica} (0.0.0.0/0 → Internet Gateway)`, 11, esPub, retroPub));
 
   const pubExacta = enVpc.find((s) => s.cidr === x.publicaCidr);
   const okPubCidr = pubExacta && pubExacta.az === x.azPublica;
@@ -111,7 +154,7 @@ function revisarRed(estado, x) {
     check(
       'publica-cidr',
       `La subred pública usa ${x.publicaCidr}`,
-      2,
+      3,
       okPubCidr,
       okPubCidr
         ? `${x.publicaCidr} cabe dentro de ${x.vpcCidr} y deja 251 direcciones útiles.`
@@ -120,28 +163,42 @@ function revisarRed(estado, x) {
           : `Ninguna subred de tu VPC usa ${x.publicaCidr}${publica ? ` (la de ${x.azPublica} usa ${publica.cidr})` : ''}.`
     )
   );
+  return checks;
+}
 
+/* ============================================== bono: la subred privada */
+
+function revisarPrivada(estado, x) {
+  const vpc = elegirVpc(estado, x.vpcCidr);
+  const tPriv = `Una subred privada (sin 0.0.0.0/0) en ${x.azPrivada}`;
+  const tCidr = `La subred privada usa ${x.privadaCidr}`;
+  if (!vpc) {
+    const r = `${sinVpc(estado, x.vpcCidr)} La subred privada también va dentro de ${x.vpcNombre}.`;
+    return [check('subred', tPriv, 4, false, r), check('cidr', tCidr, 2, false, r)];
+  }
+  const { enVpc, privada } = elegirSubredes(estado, vpc, x);
+  const checks = [];
   const okPriv = privada && esPrivadaSinSalida(estado, privada.id);
   let retroPriv;
   if (okPriv) retroPriv = `Tu subred ${fmtSubred(privada)} no tiene ninguna ruta 0.0.0.0/0: lo que pongas ahí (una base de datos, por ejemplo) no se puede alcanzar desde internet.`;
   else if (privada) {
     retroPriv = `Tu subred ${fmtSubred(privada)} sí tiene ruta 0.0.0.0/0 en su tabla, así que no es privada. Si pusiste la ruta a internet en la tabla principal, todas las subredes sin tabla propia la heredan: ponla en una tabla aparte asociada solo a la pública.`;
-  } else retroPriv = enVpc.length ? `No tienes ninguna subred en ${x.azPrivada}. Crea la privada ${x.privadaCidr} ahí.` : `Crea la subred privada ${x.privadaCidr} en ${x.azPrivada}.`;
-  checks.push(check('privada', `Una subred privada (sin 0.0.0.0/0) en ${x.azPrivada}`, 5, okPriv, retroPriv));
+  } else retroPriv = `${enVpc.length ? `No tienes ninguna subred en ${x.azPrivada}.` : 'Todavía no hay subredes en tu VPC.'} Es el bono opcional: si creas la subred privada ${x.privadaCidr} en ${x.azPrivada}, sin ruta 0.0.0.0/0, suma puntos extra (sin pasar de 100). No hacerla no te quita puntos.`;
+  checks.push(check('subred', tPriv, 4, okPriv, retroPriv));
 
   const privExacta = enVpc.find((s) => s.cidr === x.privadaCidr);
   const okPrivCidr = privExacta && privExacta.az === x.azPrivada;
   checks.push(
     check(
-      'privada-cidr',
-      `La subred privada usa ${x.privadaCidr}`,
+      'cidr',
+      tCidr,
       2,
       okPrivCidr,
       okPrivCidr
         ? 'Dos subredes en zonas distintas: si una zona falla, la otra sigue. Así se piensa la alta disponibilidad.'
         : privExacta
           ? `Tu subred ${fmtSubred(privExacta)} tiene el bloque correcto, pero está en ${privExacta.az} y no en ${x.azPrivada}.`
-          : `Ninguna subred de tu VPC usa ${x.privadaCidr}${privada ? ` (la de ${x.azPrivada} usa ${privada.cidr})` : ''}.`
+          : `Ninguna subred de tu VPC usa ${x.privadaCidr}${privada ? ` (la de ${x.azPrivada} usa ${privada.cidr})` : ': es parte del bono opcional, que no te quita puntos si no lo haces'}.`
     )
   );
   return checks;
@@ -226,7 +283,7 @@ function revisarNacl(estado, x) {
   const t2 = 'Esa NACL deja pasar HTTP (80) de los demás y sus respuestas';
   if (!subred) {
     const r = vpc ? `Todavía no hay subred pública en ${x.azPublica} para revisarle la NACL.` : sinVpc(estado, x.vpcCidr);
-    return [check('nacl-bloqueo', t1, 4, false, r), check('nacl-http', t2, 4, false, r)];
+    return [check('nacl-bloqueo', t1, 5, false, r), check('nacl-http', t2, 5, false, r)];
   }
   const nacl = naclDeSubred(estado, subred.id);
   const propia = nacl && !nacl.porDefecto;
@@ -250,7 +307,7 @@ function revisarNacl(estado, x) {
     const regla = !entraCasa.permite ? entraCasa.regla : entraOtro.regla;
     r2 = `La NACL ${nacl.id} niega el puerto 80 por la regla ${regla === '*' ? '* (ninguna regla lo permite)' : `${regla.numero} (${regla.accion === 'deny' ? 'Deny' : 'Allow'} ${textoProtocolo(regla.protocolo)} ${textoPuertos(regla)} desde ${regla.cidr})`}. Como gana la primera regla que coincide, esa regla tapa a las demás: bórrala o cámbiala a allow (sin tocar el bloqueo a ${x.redAtacante}).`;
   } else r2 = `La NACL ${nacl.id} deja entrar el 80 pero no deja salir las respuestas: la NACL no recuerda conexiones, así que necesita una regla de salida que permita los puertos efímeros (1024-65535).`;
-  return [check('nacl-bloqueo', t1, 4, bloquea, r1), check('nacl-http', t2, 4, okHttp, r2)];
+  return [check('nacl-bloqueo', t1, 5, bloquea, r1), check('nacl-http', t2, 5, okHttp, r2)];
 }
 
 /* =============================================================== discos */
@@ -334,46 +391,46 @@ function revisarS3(estado, x) {
 
 function revisarIam(estado, x) {
   const g = grupoIam(estado, x.grupo);
-  const pols = g?.politicas ?? [];
-  const okG = g && pols.includes(x.politica) && !deEscritura(pols).length && !amplias(pols).length;
+  const pols = [...new Set(g?.politicas ?? [])];
+  const extra = pols.filter((p) => p !== x.politica);
+  // Se pidió SOLO AmazonEC2ReadOnlyAccess: cualquier otra política, aunque sea de lectura, sobra.
+  const okG = g && pols.includes(x.politica) && extra.length === 0;
   let retroG;
-  if (okG) retroG = `El grupo ${x.grupo} solo puede ver EC2: los cajeros revisan si el servidor está encendido, pero no pueden apagarlo por accidente.`;
+  if (okG) retroG = `El grupo ${x.grupo} solo tiene ${x.politica}: puede ver EC2 y nada más. La cajera revisa si el servidor está encendido, pero no puede apagarlo por accidente ni curiosear en el resto de la cuenta.`;
   else if (!g) retroG = faltaGrupo(estado, x.grupo);
-  else if (deEscritura(pols).length) retroG = `El grupo ${x.grupo} tiene ${lista(deEscritura(pols))}, que deja cambiar cosas. Déjale solo ${x.politica}.`;
-  else if (amplias(pols).length) retroG = `El grupo ${x.grupo} tiene ${lista(amplias(pols))}, que deja leer TODA la cuenta. Mínimo privilegio: usa ${x.politica}.`;
-  else retroG = `El grupo ${x.grupo} tiene: ${lista(pols)}. Le falta ${x.politica}.`;
+  else if (deEscritura(extra).length) retroG = `El grupo ${x.grupo} tiene ${lista(deEscritura(extra))}, que deja cambiar o borrar cosas. Quítala (pestaña Permissions → Remove) y deja solo ${x.politica}.`;
+  else if (amplias(extra).length) retroG = `El grupo ${x.grupo} tiene ${lista(amplias(extra))}, que deja leer TODA la cuenta (S3, IAM, facturas…). Mínimo privilegio: quítala y deja solo ${x.politica}.`;
+  else if (extra.length && pols.includes(x.politica)) retroG = `El grupo ${x.grupo} tiene ${x.politica}, pero también ${lista(extra)}. Aunque sea de solo lectura, la cajera no la necesita: se pidió solo ${x.politica}, ninguna otra. Quítala en la pestaña Permissions → Remove.`;
+  else retroG = `El grupo ${x.grupo} tiene: ${lista(pols)}. Le falta ${x.politica}${extra.length ? `, y lo demás sobra: se pidió solo esa política` : ''} (pestaña Permissions → Add permissions → Attach policies).`;
 
-  const checks = [check('grupo', `El grupo «${x.grupo}» con ${x.politica} y nada más amplio`, 4, okG, retroG)];
-  x.usuarios.forEach((nombre, i) => {
-    const u = usuario(estado, nombre);
-    const ok = estaEn(u, x.grupo);
-    checks.push(
-      check(
-        `usuario-${i + 1}`,
-        `El usuario «${nombre}» está en el grupo «${x.grupo}»`,
-        2,
-        ok,
-        ok ? `${nombre} hereda los permisos de ${x.grupo}.` : !u ? faltaUsuario(estado, nombre) : `${nombre} existe, pero está en: ${lista(u.grupos, 'ningún grupo')}. Agrégalo a ${x.grupo}.`
-      )
-    );
-  });
-  const us = x.usuarios.map((n) => usuario(estado, n));
-  const okD = us.every((u) => u && u.politicas.length === 0);
-  const conDirectas = us.filter((u) => u?.politicas.length);
-  checks.push(
+  const u = usuario(estado, x.usuario);
+  const okU = estaEn(u, x.grupo);
+  const okD = u && u.politicas.length === 0;
+  return [
+    check('grupo', `El grupo «${x.grupo}» tiene solo ${x.politica} (ninguna otra política)`, 5, okG, retroG),
+    check(
+      'usuario',
+      `El usuario «${x.usuario}» está en el grupo «${x.grupo}»`,
+      3,
+      okU,
+      okU
+        ? `${x.usuario} está en ${x.grupo} y hereda sus permisos. Cuando llegue otro cajero, basta con meterlo al grupo.`
+        : !u
+          ? faltaUsuario(estado, x.usuario)
+          : `${x.usuario} existe, pero está en: ${lista(u.grupos, 'ningún grupo')}. Agrégalo a ${x.grupo} (IAM → User groups → ${x.grupo} → Add users).`
+    ),
     check(
       'directo',
-      'Ningún cajero tiene políticas puestas directo',
+      `El usuario «${x.usuario}» no tiene políticas puestas directo`,
       2,
       okD,
       okD
-        ? 'Todos los permisos de los cajeros están en el grupo: un solo lugar que revisar cuando alguien entra o se va.'
-        : conDirectas.length
-          ? `${conDirectas.map((u) => `${u.nombre} tiene directo ${lista(u.politicas)}`).join('; ')}. Quítalas: el permiso ya les llega por el grupo.`
-          : `Faltan usuarios por crear (${x.usuarios.filter((n, i) => !us[i]).join(', ')}); sus permisos deben llegarles solo por el grupo.`
+        ? 'Sin políticas directas, todos los permisos de la cajera se ven y se cambian en un solo lugar: el grupo.'
+        : !u
+          ? `Primero crea el usuario ${x.usuario}; sus permisos deben llegarle solo por el grupo.`
+          : `${x.usuario} tiene puestas directo: ${lista(u.politicas)}. Quítalas (Users → ${x.usuario} → Permissions → Remove): el permiso ya le llega por el grupo.`
     )
-  );
-  return checks;
+  ];
 }
 
 /* ============================================================== revisar */
@@ -387,7 +444,8 @@ export function revisar(estadoOriginal, datos) {
     nacl: revisarNacl(estado, x),
     discos: revisarDiscos(estado, x),
     s3: revisarS3(estado, x),
-    iam: revisarIam(estado, x)
+    iam: revisarIam(estado, x),
+    privada: revisarPrivada(estado, x)
   });
 }
 
@@ -399,7 +457,7 @@ export function solucion(datos) {
   const vpc = estado.vpcs.find((v) => v.cidr === x.vpcCidr);
   const nacl = estado.nacls.find((n) => n.nombre === x.nacl);
 
-  // red
+  // red (la privada es el bono)
   const pub = crearSubred(estado, { vpcId: vpc.id, nombre: x.publicaNombre, az: x.azPublica, cidr: x.publicaCidr });
   crearSubred(estado, { vpcId: vpc.id, nombre: x.privadaNombre, az: x.azPrivada, cidr: x.privadaCidr });
   const igw = crearIgw(estado, { nombre: 'donbeto-igw' });
@@ -447,7 +505,7 @@ export function solucion(datos) {
 
   // iam
   crearGrupoIam(estado, { nombre: x.grupo, politicas: [x.politica] });
-  for (const u of x.usuarios) crearUsuario(estado, { nombre: u, consola: true, grupos: [x.grupo] });
+  crearUsuario(estado, { nombre: x.usuario, grupos: [x.grupo] });
 
   avanzar(estado, reloj.ahora() + 3600_000);
   return estado;

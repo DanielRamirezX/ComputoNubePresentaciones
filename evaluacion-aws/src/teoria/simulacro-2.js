@@ -5,7 +5,12 @@
 // repiten, vistos desde otro ángulo. La respuesta correcta y la
 // retroalimentación viven solo en el servidor; la clave está balanceada (6 en
 // A, 6 en B, 7 en C y 6 en D, sin rachas de tres) y cada distractor es una
-// confusión real. Corre `node src/teoria/verificar-teoria.js` si cambias algo.
+// confusión real. Cada pregunta trae `repaso`: la lámina de la Ruta AWS donde
+// se explica su tema ('s3-vpc/2'), o un arreglo con esa lámina y el paso del
+// laboratorio donde se practicó; el catálogo está en src/repaso.js. Todo lo que
+// se pregunta se vio en esas láminas: no hay que hacer cuentas ni saber detalles
+// que no se enseñaron (lo que va de más se marca en la retro como «Dato extra»).
+// Corre `node src/teoria/verificar-teoria.js` y `npm run verificar` si cambias algo.
 
 import { bancoPublico, calificarBanco } from './comun.js';
 
@@ -29,7 +34,7 @@ export const CASOS = [
     empresa: 'Ramírez & Garza Contadores',
     titulo: 'La temporada de declaraciones',
     historia: `
-      <p><strong>Ramírez &amp; Garza</strong> es un despacho contable de Monterrey con <strong>25 contadores</strong> que trabajan en computadoras con Windows. Comparten una carpeta de red (la unidad <em>Z:</em>) en un servidor viejo, con permisos por usuario de Active Directory, y quieren pasarla a AWS sin cambiar su forma de trabajar.</p>
+      <p><strong>Ramírez &amp; Garza</strong> es un despacho contable de Monterrey con <strong>25 contadores</strong> que trabajan en computadoras con Windows. Comparten una carpeta de red (la unidad <em>Z:</em>) en un servidor viejo con Windows Server, con permisos por usuario, y quieren pasarla a AWS sin cambiar su forma de trabajar.</p>
       <p>De febrero a abril, en la temporada de declaraciones anuales, necesitan <strong>8 servidores extra</strong> para calcular impuestos; ese trabajo no puede interrumpirse porque hay fechas límite del SAT. El resto del año no los usan.</p>
       <p>Deben conservar las facturas (CFDI) de sus clientes <strong>5 años</strong>: el primer año se consultan seguido; después, solo si hay una revisión del SAT, y para eso pueden esperar un día. Su aviso de privacidad promete borrarlas al cumplir 5 años. En mayo, un auditor externo revisará su cuenta de AWS durante dos semanas.</p>`
   },
@@ -58,7 +63,7 @@ export const CASOS = [
     historia: `
       <p>El <strong>Instituto de Ciencias del Clima</strong>, de una universidad pública de Hermosillo, publica cada hora alertas de ondas de calor para Sonora. Su modelo de pronóstico corre <strong>24/7</strong> en un clúster de <strong>200 nodos</strong> que usa mucho procesador y poca memoria, y no puede interrumpirse. En los próximos 3 años piensan cambiar varias veces de tipo de instancia y, quizá, de región.</p>
       <p>Los 200 nodos leen al mismo tiempo, a altísima velocidad, imágenes satelitales que están guardadas en S3.</p>
-      <p>El instituto tiene <strong>12 VPC</strong>, una por proyecto de investigación, más la red del campus conectada por VPN, y todas deben poder hablar entre sí. Su VPC principal es <strong>10.8.0.0/16</strong> y, para un clúster nuevo de <strong>60 nodos</strong> (una IP por nodo), crearon la subred <strong>10.8.4.0/26</strong>.</p>`
+      <p>El instituto tiene <strong>12 VPC</strong>, una por proyecto de investigación, más la red del campus conectada por VPN, y todas deben poder hablar entre sí. Su VPC principal es <strong>10.8.0.0/16</strong> y, para un clúster nuevo de <strong>14 nodos</strong> (una IP por nodo), crearon la subred <strong>10.8.4.0/28</strong>.</p>`
   },
   {
     id: 'c5',
@@ -79,19 +84,20 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'Amazon FSx for Windows File Server',
-    texto: 'Ramírez & Garza quiere pasar su unidad Z: a AWS: una carpeta compartida para 25 equipos Windows, con los mismos permisos de Active Directory. ¿Qué servicio usa?',
+    repaso: 's4-discos/1',
+    texto: 'Ramírez & Garza quiere pasar su unidad Z: a AWS: una carpeta compartida para 25 equipos Windows, sin cambiar su forma de trabajar. ¿Qué servicio usa?',
     opciones: [
       {
         texto: 'Amazon EFS',
-        retro: 'EFS es la carpeta compartida para instancias Linux (por NFS); no funciona con equipos Windows ni se integra con sus permisos de Active Directory.'
+        retro: 'EFS es la carpeta compartida para instancias Linux; no es la que se usa para una oficina llena de equipos Windows.'
       },
       {
         texto: 'Un bucket de Amazon S3',
-        retro: 'S3 guarda objetos y se usa por internet o por API, no como una unidad de red con permisos de Active Directory. Cambiaría la forma de trabajar del despacho.'
+        retro: 'S3 guarda objetos y se usa por internet o por API, no como una unidad de red Z:. Cambiaría la forma de trabajar del despacho.'
       },
       {
         texto: 'Amazon FSx for Windows File Server',
-        retro: '¡Correcto! FSx for Windows File Server es un servidor de archivos Windows administrado: carpetas compartidas que se integran con Active Directory. “Archivos compartidos para Windows” → FSx.'
+        retro: '¡Correcto! FSx for Windows File Server es un servidor de archivos Windows que administra AWS: la misma carpeta compartida de siempre, sin tener que mantener el servidor. “Archivos compartidos para Windows” → FSx for Windows.'
       },
       {
         texto: 'Un volumen EBS compartido por los 25 equipos',
@@ -106,6 +112,7 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'Rol para alguien de otra cuenta',
+    repaso: 's2-identidades/1',
     texto: 'El auditor externo revisará la cuenta del despacho durante dos semanas, desde la cuenta de AWS de su propia firma y solo para leer. ¿Cómo se le da acceso?',
     opciones: [
       {
@@ -133,6 +140,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'On-Demand para una temporada',
+    repaso: 's1-precios/1',
     texto: 'Los 8 servidores de la temporada de declaraciones solo se usan de febrero a abril y su trabajo no puede interrumpirse. ¿Qué opción de compra conviene?',
     opciones: [
       {
@@ -160,6 +168,7 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'Ciclo de vida con transición y expiración',
+    repaso: ['s4-s3/3', 's4-lab-almacenamiento/8'],
     texto: 'Las facturas (CFDI) se consultan seguido el primer año y después casi nunca; al cumplir 5 años deben borrarse. ¿Cómo lo automatiza el despacho en S3?',
     opciones: [
       {
@@ -187,6 +196,7 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'Responsabilidad compartida en un servicio administrado',
+    repaso: 's2-responsabilidad/1',
     texto: 'Ya en Amazon FSx, ¿quién instala los parches del Windows Server que hay detrás de la carpeta compartida?',
     opciones: [
       {
@@ -216,6 +226,7 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'CloudFront y las ubicaciones de borde',
+    repaso: 's3-borde/2',
     texto: 'Casa Maya pondrá Amazon CloudFront delante de su bucket de fotos para que carguen rápido en Canadá y Europa. ¿Qué pasará con las fotos?',
     opciones: [
       {
@@ -232,7 +243,7 @@ export const PREGUNTAS = [
       },
       {
         texto: 'Habrá copias en ubicaciones de borde; el original seguirá en S3',
-        retro: '¡Bien! CloudFront es una red de entrega de contenido (CDN): guarda copias en ubicaciones de borde y cada huésped las recibe desde la más cercana. El original vive en el bucket de mx-central-1.'
+        retro: '¡Bien! CloudFront es una red de entrega de contenido (CDN): guarda copias en ubicaciones de borde y cada huésped las recibe desde la más cercana. El original sigue en el bucket, en su región original.'
       }
     ],
     correcta: 3
@@ -242,20 +253,21 @@ export const PREGUNTAS = [
     caso: 'c2',
     tema: 'Identidad y seguridad',
     sesion: 2,
-    concepto: 'AWS WAF con reglas basadas en tasa',
-    texto: 'El portal de huéspedes recibe miles de intentos de inicio de sesión por minuto desde cientos de IP que cambian cada hora. Quieren bloquear a quien mande demasiadas peticiones. ¿Qué usan?',
+    concepto: 'AWS WAF',
+    repaso: 's2-servicios/3',
+    texto: 'El portal de huéspedes recibe miles de intentos de inicio de sesión por minuto desde cientos de IP que cambian cada hora. Quieren un filtro que revise cada petición web antes de que llegue al portal y bloquee las dañinas. ¿Qué usan?',
     opciones: [
       {
-        texto: 'AWS WAF con una regla basada en tasa',
-        retro: '¡Correcto! WAF revisa cada petición web, y una regla basada en tasa bloquea sola a cualquier IP que pase del límite que fijes, aunque las IP cambien. WAF = proteger la aplicación web.'
+        texto: 'AWS WAF',
+        retro: '¡Correcto! WAF es el firewall de las aplicaciones web: revisa cada petición que llega a tu sitio y bloquea las dañinas, como la inyección SQL o el XSS, y también este tipo de ataque al inicio de sesión. “Proteger la aplicación web” → WAF.'
       },
       {
         texto: 'AWS Shield Standard',
-        retro: 'Shield Standard frena ataques DDoS de red y ya viene gratis, pero no revisa inicios de sesión ni cuenta las peticiones de cada IP en tu aplicación.'
+        retro: 'Shield Standard frena ataques DDoS de red y ya viene gratis, pero no revisa una por una las peticiones que llegan a tu aplicación web.'
       },
       {
         texto: 'Una NACL con una regla Deny para cada IP',
-        retro: 'Una NACL sí puede negar IP, pero tendrías que escribir cientos de reglas a mano cada hora. Para reglas que se adaptan solas al tráfico web está WAF.'
+        retro: 'Una NACL sí puede negar IP, pero tendrías que escribir cientos de reglas a mano cada hora, y no ve qué pide cada petición web. Para filtrar el tráfico de una aplicación web está WAF.'
       },
       {
         texto: 'Amazon GuardDuty',
@@ -270,6 +282,7 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'Instance store',
+    repaso: 's4-discos/1',
     texto: 'El buscador de disponibilidad escribe archivos temporales que se regeneran en cada búsqueda. Quieren el disco más rápido posible y no les importa perderlos. ¿Qué usan?',
     opciones: [
       {
@@ -297,6 +310,7 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'Enrutamiento por geolocalización',
+    repaso: 's3-borde/1',
     texto: 'Los huéspedes que se conectan desde la Unión Europea deben llegar a la versión en euros alojada en España, y el resto, a la de México. ¿Qué enrutamiento de Route 53 usan?',
     opciones: [
       {
@@ -324,6 +338,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'Instancias reservadas',
+    repaso: 's1-precios/1',
     texto: 'Las dos instancias del sitio de reservas corren 24/7, no pueden interrumpirse y no cambiarán de tipo en 3 años. ¿Qué opción de compra da el mayor ahorro?',
     opciones: [
       {
@@ -353,11 +368,12 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'Amazon Macie',
+    repaso: 's2-servicios/2',
     texto: 'Biomédica quiere revisar sus 40 buckets para encontrar PDF con nombres, CURP o diagnósticos que hayan quedado fuera de lugar. ¿Qué servicio usa?',
     opciones: [
       {
         texto: 'Amazon Macie',
-        retro: '¡Exacto! Macie revisa tus buckets de S3 y encuentra datos personales o sensibles, como nombres o números de tarjeta; incluso le puedes enseñar patrones propios, como la CURP. “Datos personales en S3” → Macie.'
+        retro: '¡Exacto! Macie revisa tus buckets de S3 y encuentra datos personales o sensibles, como nombres o números de tarjeta. “Datos personales en S3” → Macie.'
       },
       {
         texto: 'Amazon Inspector',
@@ -380,11 +396,12 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'Cifrado con SSE-KMS',
-    texto: 'La auditoría pide cifrar los resultados con una llave que el laboratorio controle: decidir quién puede usarla, ver cada uso y poder desactivarla. ¿Qué configura en el bucket?',
+    repaso: ['s4-seguridad/1', 's2-servicios/1'],
+    texto: 'La auditoría pide cifrar los resultados guardados en S3 con una llave que el laboratorio controle. ¿Qué configura en el bucket?',
     opciones: [
       {
         texto: 'El cifrado por omisión, SSE-S3',
-        retro: 'Ya viene encendido y protege los datos, pero las llaves las administra S3: no decides quién las usa ni puedes desactivarlas. Para controlar la llave, KMS.'
+        retro: 'Ya viene encendido y protege los datos, pero las llaves las administra S3, no el laboratorio. Para cifrar con una llave propia, SSE-KMS.'
       },
       {
         texto: 'La llave guardada en AWS Secrets Manager',
@@ -392,7 +409,7 @@ export const PREGUNTAS = [
       },
       {
         texto: 'SSE-KMS con una llave de KMS del laboratorio',
-        retro: '¡Correcto! Con SSE-KMS y una llave propia en KMS decides quién la usa, cada uso queda en CloudTrail y puedes desactivarla. “Controlar las llaves de cifrado” → KMS.'
+        retro: '¡Correcto! KMS crea y guarda las llaves de cifrado; con SSE-KMS, S3 cifra cada objeto con una llave de KMS que es del laboratorio. “Llaves de cifrado que controla el cliente” → KMS.'
       },
       {
         texto: 'Un certificado de AWS Certificate Manager',
@@ -407,6 +424,7 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'Amazon Inspector',
+    repaso: 's2-servicios/2',
     texto: 'Antes de la auditoría de diciembre, el laboratorio debe saber si sus 6 instancias EC2 tienen software con vulnerabilidades conocidas. ¿Qué servicio lo revisa?',
     opciones: [
       {
@@ -434,6 +452,7 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'Interface endpoint (PrivateLink)',
+    repaso: 's3-conectar/2',
     texto: 'Los servidores que generan los PDF están en una subred privada sin salida a internet y deben leer una contraseña de Secrets Manager. ¿Qué agregan para que el tráfico no salga de la red de AWS?',
     opciones: [
       {
@@ -461,6 +480,7 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'S3 Intelligent-Tiering',
+    repaso: 's4-s3/2',
     texto: 'Para los 30 TB de imágenes de microscopía, cuyo uso cambia con cada estudio, el laboratorio quiere pagar lo menos posible sin crear reglas ni vigilar nada. ¿Qué le conviene?',
     opciones: [
       {
@@ -490,6 +510,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'Familia optimizada para cómputo',
+    repaso: 's1-ec2/2',
     texto: 'El modelo de pronóstico usa mucho procesador y poca memoria. ¿Qué familia de instancias le conviene al clúster?',
     opciones: [
       {
@@ -517,15 +538,16 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'Amazon FSx for Lustre',
-    texto: 'Los 200 nodos deben leer al mismo tiempo, a altísima velocidad, las imágenes satelitales que están en S3. ¿Qué almacenamiento ponen en medio?',
+    repaso: 's4-discos/1',
+    texto: 'Los 200 nodos deben leer al mismo tiempo, a altísima velocidad, las imágenes satelitales. Necesitan un sistema de archivos compartido de alto rendimiento. ¿Qué servicio usan?',
     opciones: [
       {
-        texto: 'Amazon FSx for Lustre, enlazado al bucket de S3',
-        retro: '¡Correcto! FSx for Lustre es el sistema de archivos de alto rendimiento para cómputo científico (HPC): cientos de servidores leen a la vez a gran velocidad, y se conecta directo con S3.'
+        texto: 'Amazon FSx for Lustre',
+        retro: '¡Correcto! FSx for Lustre es el sistema de archivos de alto rendimiento de la familia FSx: muchos servidores leen los mismos archivos a la vez, a gran velocidad. “Alto rendimiento” → FSx for Lustre.'
       },
       {
         texto: 'Amazon FSx for Windows File Server',
-        retro: 'Es la carpeta compartida para equipos Windows, como la de una oficina. No está pensada para cientos de nodos de cómputo científico.'
+        retro: 'Es la carpeta compartida para equipos Windows, como la de una oficina. La de alto rendimiento de la familia FSx es otra: Lustre.'
       },
       {
         texto: 'Un volumen EBS por nodo, con una copia de los datos',
@@ -544,6 +566,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'Compute Savings Plans',
+    repaso: 's1-precios/1',
     texto: 'El clúster correrá 24/7 los próximos 3 años, pero el instituto cambiará varias veces de tipo de instancia y quizá de región. ¿Qué opción da un buen descuento sin amarrarlo?',
     opciones: [
       {
@@ -571,11 +594,12 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'Transit Gateway',
+    repaso: 's3-conectar/1',
     texto: 'Las 12 VPC del instituto y la red del campus deben poder hablar entre sí. Con VPC Peering harían falta 66 conexiones solo entre las VPC. ¿Qué lo simplifica?',
     opciones: [
       {
         texto: 'Hacer las 66 conexiones de VPC Peering',
-        retro: 'Funciona entre VPC, pero es inmanejable y el peering no es transitivo: el campus no podría pasar por una VPC para llegar a otra. Para muchas redes hay un punto central.'
+        retro: 'Funciona entre VPC, pero es inmanejable y el peering conecta solo de dos en dos: el campus no podría pasar por una VPC para llegar a otra. Para muchas redes hay un punto central.'
       },
       {
         texto: 'Un Internet Gateway en cada VPC',
@@ -598,23 +622,24 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'Direcciones reservadas en una subred',
-    texto: 'Para el clúster nuevo de 60 nodos, con una IP por nodo, el instituto creó la subred 10.8.4.0/26. ¿Le alcanza?',
+    repaso: ['s3-vpc/2', 's3-lab-vpc/8'],
+    texto: 'Para el clúster nuevo de 14 nodos, con una IP por nodo, el instituto creó la subred 10.8.4.0/28. ¿Le alcanza?',
     opciones: [
       {
-        texto: 'Sí: una /26 tiene 64 direcciones y sobran 4',
-        retro: 'Se te olvidó que AWS se queda con 5 direcciones de cada subred. De 64 quedan 59.'
+        texto: 'Sí: una /28 tiene 16 direcciones y sobran 2',
+        retro: 'Se te olvidó que AWS se queda con 5 direcciones de cada subred. De 16 quedan 11, y 11 no alcanzan para 14 nodos.'
       },
       {
-        texto: 'No: de sus 64 direcciones, AWS reserva 5 y quedan 59',
-        retro: '¡Correcto! En cada subred AWS reserva 5 direcciones (la de red, la del router, la del DNS, una para el futuro y la última). Para 60 nodos necesitan una /25: 128 − 5 = 123.'
+        texto: 'No: de sus 16 direcciones, AWS reserva 5 y quedan 11',
+        retro: '¡Correcto! AWS se queda con 5 direcciones de cada subred para su propio uso. Una /28 tiene 16, así que quedan 11 y faltan 3. Necesitan una subred más grande, como una /24: 256 − 5 = 251.'
       },
       {
-        texto: 'Sí, de sobra: una /26 tiene 256 direcciones',
-        retro: '256 son las de una /24. Recuerda: mientras más grande el número después de la diagonal, más chica la red; una /26 tiene 64.'
+        texto: 'Sí, de sobra: una /28 tiene 256 direcciones',
+        retro: '256 son las de una /24. Recuerda: mientras más grande el número después de la diagonal, más chica la red; una /28 es la más chica y tiene 16.'
       },
       {
         texto: 'No: AWS no permite subredes más chicas que /24',
-        retro: 'AWS permite subredes desde /16 hasta /28. El problema es otro: las 5 direcciones que AWS reserva en cada subred.'
+        retro: 'AWS sí permite subredes más chicas: la más chica es la /28, con 16 direcciones. El problema es otro: las 5 direcciones que AWS se queda en cada subred.'
       }
     ],
     correcta: 1
@@ -627,6 +652,7 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'SCP en AWS Organizations',
+    repaso: 's2-politicas/3',
     texto: 'Tandapp quiere que nadie, ni siquiera el administrador de cada una de sus 4 cuentas miembro, pueda apagar CloudTrail ni borrar sus registros. ¿Qué usa?',
     opciones: [
       {
@@ -654,11 +680,12 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'AWS Certificate Manager',
+    repaso: 's2-servicios/1',
     texto: 'La API api.tandapp.mx necesita HTTPS con un certificado TLS gratuito que se renueve solo. ¿Qué servicio lo da?',
     opciones: [
       {
         texto: 'AWS Certificate Manager (ACM)',
-        retro: '¡Correcto! ACM emite certificados SSL/TLS públicos sin costo para usarlos con servicios de AWS, y los renueva solo. “Certificado” o “HTTPS” → ACM.'
+        retro: '¡Correcto! ACM emite certificados SSL/TLS públicos sin costo para usarlos con servicios de AWS. Dato extra: además, los renueva solo. “Certificado” o “HTTPS” → ACM.'
       },
       {
         texto: 'AWS Key Management Service (KMS)',
@@ -681,6 +708,7 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'Global Accelerator',
+    repaso: 's3-borde/2',
     texto: 'Los 3 bancos aliados solo aceptan conexiones hacia IP fijas, y la API de Tandapp corre en dos regiones. ¿Qué servicio le da un par de IP fijas frente a ambas regiones?',
     opciones: [
       {
@@ -708,6 +736,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'Servicios disponibles por región',
+    repaso: 's1-global/2',
     texto: 'El equipo quiere probar, con datos ficticios, un servicio nuevo de AWS que todavía no existe en mx-central-1. ¿Qué hace?',
     opciones: [
       {
@@ -724,7 +753,7 @@ export const PREGUNTAS = [
       },
       {
         texto: 'Nada: cada cuenta de AWS solo puede usar una región',
-        retro: 'Una cuenta puede usar todas sus regiones habilitadas, y tú eliges dónde crear cada recurso.'
+        retro: 'Una cuenta puede usar todas las regiones, y tú eliges dónde crear cada recurso.'
       }
     ],
     correcta: 1
@@ -735,6 +764,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'Instancias ampliables (burstable)',
+    repaso: 's1-ec2/2',
     texto: 'El panel interno casi no usa procesador, salvo 10 minutos a las 9:00 cuando entran las 8 personas. ¿Qué familia de instancia es la más barata que cumple?',
     opciones: [
       {

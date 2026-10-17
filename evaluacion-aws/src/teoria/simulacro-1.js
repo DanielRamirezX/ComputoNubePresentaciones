@@ -4,7 +4,13 @@
 // correcta y la retroalimentación viven solo en el servidor; la clave está
 // balanceada (7 en A, 6 en B, 6 en C y 6 en D, sin rachas de tres) y cada
 // distractor es una confusión real. Los casos del simulacro 2 son otros.
-// Corre `node src/teoria/verificar-teoria.js` si cambias algo.
+// Cada pregunta trae `repaso`: la lámina de la Ruta AWS donde se explica su
+// tema ('s3-vpc/2'), o un arreglo con esa lámina y el paso del laboratorio
+// donde se practicó; el catálogo está en src/repaso.js. Todo lo que se pregunta
+// se vio en esas láminas: no hay que hacer cuentas ni saber detalles que no se
+// enseñaron (lo que va de más se marca en la retro como «Dato extra» o «Dato
+// actual»).
+// Corre `node src/teoria/verificar-teoria.js` y `npm run verificar` si cambias algo.
 
 import { bancoPublico, calificarBanco } from './comun.js';
 
@@ -29,7 +35,7 @@ export const CASOS = [
     titulo: 'Radiografías que no deben perderse',
     historia: `
       <p><strong>Sonrisa Plena</strong> es una clínica dental con tres sucursales en la zona metropolitana de Guadalajara: 12 dentistas y 4 recepcionistas. Guarda radiografías y expedientes en una sola computadora de la recepción, que ya se llenó: son <strong>2 TB</strong>. Su agenda de citas será una aplicación web en EC2.</p>
-      <p>Cada radiografía se abre varias veces al día durante las primeras <strong>4 semanas</strong> del tratamiento; después casi nadie la ve, salvo que el paciente regrese (una o dos veces al año), y entonces el dentista la necesita <strong>en ese momento</strong>. La norma de salud obliga a conservar los expedientes <strong>al menos 5 años</strong> y el abogado pide que los datos <strong>no salgan de México</strong>.</p>
+      <p>Cada radiografía se abre varias veces al día durante las primeras <strong>4 semanas</strong> del tratamiento; después <strong>casi nunca</strong> se vuelve a abrir, pero si el paciente regresa, el dentista la necesita <strong>al instante</strong>. La norma de salud obliga a conservar los expedientes <strong>al menos 5 años</strong> y el abogado pide que los datos <strong>no salgan de México</strong>.</p>
       <p>El mes pasado un dentista borró por error la carpeta de un paciente y no hubo forma de recuperarla. Las recepcionistas solo deben ver la agenda; los dentistas, los expedientes, incluso desde su casa.</p>`
   },
   {
@@ -47,7 +53,7 @@ export const CASOS = [
     titulo: 'Una prepa que estrena plataforma',
     historia: `
       <p>La <strong>Preparatoria Sor Juana</strong>, en Morelia, tiene 900 alumnos y 45 maestros. Su plataforma de tareas (Moodle) corre en <strong>dos instancias EC2 con Linux</strong>, una en cada zona de disponibilidad, que deben leer y escribir <strong>la misma carpeta de tareas</strong> al mismo tiempo.</p>
-      <p>El área de sistemas creó la VPC <strong>172.16.0.0/16</strong>. Ahí vivirá un laboratorio virtual de programación que, en semana de exámenes, llega a tener <strong>350 instancias</strong> encendidas a la vez, todas con Python y VS Code. Cada semestre se vuelven a crear y deben quedar listas en segundos.</p>
+      <p>El área de sistemas creó la VPC <strong>172.16.0.0/16</strong>. Ahí vivirá un laboratorio virtual de programación que, en semana de exámenes, llega a tener <strong>200 instancias</strong> encendidas a la vez, todas con Python y VS Code. Cada semestre se vuelven a crear y deben quedar listas en segundos.</p>
       <p>Los alumnos entran a Moodle desde su casa por HTTPS; los administradores, por SSH y solo desde la red de la escuela, cuya IP pública es <strong>200.57.123.10</strong>. La semana pasada, un becario subió a un repositorio público de GitHub un script con las llaves de acceso de su usuario de IAM.</p>`
   },
   {
@@ -78,6 +84,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'Alta disponibilidad dentro de una región',
+    repaso: 's1-global/1',
     texto: 'Sonrisa Plena quiere que su agenda de citas en EC2 siga funcionando aunque falle un centro de datos completo, sin sacar los datos de México. ¿Qué hace?',
     opciones: [
       {
@@ -105,7 +112,8 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'S3 Glacier Instant Retrieval',
-    texto: 'A partir del día 30, ¿a qué clase de S3 conviene mandar las radiografías para pagar lo menos posible sin que el dentista tenga que esperar cuando un paciente regresa?',
+    repaso: 's4-s3/2',
+    texto: 'A partir del día 30 las radiografías casi nunca se abren, pero cuando se necesitan debe ser al instante. ¿A qué clase de S3 conviene mandarlas para pagar lo menos posible?',
     opciones: [
       {
         texto: 'S3 Glacier Deep Archive',
@@ -113,11 +121,11 @@ export const PREGUNTAS = [
       },
       {
         texto: 'S3 Glacier Instant Retrieval',
-        retro: '¡Bien! Es archivo barato para datos que se leen muy poco (una vez al trimestre o menos) y aun así los devuelve en milisegundos. “Casi nunca, pero al instante” → Glacier Instant Retrieval.'
+        retro: '¡Bien! Es archivo barato para datos que se leen muy poco (la tabla de la sesión 4 dice: una vez al trimestre) y aun así los devuelve en milisegundos. “Casi nunca, pero al instante” → Glacier Instant Retrieval.'
       },
       {
         texto: 'S3 Standard-IA',
-        retro: 'También abre al instante y funcionaría, pero guardar ahí cuesta más que en Glacier Instant Retrieval. Standard-IA conviene para lo que se lee cerca de una vez al mes; estas radiografías, una o dos veces al año.'
+        retro: 'También abre al instante y funcionaría, pero guardar ahí cuesta más que en Glacier Instant Retrieval. Standard-IA conviene para lo que se lee cerca de una vez al mes, y estas radiografías casi nunca se abren.'
       },
       {
         texto: 'S3 One Zone-IA',
@@ -132,6 +140,7 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'Grupos de IAM',
+    repaso: 's2-identidades/1',
     texto: 'En la cuenta de AWS, las 4 recepcionistas solo deben ver la agenda y los 12 dentistas, los expedientes. ¿Cuál es la mejor forma de darles sus permisos?',
     opciones: [
       {
@@ -159,7 +168,8 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'Versionado y Object Lock',
-    texto: 'Para el bucket de expedientes, la clínica quiere poder recuperar un archivo borrado por error y que ningún expediente pueda eliminarse antes de cumplir 5 años, ni siquiera por un administrador. ¿Qué activa?',
+    repaso: ['s4-seguridad/1', 's4-lab-almacenamiento/5'],
+    texto: 'Para el bucket de expedientes, la clínica quiere poder recuperar un archivo borrado por error y que nadie pueda eliminar un expediente antes de que cumpla 5 años. ¿Qué activa?',
     opciones: [
       {
         texto: 'El versionado y Block Public Access',
@@ -175,7 +185,7 @@ export const PREGUNTAS = [
       },
       {
         texto: 'El versionado y S3 Object Lock con retención de 5 años',
-        retro: '¡Correcto! El versionado guarda cada versión para recuperar lo borrado, y Object Lock impide eliminar los objetos durante el plazo que fijes; en modo de cumplimiento, ni el usuario raíz puede. Object Lock = “nadie lo borra antes de tiempo”.'
+        retro: '¡Correcto! El versionado guarda cada versión para recuperar lo borrado, y Object Lock impide borrar los objetos durante el tiempo que fijes, justo lo que sirve para cumplir una ley de conservación. Object Lock = “nadie lo borra antes de tiempo”.'
       }
     ],
     correcta: 3
@@ -186,6 +196,7 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'Client VPN',
+    repaso: 's3-conectar/1',
     texto: 'Varios dentistas quieren revisar radiografías desde su casa, cada uno desde su laptop, con una conexión cifrada hacia la VPC de la clínica. ¿Qué servicio usan?',
     opciones: [
       {
@@ -215,6 +226,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'Combinar opciones de compra',
+    repaso: 's1-precios/1',
     texto: 'Barro Negro Shop tiene un servidor encendido todo el año y necesita 6 servidores extra solo en temporada, sin que se caigan a media venta. ¿Qué combinación es la más barata?',
     opciones: [
       {
@@ -242,6 +254,7 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'Shield Standard y Shield Advanced',
+    repaso: 's2-servicios/3',
     texto: 'Después del ataque DDoS del Buen Fin, ¿qué protección contra DDoS ya tenía la tienda sin pagar nada y cuál puede contratar para tener al equipo de respuesta de AWS?',
     opciones: [
       {
@@ -269,6 +282,7 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'Enrutamiento ponderado en Route 53',
+    repaso: 's3-borde/1',
     texto: 'La tienda quiere mostrar su sitio nuevo solo al 10 % de los visitantes de barronegro.mx y al resto, el sitio actual. ¿Qué configura en Route 53?',
     opciones: [
       {
@@ -296,6 +310,7 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'EBS de IOPS provisionadas',
+    repaso: ['s4-discos/2', 's4-lab-almacenamiento/9'],
     texto: 'En el Buen Fin, el disco de la base de datos de pedidos debe sostener miles de lecturas y escrituras por segundo, siempre al mismo nivel y sin perder nada. ¿Qué almacenamiento usa?',
     opciones: [
       {
@@ -323,6 +338,7 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'AWS Config',
+    repaso: 's2-servicios/2',
     texto: 'La tienda quiere enterarse si alguien vuelve a abrir el puerto 22 a todo internet en un grupo de seguridad, y poder ver cómo estaba configurado antes del cambio. ¿Qué servicio usa?',
     opciones: [
       {
@@ -352,23 +368,24 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'Tamaño de una subred (CIDR)',
-    texto: 'Dentro de la VPC 172.16.0.0/16, ¿qué bloque CIDR sirve para la subred del laboratorio virtual, que llega a tener 350 instancias a la vez?',
+    repaso: ['s3-vpc/2', 's3-lab-vpc/8'],
+    texto: 'Dentro de la VPC 172.16.0.0/16, ¿qué bloque CIDR sirve para la subred del laboratorio virtual, que llega a tener 200 instancias a la vez?',
     opciones: [
       {
-        texto: '172.16.0.0/24',
-        retro: 'Cabe en la VPC, pero una /24 tiene 256 direcciones y AWS se queda con 5: solo quedan 251, no alcanzan para 350.'
+        texto: '172.16.4.0/28',
+        retro: 'Una /28 es la subred más chica que permite AWS: 16 direcciones y, sin las 5 que se queda AWS, solo 11 útiles. Muy lejos de 200.'
       },
       {
-        texto: '172.16.2.0/23',
-        retro: '¡Bien! Cada número menos en la diagonal duplica las direcciones: una /23 tiene 512 y, sin las 5 que reserva AWS, quedan 507. Además está dentro de 172.16.0.0/16.'
+        texto: '172.16.1.0/24',
+        retro: '¡Bien! Una /24 tiene 256 direcciones; AWS se queda con 5 y te quedan 251, suficientes para las 200 instancias. Además está dentro de 172.16.0.0/16.'
       },
       {
-        texto: '172.17.0.0/23',
+        texto: '172.17.1.0/24',
         retro: 'El tamaño alcanzaría, pero 172.17.x.x queda fuera de 172.16.0.0/16. Una subred siempre es un pedazo del rango de su VPC.'
       },
       {
-        texto: '172.16.4.0/28',
-        retro: 'Una /28 es la subred más chica que permite AWS: 16 direcciones, 11 útiles. Muy lejos de 350.'
+        texto: '172.16.0.0/16',
+        retro: 'Alcanzaría de sobra (65,536 direcciones), pero es la VPC completa: esa subred se comería todo el rango y no quedaría lugar para la red de Moodle ni para ninguna otra. Desperdicia direcciones; una /24 basta.'
       }
     ],
     correcta: 1
@@ -379,6 +396,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'AMI propia',
+    repaso: ['s1-ec2/1', 's1-lab-ec2/5'],
     texto: 'Cada semestre la prepa vuelve a crear las instancias del laboratorio y quiere que arranquen en segundos, ya con Python y VS Code instalados. ¿Qué conviene?',
     opciones: [
       {
@@ -406,6 +424,7 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'EBS contra EFS',
+    repaso: 's4-discos/1',
     texto: 'Para la carpeta de tareas, el área de sistemas propone un volumen EBS conectado a la instancia de Moodle de la primera zona. ¿Sirve?',
     opciones: [
       {
@@ -433,11 +452,12 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'Llaves de acceso expuestas',
+    repaso: ['s2-identidades/3', 's2-lab-seguridad/12'],
     texto: 'Las llaves de acceso del becario quedaron publicadas en un repositorio público de GitHub. ¿Qué debe hacer primero el área de sistemas?',
     opciones: [
       {
         texto: 'Desactivar esas llaves en IAM, crear otras y revisar CloudTrail',
-        retro: '¡Bien! Unas llaves publicadas se consideran robadas: hay que invalidarlas de inmediato. Después, CloudTrail te dice si alguien las usó y qué hizo con ellas.'
+        retro: '¡Bien! Por eso la regla es nunca subir llaves a GitHub: unas llaves publicadas se consideran robadas. El procedimiento: 1) en IAM, desactiva (o borra) esa llave de acceso; 2) si el becario de verdad la necesita, créale una nueva; 3) revisa CloudTrail, que registra quién hizo qué, para saber si alguien la usó y qué hizo con ella.'
       },
       {
         texto: 'Borrar el repositorio de GitHub: si ya nadie las ve, ya no hay riesgo',
@@ -460,6 +480,7 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'Reglas de un grupo de seguridad',
+    repaso: ['s2-servicios/3', 's2-lab-seguridad/14'],
     texto: 'Siguiendo el mínimo privilegio, ¿qué reglas de entrada lleva el grupo de seguridad de los servidores de Moodle?',
     opciones: [
       {
@@ -489,6 +510,7 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'Snowball Edge y DataSync',
+    repaso: 's4-mover/1',
     texto: 'Subir los 60 TB por el enlace de 50 Mbps, usándolo completo día y noche, tardaría casi cuatro meses. ¿Cómo lleva el ayuntamiento el archivo a S3 y, después, las actas nuevas de cada semana?',
     opciones: [
       {
@@ -497,7 +519,7 @@ export const PREGUNTAS = [
       },
       {
         texto: 'Con Snowball Edge para los 60 TB y DataSync para las actas semanales',
-        retro: '¡Exacto! Cuando los datos no caben por el cable, Snowball los lleva en un aparato físico; lo que se agrega poco a poco viaja por la red con DataSync. Carga inicial “a pie”, cambios por internet.'
+        retro: '¡Exacto! Cuando los datos no caben por el cable, Snowball los lleva en un aparato físico; lo que se agrega poco a poco viaja por la red con DataSync. Carga inicial “a pie”, cambios por internet. Dato actual: AWS ya no ofrece Snowball Edge a clientes nuevos; en el examen todavía aparece la familia Snow.'
       },
       {
         texto: 'Con un dispositivo Snowball Edge cada semana para las actas',
@@ -516,6 +538,7 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'VPC Peering',
+    repaso: 's3-conectar/1',
     texto: 'La VPC de trámites (10.20.0.0/16) debe consultar a la de catastro (10.30.0.0/16) de forma privada. ¿Qué es lo más sencillo y barato?',
     opciones: [
       {
@@ -543,6 +566,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'Datos de usuario',
+    repaso: ['s1-ec2/1', 's1-lab-ec2/9'],
     texto: 'En enero encendieron (Start) los servidores del predial que estaban detenidos desde abril, pero el script de datos de usuario no volvió a descargar las tarifas nuevas. ¿Por qué?',
     opciones: [
       {
@@ -570,6 +594,7 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'Leer una tabla de rutas',
+    repaso: ['s3-vpc/3', 's3-lab-vpc/11'],
     texto: 'La tabla de rutas de la subred del portal dice: 10.20.0.0/16 → local y 0.0.0.0/0 → nat-0a1b2c3d. El servidor tiene IP pública, pero nadie puede abrir el portal desde internet. ¿Qué pasa?',
     opciones: [
       {
@@ -597,6 +622,7 @@ export const PREGUNTAS = [
     tema: 'Almacenamiento',
     sesion: 4,
     concepto: 'Block Public Access y buckets separados',
+    repaso: ['s4-seguridad/1', 's4-lab-almacenamiento/4'],
     texto: 'El ayuntamiento debe publicar en internet sus presupuestos y contratos en PDF, pero las actas con datos personales deben quedar privadas. ¿Qué hace en S3?',
     opciones: [
       {
@@ -626,6 +652,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'Instancias Spot',
+    repaso: 's1-precios/1',
     texto: 'RutaFresca quiere correr el optimizador de rutas en instancias Spot para ahorrar. ¿Qué debe tener en cuenta?',
     opciones: [
       {
@@ -653,6 +680,7 @@ export const PREGUNTAS = [
     tema: 'Fundamentos y EC2',
     sesion: 1,
     concepto: 'Familia de instancia por memoria',
+    repaso: 's1-ec2/2',
     texto: 'El optimizador carga el mapa completo de la ciudad y necesita 256 GiB de RAM, pero poco procesador. ¿Qué familia de instancia conviene?',
     opciones: [
       {
@@ -680,6 +708,7 @@ export const PREGUNTAS = [
     tema: 'Identidad y seguridad',
     sesion: 2,
     concepto: 'Leer una política de IAM',
+    repaso: ['s2-politicas/1', 's2-politicas/2'],
     texto: 'La contadora externa tiene esta política: "Effect": "Allow", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::rutafresca-facturas/*". ¿Qué puede hacer?',
     opciones: [
       {
@@ -707,6 +736,7 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'Gateway endpoint de S3',
+    repaso: ['s3-conectar/2', 's3-lab-vpc/6'],
     texto: 'Los servidores privados suben 2 TB al mes de fotos a S3 a través del NAT Gateway, que cobra por cada GB que procesa. ¿Cómo bajan ese costo sin exponer los servidores?',
     opciones: [
       {
@@ -715,7 +745,7 @@ export const PREGUNTAS = [
       },
       {
         texto: 'Creando un interface endpoint de S3 con PrivateLink',
-        retro: 'También llega a S3 por la red privada, pero los interface endpoints cobran por hora y por GB. Para S3, el gateway endpoint hace lo mismo sin costo.'
+        retro: 'También llega a S3 por la red privada, pero cobra por hora y por GB; el gateway endpoint de S3 es gratis.'
       },
       {
         texto: 'Agregando un gateway endpoint de S3 a la tabla de rutas privada',
@@ -734,11 +764,12 @@ export const PREGUNTAS = [
     tema: 'Redes',
     sesion: 3,
     concepto: 'NACL sin estado (stateless)',
+    repaso: 's2-servicios/3',
     texto: 'En la subred de la API pusieron una NACL: la entrada permite el puerto 443 y la salida también permite solo el 443. Desde entonces los repartidores no reciben respuesta. ¿Qué falta?',
     opciones: [
       {
-        texto: 'Permitir en la salida de la NACL los puertos efímeros (1024-65535)',
-        retro: '¡Correcto! La NACL es stateless (sin estado): revisa la respuesta como si fuera tráfico nuevo, y la respuesta va al puerto temporal (efímero) que abrió el celular del repartidor, no al 443. Por eso hay que permitir esos puertos al salir.'
+        texto: 'Una regla de salida en la NACL que deje pasar las respuestas',
+        retro: '¡Correcto! La NACL es stateless (sin estado): no recuerda que dejó entrar la petición, así que revisa la respuesta como si fuera tráfico nuevo, y la regla de salida que pusieron no la deja pasar. Hay que permitir también la salida de las respuestas. Dato extra: las respuestas van a un puerto temporal (efímero) del celular, entre 1024 y 65535, no al 443.'
       },
       {
         texto: 'Una regla de salida en el grupo de seguridad para dejar pasar respuestas',

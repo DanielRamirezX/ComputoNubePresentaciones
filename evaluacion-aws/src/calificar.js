@@ -4,6 +4,7 @@
 
 import { avanzar } from '../public/consola/modelo.js';
 import { datosAlumno } from '../public/labs/comun.js';
+import { anotarRepaso } from './repaso.js';
 import { RUBRICAS } from './rubricas/index.js';
 
 // Lo que el alumno ya dejó en camino cuenta como terminado: si lanzó la
@@ -21,6 +22,7 @@ function normalizar(r) {
     titulo: texto(t.titulo),
     puntos: numero(t.puntos),
     obtenidos: numero(t.obtenidos),
+    ...(t.bono === true ? { bono: true } : {}), // tarea opcional: suma encima, sin pasar de 100
     checks: (Array.isArray(t.checks) ? t.checks : []).map((c) => ({
       id: texto(c.id),
       texto: texto(c.texto),
@@ -30,13 +32,16 @@ function normalizar(r) {
     }))
   }));
   return {
-    obtenidos: numero(r?.obtenidos ?? tareas.reduce((s, t) => s + t.obtenidos, 0)),
-    total: numero(r?.total ?? tareas.reduce((s, t) => s + t.puntos, 0)) || 100,
+    obtenidos: numero(r?.obtenidos ?? Math.min(100, tareas.reduce((s, t) => s + t.obtenidos, 0))),
+    total: numero(r?.total ?? tareas.filter((t) => !t.bono).reduce((s, t) => s + t.puntos, 0)) || 100,
     tareas
   };
 }
 
 export const hayRubrica = (labId) => RUBRICAS.has(labId);
+
+/** Le pone a cada punto de la rúbrica dónde repasarlo (también a entregas viejas). */
+export const conRepaso = (labId, resultado) => anotarRepaso(resultado, RUBRICAS.get(labId)?.repaso);
 
 /** Los datos del laboratorio de un alumno (rangos, sufijo, su IP…). */
 export const datosDe = (identidad) => datosAlumno({ nombre: identidad?.nombre ?? '', matricula: identidad?.matricula ?? '' });
@@ -52,7 +57,7 @@ export function calificarCuenta(labId, estado, identidad, ahora = Date.now()) {
   const cuenta = structuredClone(estado);
   avanzar(cuenta, ahora + MARGEN_MS);
   const datos = datosDe(identidad);
-  return { cuenta, datos, resultado: normalizar(rubrica.revisar(cuenta, datos)) };
+  return { cuenta, datos, resultado: conRepaso(labId, normalizar(rubrica.revisar(cuenta, datos))) };
 }
 
 /** Una cuenta resuelta (para verificar que la rúbrica da 100). */

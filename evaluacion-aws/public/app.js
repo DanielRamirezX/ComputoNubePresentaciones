@@ -17,6 +17,8 @@ const PREFIJO = 'evaluacion-aws:';
 // El perfil de la Ruta AWS (mismo origen cuando está montado en la plataforma):
 // si ya existe, no se le pide al alumno que se registre otra vez.
 const PERFIL_RUTA = 'aws-practitioner:perfil';
+// La Ruta AWS montada junto a esta página: ahí apuntan los enlaces «Repásalo en».
+const RUTA_URL = '../aws-practitioner/';
 const LETRAS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const LATIDO_MS = 10000;
 const ESPERA_COPIA_MS = 2000;
@@ -1115,7 +1117,10 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
   guardar(clave, { estado: cuenta, rev, hora: new Date().toISOString() });
 
   const tareas = LAB.tareas(datos);
-  const totalPuntos = tareas.reduce((s, t) => s + t.puntos, 0);
+  // Las tareas bono son opcionales: no cuentan en los 100 puntos.
+  const totalPuntos = tareas.filter((t) => !t.bono).reduce((s, t) => s + t.puntos, 0);
+  const totalBono = tareas.filter((t) => t.bono).reduce((s, t) => s + t.puntos, 0);
+  const requeridas = tareas.filter((t) => !t.bono).length;
   let plegado = leer(clavePanel, false) === true;
   let pestana = 'tareas';
   let revision = null; // el último «Revisar mi avance»
@@ -1149,12 +1154,13 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
           <div class="lab__contenido">
             <section role="tabpanel" id="tp-caso" aria-labelledby="tab-caso" data-panel="caso" class="lab__caso">${LAB.historia}</section>
             <section role="tabpanel" id="tp-tareas" aria-labelledby="tab-tareas" data-panel="tareas">
-              <p class="sutil">${tareas.length} tareas · ${totalPuntos} puntos en total.</p>
+              <p class="sutil">${requeridas} tareas · ${totalPuntos} puntos en total.${totalBono ? ` Además, un <strong>bono opcional</strong> de hasta +${totalBono}: compensa errores, pero tu calificación nunca pasa de 100.` : ''}</p>
               <ol class="tareas">
                 ${tareas
                   .map(
-                    (t, i) => `<li class="tarea">
-                      <h3><span class="tarea__num">${i + 1}</span><span class="tarea__titulo">${escapar(t.titulo)}</span><span class="tarea__puntos">${t.puntos} pts</span></h3>
+                    (t, i) => `<li class="tarea ${t.bono ? 'tarea--bono' : ''}">
+                      ${t.bono ? '<p class="etiqueta-bono">Bono (opcional)</p>' : ''}
+                      <h3><span class="tarea__num">${t.bono ? '+' : i + 1}</span><span class="tarea__titulo">${escapar(t.titulo)}</span><span class="tarea__puntos">${t.bono ? `+${t.puntos} de bono` : `${t.puntos} pts`}</span></h3>
                       <div class="tarea__html">${t.html}</div>
                       ${LAB.pistas && t.pista ? `<details class="tarea__pista"><summary>¿Dónde se hace?</summary><div>${t.pista}</div></details>` : ''}
                     </li>`
@@ -1458,26 +1464,79 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
   };
 }
 
+/**
+ * Dónde repasar un tema: enlaces a la lámina o al paso de la Ruta AWS, en otra
+ * pestaña para no perder el resultado. `bien` cambia solo el rótulo.
+ */
+function htmlRepaso(lista, bien) {
+  if (!lista?.length) return '';
+  const enlaces = lista
+    .map((r) => `<a href="${RUTA_URL}#/${encodeURI(r.ruta)}" target="_blank" rel="noopener">Sesión ${r.sesion} · ${escapar(r.leccion)}${r.parte ? ` › ${escapar(r.parte)}` : ''}</a>`)
+    .join(' · ');
+  return `<p class="repaso">${icono('i-libro', 'icono repaso__icono')}<span><strong>${bien ? 'Lo viste en' : 'Repásalo en'}:</strong> ${enlaces}</span></p>`;
+}
+
+/**
+ * Cómo se lee una tarea bono (opcional) en el resultado: sus puntos se suman
+ * encima de lo requerido, sin pasar de 100, y no hacerla no es un error.
+ */
+function puntosTarea(t) {
+  if (!t.bono) return `${decimal(t.obtenidos)} / ${t.puntos}`;
+  return t.obtenidos >= t.puntos ? `+${decimal(t.obtenidos)} de bono` : `+${decimal(t.obtenidos)} de bono (de ${t.puntos} posibles)`;
+}
+
+function claseTarea(t) {
+  const completa = t.puntos > 0 && t.obtenidos >= t.puntos;
+  if (t.bono) return `resultado-tarea--bono ${completa ? 'resultado-tarea--bien' : t.obtenidos > 0 ? 'resultado-tarea--media' : ''}`;
+  return completa ? 'resultado-tarea--bien' : t.obtenidos > 0 ? 'resultado-tarea--media' : 'resultado-tarea--mal';
+}
+
+/** Lo requerido y lo del bono, por separado (solo si el laboratorio tiene bono). */
+function notaBono(tareas) {
+  const bonos = tareas.filter((t) => t.bono);
+  if (!bonos.length) return '';
+  const base = tareas.filter((t) => !t.bono).reduce((s, t) => s + t.obtenidos, 0);
+  const bono = bonos.reduce((s, t) => s + t.obtenidos, 0);
+  const posibles = bonos.reduce((s, t) => s + t.puntos, 0);
+  return `<p class="nota-bono">Lo requerido te da <strong>${decimal(base)} de 100</strong>. ${
+    bono > 0
+      ? `El bono opcional suma <strong>+${decimal(bono)}</strong> de ${posibles} posibles${base + bono > 100 ? ', pero la calificación nunca pasa de 100' : ''}.`
+      : `El bono opcional (hasta +${posibles}) no sumó puntos, y eso no te quita nada.`
+  }</p>`;
+}
+
+// Si el alumno nunca entró a la Ruta en este equipo, la Ruta le pediría
+// registrarse antes de mostrar la lámina: se le pasan los mismos datos.
+document.addEventListener('click', (e) => {
+  if (!e.target.closest?.('.repaso a') || !perfil || leerCrudo(PERFIL_RUTA)) return;
+  try {
+    localStorage.setItem(PERFIL_RUTA, JSON.stringify({ id: perfil.id, nombre: perfil.nombre, matricula: perfil.matricula, grupo: perfil.grupo }));
+  } catch {
+    // Sin localStorage la Ruta solo pedirá los datos otra vez.
+  }
+});
+
 /** Las tareas de la rúbrica: con checks y retro, o solo puntos por tarea. */
 function htmlTareasPractica(tareas, conChecks) {
-  return `<ol class="resultado-tareas">${tareas
+  return `${notaBono(tareas)}<ol class="resultado-tareas">${tareas
     .map((t) => {
-      const completa = t.puntos > 0 && t.obtenidos >= t.puntos;
       const pct = t.puntos ? Math.round((t.obtenidos / t.puntos) * 100) : 0;
-      return `<li class="resultado-tarea ${completa ? 'resultado-tarea--bien' : t.obtenidos > 0 ? 'resultado-tarea--media' : 'resultado-tarea--mal'}">
+      return `<li class="resultado-tarea ${claseTarea(t)}">
+        ${t.bono ? '<p class="etiqueta-bono">Bono (opcional)</p>' : ''}
         <div class="resultado-tarea__cabeza">
           <h3>${escapar(t.titulo)}</h3>
-          <span class="resultado-tarea__puntos">${decimal(t.obtenidos)} / ${t.puntos}</span>
+          <span class="resultado-tarea__puntos">${puntosTarea(t)}</span>
         </div>
         <div class="progreso" aria-hidden="true"><span style="width:${pct}%"></span></div>
         ${
           conChecks && t.checks?.length
             ? `<ul class="checks">${t.checks
                 .map(
-                  (c) => `<li class="check ${c.ok ? 'check--bien' : 'check--mal'}">
+                  (c) => `<li class="check ${c.ok ? 'check--bien' : t.bono ? 'check--bono' : 'check--mal'}">
                     ${icono(c.ok ? 'i-check' : 'i-x', 'icono check__icono')}
-                    <div><p class="check__texto"><span class="solo-lectores">${c.ok ? 'Logrado: ' : 'Pendiente: '}</span>${escapar(c.texto)} <span class="check__puntos">${c.ok ? c.puntos : 0}/${c.puntos}</span></p>
-                    ${c.retro ? `<p class="check__retro">${escapar(c.retro)}</p>` : ''}</div>
+                    <div><p class="check__texto"><span class="solo-lectores">${c.ok ? 'Logrado: ' : t.bono ? 'Bono sin hacer: ' : 'Pendiente: '}</span>${escapar(c.texto)} <span class="check__puntos">${t.bono ? '+' : ''}${c.ok ? c.puntos : 0}/${c.puntos}</span></p>
+                    ${c.retro ? `<p class="check__retro">${escapar(c.retro)}</p>` : ''}
+                    ${htmlRepaso(c.repaso, c.ok)}</div>
                   </li>`
                 )
                 .join('')}</ul>`
@@ -1596,6 +1655,7 @@ function seccionTeoria(r) {
                     ${d.correcta.retro ? `<p class="detalle__retro">${escapar(d.correcta.retro)}</p>` : ''}
                   </div>`
                   }
+                  ${htmlRepaso(d.repaso, d.acerto)}
                 </li>`
               )
               .join('')}</ol>`

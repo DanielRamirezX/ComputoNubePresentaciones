@@ -417,9 +417,9 @@ function pintarEstadisticas() {
       <p class="sutil">Lo de arriba es lo que hay que repasar en el cierre.</p>
       <ol class="lista-estad">${p.checks
         .map(
-          (c) => `<li class="estad ${c.porcentaje < APROBATORIO ? 'estad--debil' : ''}">
+          (c) => `<li class="estad ${c.porcentaje < APROBATORIO && !c.bono ? 'estad--debil' : ''}">
           <div class="estad__cabeza"><strong>${escapar(c.texto)}</strong><span class="estad__pct">${porciento(c.porcentaje)}</span></div>
-          <p class="estad__meta">${escapar(c.tareaTitulo)} · ${c.puntos} pts · lo cumplieron ${c.cumplidos} de ${c.n}</p>
+          <p class="estad__meta">${escapar(c.tareaTitulo)}${c.bono ? ' (bono opcional)' : ''} · ${c.bono ? '+' : ''}${c.puntos} pts · lo cumplieron ${c.cumplidos} de ${c.n}</p>
           <div class="progreso"><span style="width:${c.porcentaje}%"></span></div>
         </li>`
         )
@@ -427,7 +427,7 @@ function pintarEstadisticas() {
     </div>`);
     tarjetas.push(`<div class="hoja"><h3>Promedio por tarea</h3>${p.tareas
       .map(
-        (x) => `<div class="barra-panel ${x.porcentaje < APROBATORIO ? 'barra-panel--debil' : ''}"><span>${escapar(x.titulo)} · ${decimal(x.promedio)} de ${x.puntos} · completa: ${x.completas}</span><b>${porciento(x.porcentaje)}</b><div class="progreso"><span style="width:${x.porcentaje}%"></span></div></div>`
+        (x) => `<div class="barra-panel ${x.porcentaje < APROBATORIO && !x.bono ? 'barra-panel--debil' : ''}"><span>${x.bono ? 'Bono (opcional): ' : ''}${escapar(x.titulo)} · ${x.bono ? `+${decimal(x.promedio)} de ${x.puntos} en promedio · la hicieron completa: ${x.completas}` : `${decimal(x.promedio)} de ${x.puntos} · completa: ${x.completas}`}</span><b>${porciento(x.porcentaje)}</b><div class="progreso"><span style="width:${x.porcentaje}%"></span></div></div>`
       )
       .join('')}</div>`);
   }
@@ -537,6 +537,7 @@ function detalleTeoria(d) {
           ${q.elegida?.retro ? `<p class="detalle__retro">${escapar(q.elegida.retro)}</p>` : ''}
         </div>
         ${q.acerto ? '' : `<div class="detalle__respuesta detalle__respuesta--bien"><p class="detalle__titulo">Respuesta correcta</p><p>${escapar(q.correcta.texto)}</p>${q.correcta.retro ? `<p class="detalle__retro">${escapar(q.correcta.retro)}</p>` : ''}</div>`}
+        ${repasoHtml(q.repaso)}
       </li>`
       )
       .join('')}</ol>
@@ -546,18 +547,42 @@ function detalleTeoria(d) {
     </div>`;
 }
 
+/** Dónde se repasa el tema en la Ruta AWS (lo mismo que ve el alumno). */
+const repasoHtml = (lista) =>
+  lista?.length
+    ? `<p class="repaso"><span><strong>Se repasa en:</strong> ${lista
+        .map((r) => `<a href="../aws-practitioner/#/${encodeURI(r.ruta)}" target="_blank" rel="noopener">Sesión ${r.sesion} · ${escapar(r.leccion)}${r.parte ? ` › ${escapar(r.parte)}` : ''}</a>`)
+        .join(' · ')}</span></p>`
+    : '';
+
+/** Lo requerido y lo del bono, por separado (solo si el laboratorio tiene bono). */
+function notaBono(tareas) {
+  const bonos = tareas.filter((t) => t.bono);
+  if (!bonos.length) return '';
+  const base = tareas.filter((t) => !t.bono).reduce((s, t) => s + t.obtenidos, 0);
+  const bono = bonos.reduce((s, t) => s + t.obtenidos, 0);
+  const posibles = bonos.reduce((s, t) => s + t.puntos, 0);
+  return `<p class="nota-bono">Lo requerido: <strong>${decimal(base)} de 100</strong> · bono opcional: <strong>+${decimal(bono)}</strong> de ${posibles} posibles${base + bono > 100 ? ' (la calificación se queda en 100)' : ''}.</p>`;
+}
+
 function tareasHtml(tareas) {
-  return `<ol class="resultado-tareas">${tareas
+  return `${notaBono(tareas)}<ol class="resultado-tareas">${tareas
     .map((t) => {
       const completa = t.puntos > 0 && t.obtenidos >= t.puntos;
       const pct = t.puntos ? Math.round((t.obtenidos / t.puntos) * 100) : 0;
-      return `<li class="resultado-tarea ${completa ? 'resultado-tarea--bien' : t.obtenidos > 0 ? 'resultado-tarea--media' : 'resultado-tarea--mal'}">
-        <div class="resultado-tarea__cabeza"><h3>${escapar(t.titulo)}</h3><span class="resultado-tarea__puntos">${decimal(t.obtenidos)} / ${t.puntos}</span></div>
+      // Una tarea bono sin hacer no es un error: se pinta neutra, no en rojo.
+      const clase = t.bono
+        ? `resultado-tarea--bono ${completa ? 'resultado-tarea--bien' : t.obtenidos > 0 ? 'resultado-tarea--media' : ''}`
+        : completa ? 'resultado-tarea--bien' : t.obtenidos > 0 ? 'resultado-tarea--media' : 'resultado-tarea--mal';
+      const puntos = t.bono ? `+${decimal(t.obtenidos)} de bono${completa ? '' : ` (de ${t.puntos} posibles)`}` : `${decimal(t.obtenidos)} / ${t.puntos}`;
+      return `<li class="resultado-tarea ${clase}">
+        ${t.bono ? '<p class="etiqueta-bono">Bono (opcional)</p>' : ''}
+        <div class="resultado-tarea__cabeza"><h3>${escapar(t.titulo)}</h3><span class="resultado-tarea__puntos">${puntos}</span></div>
         <div class="progreso" aria-hidden="true"><span style="width:${pct}%"></span></div>
         <ul class="checks">${(t.checks ?? [])
           .map(
-            (c) => `<li class="check ${c.ok ? 'check--bien' : 'check--mal'}">${icono(c.ok ? 'i-check' : 'i-x', 'icono check__icono')}
-            <div><p class="check__texto">${escapar(c.texto)} <span class="check__puntos">${c.ok ? c.puntos : 0}/${c.puntos}</span></p>${c.retro ? `<p class="check__retro">${escapar(c.retro)}</p>` : ''}</div></li>`
+            (c) => `<li class="check ${c.ok ? 'check--bien' : t.bono ? 'check--bono' : 'check--mal'}">${icono(c.ok ? 'i-check' : 'i-x', 'icono check__icono')}
+            <div><p class="check__texto">${escapar(c.texto)} <span class="check__puntos">${t.bono ? '+' : ''}${c.ok ? c.puntos : 0}/${c.puntos}</span></p>${c.retro ? `<p class="check__retro">${escapar(c.retro)}</p>` : ''}${repasoHtml(c.repaso)}</div></li>`
           )
           .join('')}</ul>
       </li>`;

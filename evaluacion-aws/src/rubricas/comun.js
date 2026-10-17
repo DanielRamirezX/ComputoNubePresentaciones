@@ -16,6 +16,10 @@ export const check = (id, texto, puntos, ok, retro) => ({ id, texto, puntos, ok:
  * Junta los checks con las tareas públicas del laboratorio (mismos ids,
  * títulos y puntos que ve el alumno). Si los checks de una tarea no suman lo
  * que vale, lanza: es un error de la rúbrica, no del alumno.
+ *
+ * Tareas bono: una tarea pública con `bono: true` es opcional. Las demás
+ * suman 100; lo del bono se suma encima, pero la calificación nunca pasa de
+ * 100: obtenidos = min(100, base + bono). Así el bono compensa errores.
  */
 export function armar(tareasPublicas, checksPorTarea) {
   const tareas = tareasPublicas.map((t) => {
@@ -23,9 +27,11 @@ export function armar(tareasPublicas, checksPorTarea) {
     const suma = checks.reduce((s, c) => s + c.puntos, 0);
     if (Math.abs(suma - t.puntos) > 0.001) throw new Error(`rúbrica: los checks de ${t.id} suman ${suma}, no ${t.puntos}`);
     const obtenidos = checks.reduce((s, c) => s + (c.ok ? c.puntos : 0), 0);
-    return { id: t.id, titulo: t.titulo, puntos: t.puntos, obtenidos, checks };
+    return { id: t.id, titulo: t.titulo, puntos: t.puntos, obtenidos, ...(t.bono ? { bono: true } : {}), checks };
   });
-  return { obtenidos: tareas.reduce((s, t) => s + t.obtenidos, 0), total: 100, tareas };
+  const base = tareas.filter((t) => !t.bono).reduce((s, t) => s + t.obtenidos, 0);
+  const bono = tareas.filter((t) => t.bono).reduce((s, t) => s + t.obtenidos, 0);
+  return { obtenidos: Math.min(100, base + bono), total: 100, tareas };
 }
 
 /** Una copia de la cuenta con las transiciones al día (nunca muta la original). */
@@ -295,7 +301,7 @@ export function checkIpPublica(estado, inst, { id = 'ip', puntos = 4 } = {}) {
     t,
     puntos,
     false,
-    `Tu instancia ${fmtInst(inst)} no tiene IP pública: ${subred && !subred.ipPublicaAuto ? `la subred ${fmtSubred(subred)} tiene apagado «Auto-assign public IPv4» y ` : ''}al lanzarla no se activó «Auto-assign public IP». A una instancia ya lanzada no se le puede prender esa opción: asóciale una Elastic IP (EC2 → Elastic IPs → Allocate y luego Associate) o lánzala otra vez con Auto-assign public IP en Enable.`
+    `Tu instancia ${fmtInst(inst)} no tiene IP pública: ${subred && !subred.ipPublicaAuto ? `la subred ${fmtSubred(subred)} tiene apagado «Auto-assign public IPv4» y ` : ''}al lanzarla no se activó «Auto-assign public IP». En una VPC que tú creas esa opción viene en Disable (en la VPC por omisión viene en Enable), y a una instancia ya lanzada no se le puede prender. Lo más sencillo: termina esta instancia y lanza otra igual, ahora con Auto-assign public IP en Enable (en Network settings → Edit). Otra salida, que no vimos en clase, es asociarle una Elastic IP (EC2 → Elastic IPs → Allocate y luego Associate).`
   );
 }
 

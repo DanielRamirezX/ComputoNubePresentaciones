@@ -97,14 +97,14 @@ export function resumirPractica(entregas) {
   const checks = new Map();
   for (const e of entregas) {
     for (const t of e.tareas ?? []) {
-      const tarea = tareas.get(t.id) ?? { id: t.id, titulo: t.titulo, puntos: t.puntos, suma: 0, completas: 0, n: 0 };
+      const tarea = tareas.get(t.id) ?? { id: t.id, titulo: t.titulo, puntos: t.puntos, ...(t.bono ? { bono: true } : {}), suma: 0, completas: 0, n: 0 };
       tarea.suma += t.obtenidos;
       tarea.n += 1;
       if (t.obtenidos >= t.puntos) tarea.completas += 1;
       tareas.set(t.id, tarea);
       for (const c of t.checks ?? []) {
         const k = `${t.id}/${c.id}`;
-        const check = checks.get(k) ?? { tarea: t.id, tareaTitulo: t.titulo, id: c.id, texto: c.texto, puntos: c.puntos, cumplidos: 0, n: 0 };
+        const check = checks.get(k) ?? { tarea: t.id, tareaTitulo: t.titulo, ...(t.bono ? { bono: true } : {}), id: c.id, texto: c.texto, puntos: c.puntos, cumplidos: 0, n: 0 };
         check.n += 1;
         if (c.ok) check.cumplidos += 1;
         checks.set(k, check);

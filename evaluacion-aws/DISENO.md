@@ -116,9 +116,14 @@ export const LAB = {
   historia: '<p>…</p>',                       // el caso, en HTML
   pistas: true,                               // ¿mostrar «¿Dónde se hace?»?
   estadoInicial(datos) { return cuentaNueva(datos) + recursos ya hechos },
-  tareas(datos) { return [ { id, titulo, puntos, html, pista } ] }  // html usa los datos del alumno
+  tareas(datos) { return [ { id, titulo, puntos, html, pista, bono? } ] }  // html usa los datos del alumno
 };
 ```
+
+Una tarea con `bono: true` es **opcional**: las demás suman 100 y la rúbrica
+califica `min(100, requeridas + bono)`. El bono compensa errores, pero nunca
+pasa de 100. `armar()` (`src/rubricas/comun.js`) lo hace solo; la UI la marca
+«Bono (opcional)» y no la cuenta en «X de Y tareas».
 
 `datos` sale de `datosAlumno({ nombre, matricula })` (`public/labs/comun.js`):
 octeto de la red, sufijo para nombres únicos, la IP pública «de tu casa», el
@@ -134,6 +139,10 @@ export function revisar(estado, datos) → {
 }
 export function solucion(datos) → estado   // una cuenta resuelta, para verificar que da 100
 ```
+
+Cada rúbrica exporta también `REPASO = { 'tarea': ref, 'tarea/check': ref }`
+(referencias de `src/repaso.js`; la clave con check gana): la retro dice en
+qué lámina o paso de la Ruta AWS repasar cada punto.
 
 `npm run verificar` comprueba que `revisar(solucion(datos))` da 100, que
 `revisar(estadoInicial(datos))` da muy poco y que todo check tiene retro.

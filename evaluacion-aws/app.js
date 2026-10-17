@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 import { almacen } from './src/almacen.js';
-import { calificarCuenta, datosDe, hayRubrica } from './src/calificar.js';
+import { calificarCuenta, conRepaso, datosDe, hayRubrica } from './src/calificar.js';
+import { repasosDe } from './src/repaso.js';
 import { EVALUACIONES, RETROS, combinada, evaluacionDe, tieneParte } from './src/evaluaciones.js';
 import { pct, resumen, resumirPractica, resumirTeoria } from './src/estadisticas.js';
 import { crearFirmador } from './src/firma.js';
@@ -194,6 +195,7 @@ export function crearApp() {
           tema: p.tema,
           texto: p.texto,
           acerto: acerto(p),
+          repaso: repasosDe(p.repaso),
           elegida,
           correcta: { indice: p.correcta, texto: textoOpcion(p.opciones[p.correcta]), retro: retroOpcion(p.opciones[p.correcta]) }
         };
@@ -220,8 +222,8 @@ export function crearApp() {
       porcentaje,
       calificacion: calificacion10(porcentaje),
       retro,
-      tareas: (e.tareas ?? []).map((t) =>
-        retro === 'completa' ? t : { id: t.id, titulo: t.titulo, puntos: t.puntos, obtenidos: t.obtenidos }
+      tareas: (retro === 'completa' ? conRepaso(ev.lab, { tareas: e.tareas ?? [] }).tareas : e.tareas ?? []).map((t) =>
+        retro === 'completa' ? t : { id: t.id, titulo: t.titulo, puntos: t.puntos, obtenidos: t.obtenidos, ...(t.bono ? { bono: true } : {}) }
       )
     };
   }
@@ -538,8 +540,9 @@ export function crearApp() {
       avance = {
         obtenidos: resultado.obtenidos,
         total: resultado.total,
-        tareasLogradas: resultado.tareas.filter((t) => t.puntos > 0 && t.obtenidos >= t.puntos).length,
-        tareasTotal: resultado.tareas.length
+        // Las tareas bono (opcionales) no cuentan en «X de Y tareas».
+        tareasLogradas: resultado.tareas.filter((t) => !t.bono && t.puntos > 0 && t.obtenidos >= t.puntos).length,
+        tareasTotal: resultado.tareas.filter((t) => !t.bono).length
       };
     } catch {
       avance = { error: true };
@@ -575,8 +578,8 @@ export function crearApp() {
             : {
                 obtenidos: e.obtenidos,
                 total: e.total,
-                tareasLogradas: (e.tareas ?? []).filter((t) => t.puntos > 0 && t.obtenidos >= t.puntos).length,
-                tareasTotal: (e.tareas ?? []).length
+                tareasLogradas: (e.tareas ?? []).filter((t) => !t.bono && t.puntos > 0 && t.obtenidos >= t.puntos).length,
+                tareasTotal: (e.tareas ?? []).filter((t) => !t.bono).length
               })
         };
       }
@@ -769,7 +772,7 @@ export function crearApp() {
         'grupo',
         'evaluacion',
         ...(conTeoria ? ['teoria_aciertos', 'teoria_total', 'teoria_porcentaje', 'teoria_folio', 'teoria_inicio', 'teoria_entregada'] : []),
-        ...[...tareas.values()].map((t) => `practica_${t.id} (de ${t.puntos})`),
+        ...[...tareas.values()].map((t) => (t.bono ? `practica_${t.id} (bono opcional, hasta +${t.puntos})` : `practica_${t.id} (de ${t.puntos})`)),
         'practica_puntos',
         'practica_total',
         'practica_folio',

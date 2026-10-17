@@ -1,6 +1,7 @@
 // Examen bimestral (parte práctica) · martes 27 de octubre de 2026 · sin pistas.
 // Ferretería Don Beto: construir sobre lo poco que dejó el técnico anterior,
-// incluida una NACL que hay que diagnosticar.
+// incluida una NACL que hay que diagnosticar. La subred privada es un bono
+// opcional (suma encima de los 100, sin pasar de 100), para que quepa en 60 min.
 
 import { anotar, crearNacl, crearVpc, cuentaNueva, editarReglasNacl } from '../consola/modelo.js';
 import { bloque, c, scriptApache, vinetas } from './util.js';
@@ -28,7 +29,7 @@ export function datosLab(d) {
     diasArchivo: 180,
     grupo: 'cajeros',
     politica: 'AmazonEC2ReadOnlyAccess',
-    usuarios: ['caja-maria', 'caja-pedro'],
+    usuario: 'caja-maria',
     textoPagina: 'Don Beto',
     textoMostrador: `mostrador ${d.sufijo}`,
     userData: scriptApache('Ferreteria Don Beto', `Catalogo en linea - mostrador ${d.sufijo}`)
@@ -42,8 +43,9 @@ export const LAB = {
   pistas: false,
   historia: `
     <p><strong>Don Beto</strong> tiene una ferretería en Puebla y quiere su catálogo en línea. Un técnico empezó el trabajo y se fue: solo alcanzó a crear la VPC <code>donbeto-vpc</code> y una NACL, <code>donbeto-nacl</code>, que bloquea a una red que atacó su página anterior.</p>
-    <p>Te toca terminar: la red con una subred pública y una privada, el servidor con la página funcionando, un disco extra con su respaldo, un bucket para las facturas y el acceso de los cajeros.</p>
-    <p>Todo va en <strong>N. Virginia (us-east-1)</strong>. Es la parte práctica del examen: <strong>no hay pistas</strong>, pero puedes hacer las tareas en el orden que quieras. Lo que se califica es cómo queda tu cuenta al final.</p>`,
+    <p>Te toca terminar: la red con su subred pública, el servidor con la página funcionando, un disco extra con su respaldo, un bucket para las facturas y el acceso de la cajera.</p>
+    <p>Todo va en <strong>N. Virginia (us-east-1)</strong>. Es la parte práctica del examen: <strong>no hay pistas</strong>, pero puedes hacer las tareas en el orden que quieras. Lo que se califica es cómo queda tu cuenta al final.</p>
+    <p>Las seis primeras tareas valen 100 puntos. La última, la subred privada, es un <strong>bono opcional</strong>: si te sobra tiempo, suma puntos extra que compensan errores, pero tu calificación <strong>nunca pasa de 100</strong>. Hazla al final.</p>`,
 
   estadoInicial(datos) {
     const x = datosLab(datos);
@@ -67,14 +69,13 @@ export const LAB = {
     return [
       {
         id: 'red',
-        titulo: 'Dos subredes: una pública y una privada',
-        puntos: 22,
+        titulo: 'La red: el gateway y la subred pública',
+        puntos: 20,
         html: `
           <p>Todo dentro de la VPC ${c(x.vpcNombre)} (${c(x.vpcCidr)}), que ya existe.</p>
           ${vinetas([
             `Un Internet Gateway conectado a ${c(x.vpcNombre)}.`,
-            `Una subred <strong>pública</strong> ${c(x.publicaCidr)} en ${c(x.azPublica)} (puedes llamarla ${c(x.publicaNombre)}): su tabla de rutas manda ${c('0.0.0.0/0')} al Internet Gateway.`,
-            `Una subred <strong>privada</strong> ${c(x.privadaCidr)} en ${c(x.azPrivada)} (puedes llamarla ${c(x.privadaNombre)}): su tabla de rutas <strong>no</strong> tiene ninguna ruta ${c('0.0.0.0/0')}.`
+            `Una subred <strong>pública</strong> ${c(x.publicaCidr)} en ${c(x.azPublica)} (puedes llamarla ${c(x.publicaNombre)}): su tabla de rutas manda ${c('0.0.0.0/0')} al Internet Gateway.`
           ])}`,
         pista: ''
       },
@@ -95,7 +96,7 @@ export const LAB = {
       {
         id: 'nacl',
         titulo: 'La NACL de la ferretería',
-        puntos: 8,
+        puntos: 10,
         html: `
           ${vinetas([
             `Tu subred pública debe usar la NACL ${c(x.nacl)} que dejó el técnico.`,
@@ -131,14 +132,27 @@ export const LAB = {
       },
       {
         id: 'iam',
-        titulo: 'El acceso de los cajeros',
+        titulo: 'El acceso de la cajera',
         puntos: 10,
         html: `
-          <p>Los cajeros solo necesitan <strong>ver</strong> si el servidor está encendido, sin poder apagarlo ni cambiar nada.</p>
+          <p>María, la cajera, solo necesita <strong>ver</strong> si el servidor está encendido, sin poder apagarlo ni cambiar nada.</p>
           ${vinetas([
-            `Un grupo ${c(x.grupo)} con la política ${c(x.politica)} y nada que deje escribir o leer toda la cuenta.`,
-            `Dos usuarios, ${c(x.usuarios[0])} y ${c(x.usuarios[1])}, dentro del grupo ${c(x.grupo)}.`,
-            'Ninguno de los dos con políticas puestas directo.'
+            `Un grupo ${c(x.grupo)} con la política ${c(x.politica)} y <strong>ninguna otra política</strong> (ni ${c('AdministratorAccess')} ni ${c('ReadOnlyAccess')}).`,
+            `Un usuario ${c(x.usuario)} dentro del grupo ${c(x.grupo)}.`,
+            `El usuario ${c(x.usuario)} <strong>sin</strong> políticas puestas directo: sus permisos le llegan por el grupo.`
+          ])}`,
+        pista: ''
+      },
+      {
+        id: 'privada',
+        titulo: 'Una subred privada para el futuro',
+        puntos: 6,
+        bono: true,
+        html: `
+          <p><strong>Opcional.</strong> Don Beto piensa poner después una base de datos que nadie de internet pueda alcanzar. Si te sobra tiempo, déjale lista su subred: suma hasta <strong>6 puntos extra</strong>, que compensan errores de las otras tareas, pero tu calificación nunca pasa de 100.</p>
+          ${vinetas([
+            `Una subred <strong>privada</strong> ${c(x.privadaCidr)} en ${c(x.azPrivada)}, dentro de ${c(x.vpcNombre)} (puedes llamarla ${c(x.privadaNombre)}).`,
+            `Su tabla de rutas <strong>no</strong> tiene ninguna ruta ${c('0.0.0.0/0')}.`
           ])}`,
         pista: ''
       }

@@ -56,6 +56,42 @@ import {
 
 const MICROS = ['t2.micro', 't3.micro'];
 
+/**
+ * Dónde repasar cada punto en la Ruta AWS (ver src/repaso.js). La clave
+ * 'tarea/check' gana sobre la de la tarea. Lo que en la Ruta solo se vio en
+ * teoría (IAM) apunta a la lámina de la sesión 2.
+ */
+export const REPASO = {
+  iam: 's2-identidades/1',
+  'iam/grupo': 's2-identidades/1',
+  'iam/politica': ['s2-identidades/3', 's2-politicas/1'],
+  'iam/usuario': 's2-identidades/1',
+  'iam/directo': ['s2-identidades/1', 's2-identidades/3'],
+
+  red: 's3-vpc/3',
+  'red/vpc': ['s3-vpc/1', 's3-lab-vpc/7'],
+  'red/vpc-nombre': 's3-lab-vpc/7',
+  'red/subred': ['s3-lab-vpc/8', 's1-global/1'],
+  'red/subred-cidr': ['s3-vpc/2', 's3-lab-vpc/8'],
+  'red/igw': ['s3-vpc/1', 's3-lab-vpc/10'],
+  'red/ruta': ['s3-vpc/3', 's3-lab-vpc/5'],
+
+  servidor: 's1-lab-ec2/8',
+  'servidor/instancia': ['s1-lab-ec2/8', 's3-lab-vpc/4'],
+  'servidor/tipo': ['s1-lab-ec2/5', 's1-lab-ec2/6'],
+  'servidor/ip': 's1-lab-ec2/8',
+  'servidor/http': ['s2-lab-seguridad/14', 's1-lab-ec2/8'],
+  'servidor/ssh': ['s2-lab-seguridad/14', 's2-identidades/3'],
+  'servidor/pagina': ['s1-lab-ec2/11', 's3-vpc/3'],
+  'servidor/texto': 's1-lab-ec2/9',
+
+  s3: 's4-seguridad/1',
+  's3/bucket': ['s4-lab-almacenamiento/3', 's4-s3/1'],
+  's3/bloqueo': ['s4-lab-almacenamiento/4', 's4-seguridad/1'],
+  's3/versionado': ['s4-lab-almacenamiento/5', 's4-seguridad/1'],
+  's3/cifrado': ['s4-lab-almacenamiento/5', 's4-seguridad/1']
+};
+
 /* ================================================================== IAM */
 
 function revisarIam(estado, x) {
@@ -290,7 +326,7 @@ export function solucion(datos) {
   const estado = LAB.estadoInicial(datos);
 
   crearGrupoIam(estado, { nombre: x.grupo, politicas: [x.politica] });
-  crearUsuario(estado, { nombre: x.usuario, consola: true });
+  crearUsuario(estado, { nombre: x.usuario });
   agregarUsuariosAGrupo(estado, x.grupo, [x.usuario]);
 
   const vpc = crearVpc(estado, { nombre: x.vpcNombre, cidr: x.vpcCidr });

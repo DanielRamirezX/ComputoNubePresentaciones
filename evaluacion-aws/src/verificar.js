@@ -8,7 +8,11 @@
 //    existe) y además, por cada rúbrica, con 3 alumnos de ejemplo, que la solución
 //    dé 100, que la cuenta inicial dé menos de 25, que todo check traiga
 //    retroalimentación (acierto y error) y que las tareas que ve el alumno
-//    (LAB.tareas) sumen 100 y coincidan con las de la rúbrica.
+//    (LAB.tareas) sumen 100 y coincidan con las de la rúbrica. Las tareas
+//    `bono: true` no cuentan en esos 100: la solución también gana sus puntos
+//    y la calificación nunca pasa de 100.
+//  - Repaso: cada pregunta y cada check dicen en qué lección de la Ruta AWS se
+//    repasa (src/repaso.js), y el catálogo sigue igual que la Ruta.
 // Si todavía no hay bancos o rúbricas, avisa y no falla: esa evaluación sale
 // como «en preparación».
 
@@ -18,6 +22,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { LABS } from '../public/labs/index.js';
 import { calificarCuenta } from './calificar.js';
+import { LECCIONES, resolverRepaso, repasosDe } from './repaso.js';
 import { EVALUACIONES } from './evaluaciones.js';
 import { RUBRICAS } from './rubricas/index.js';
 import { TEORIA } from './teoria/index.js';
@@ -90,6 +95,7 @@ function revisarBanco(id, banco) {
       if (!o?.texto) falla(`${id}/${p.id}: la opción ${i + 1} no tiene texto`);
       if (!o?.retro) falla(`${id}/${p.id}: la opción ${i + 1} no tiene retroalimentación`);
     });
+    revisarRefs(`${id}/${p.id}`, p.repaso);
   }
   for (const c of CASOS) {
     if (!c.historia) falla(`${id}: el caso ${c.id} no tiene historia`);
@@ -110,6 +116,13 @@ function revisarBanco(id, banco) {
 // Lo que llega del navegador pasa por JSON: si algo no sobrevive, mejor saberlo aquí.
 const porJson = (x) => JSON.parse(JSON.stringify(x));
 
+/** Que una pregunta o un check diga dónde repasarlo, con referencias que existen. */
+function revisarRefs(quien, refs) {
+  const lista = Array.isArray(refs) ? refs : refs ? [refs] : [];
+  if (!lista.length) return falla(`${quien}: no dice en qué lección se repasa (repaso)`);
+  for (const r of lista) if (!resolverRepaso(r)) falla(`${quien}: el repaso «${r}» no existe en src/repaso.js`);
+}
+
 function revisarChecks(id, cuando, resultado) {
   for (const t of resultado.tareas) {
     const suma = t.checks.reduce((s, c) => s + c.puntos, 0);
@@ -117,6 +130,7 @@ function revisarChecks(id, cuando, resultado) {
     for (const c of t.checks) {
       if (!c.retro.trim()) falla(`${id}: el check ${t.id}/${c.id} no trae retro ${cuando}`);
       if (!c.texto.trim()) falla(`${id}: el check ${t.id}/${c.id} no tiene texto`);
+      if (!c.repaso?.length) falla(`${id}: el check ${t.id}/${c.id} no dice dónde repasarlo (REPASO de la rúbrica)`);
     }
   }
 }
@@ -142,10 +156,11 @@ function revisarLab(id) {
       if (JSON.stringify(solucion).length > LIMITE_CUENTA) falla(`${id}: la cuenta resuelta pesa más de 512 KB`);
       const { resultado } = calificarCuenta(id, solucion, ejemplo);
       if (resultado.total !== 100) falla(`${id}: la rúbrica vale ${resultado.total}, no 100`);
-      if (resultado.obtenidos !== resultado.total) {
-        const fallidos = resultado.tareas.flatMap((t) => t.checks.filter((c) => !c.ok).map((c) => `${t.id}/${c.id}`));
-        falla(`${id}: la solución de ${quien} da ${resultado.obtenidos}, no 100 (fallan: ${fallidos.join(', ')})`);
-      } else bien(`${id}: la solución de ${quien} da 100`);
+      // La solución saca 100 y además todos los puntos del bono (si hay): ningún check falla.
+      const fallidos = resultado.tareas.flatMap((t) => t.checks.filter((c) => !c.ok).map((c) => `${t.id}/${c.id}`));
+      if (resultado.obtenidos !== resultado.total || fallidos.length) {
+        falla(`${id}: la solución de ${quien} da ${resultado.obtenidos}${fallidos.length ? ` (fallan: ${fallidos.join(', ')})` : ''}; debe dar 100 con todos los puntos, bono incluido`);
+      } else bien(`${id}: la solución de ${quien} da 100${resultado.tareas.some((t) => t.bono) ? ' (y gana todo el bono)' : ''}`);
       revisarChecks(id, 'cuando se acierta', resultado);
 
       const inicial = porJson(LAB.estadoInicial(datos));
@@ -154,15 +169,19 @@ function revisarLab(id) {
       else bien(`${id}: la cuenta inicial de ${quien} da ${deInicio.obtenidos}`);
       revisarChecks(id, 'cuando se falla', deInicio);
 
+      // Las tareas bono (opcionales) suman aparte: las requeridas valen 100 y
+      // la calificación es min(100, requeridas + bono).
       const publicas = LAB.tareas(datos);
-      const suma = publicas.reduce((s, t) => s + t.puntos, 0);
-      if (suma !== 100) falla(`${id}: las tareas públicas suman ${suma}, no 100`);
+      const suma = publicas.filter((t) => !t.bono).reduce((s, t) => s + t.puntos, 0);
+      if (suma !== 100) falla(`${id}: las tareas públicas (sin contar el bono) suman ${suma}, no 100`);
+      if (deInicio.obtenidos > 100 || resultado.obtenidos > 100) falla(`${id}: la calificación pasa de 100`);
       const deRubrica = resultado.tareas.map((t) => t.id).join(', ');
       const dePublicas = publicas.map((t) => t.id).join(', ');
       if (deRubrica !== dePublicas) falla(`${id}: las tareas no coinciden. Rúbrica: ${deRubrica} · públicas: ${dePublicas}`);
       for (const t of publicas) {
         const r = resultado.tareas.find((x) => x.id === t.id);
         if (r && r.puntos !== t.puntos) falla(`${id}: la tarea ${t.id} vale ${t.puntos} para el alumno y ${r.puntos} en la rúbrica`);
+        if (r && Boolean(r.bono) !== Boolean(t.bono)) falla(`${id}: la tarea ${t.id} es bono para ${t.bono ? 'el alumno' : 'la rúbrica'} y no para ${t.bono ? 'la rúbrica' : 'el alumno'}`);
         if (!t.titulo || !t.html) falla(`${id}: la tarea ${t.id} no tiene título o instrucciones`);
         if (LAB.pistas && !t.pista) falla(`${id}: la tarea ${t.id} no tiene pista («¿Dónde se hace?»)`);
       }
@@ -183,7 +202,34 @@ console.log('\n=========== LABORATORIOS');
 if (RUBRICAS.size === 0) avisa('RUBRICAS está vacío: todavía no hay rúbricas');
 else await verificadorExterno(path.join('rubricas', 'verificar-labs.js'), 'verificarLabs', 'quien hace los laboratorios');
 for (const id of RUBRICAS.keys()) revisarLab(id);
+for (const [id, r] of RUBRICAS) for (const [clave, refs] of Object.entries(r.repaso ?? {})) revisarRefs(`${id}: REPASO['${clave}']`, refs);
 for (const id of LABS.keys()) if (!RUBRICAS.has(id)) avisa(`${id}: hay laboratorio público pero no rúbrica`);
+
+console.log('\n=========== REPASO (Ruta AWS)');
+await (async () => {
+  const ruta = path.join(AQUI, '..', '..', 'curso-aws-practitioner', 'public', 'contenido.js');
+  if (!fs.existsSync(ruta)) return avisa('No encontré la Ruta AWS junto a este módulo: no puedo comparar el catálogo de repaso');
+  const { SESIONES } = await import(pathToFileURL(ruta).href);
+  const limpio = (t) => String(t ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  let distintos = 0;
+  for (const s of SESIONES) for (const c of s.capitulos ?? []) for (const a of c.actividades ?? []) {
+    const l = LECCIONES[a.id];
+    if (!l) continue;
+    const partes = (a.laminas ?? a.pasos ?? []).map((x) => limpio(x.titulo));
+    if (l.sesion !== s.numero || l.titulo !== limpio(a.titulo) || JSON.stringify(l.partes) !== JSON.stringify(partes)) {
+      falla(`repaso: la lección ${a.id} cambió en la Ruta; actualiza src/repaso.js para que los enlaces apunten a la lámina correcta`);
+      distintos++;
+    }
+  }
+  const enRuta = new Set(SESIONES.flatMap((s) => (s.capitulos ?? []).flatMap((c) => (c.actividades ?? []).map((a) => a.id))));
+  for (const id of Object.keys(LECCIONES)) {
+    if (!enRuta.has(id)) {
+      falla(`repaso: la lección ${id} ya no existe en la Ruta`);
+      distintos++;
+    }
+  }
+  if (!distintos) bien(`El catálogo de repaso coincide con la Ruta (${Object.keys(LECCIONES).length} lecciones y laboratorios)`);
+})();
 
 console.log('\n=========== EVALUACIONES');
 for (const ev of EVALUACIONES) {
