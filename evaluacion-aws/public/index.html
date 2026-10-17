@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#16202c">
+<title>Evaluación AWS</title>
+<link rel="stylesheet" href="estilos.css">
+<link rel="stylesheet" href="consola/consola.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%2316202c%27/%3E%3Cpath d=%27m18 33 9 9 19-20%27 fill=%27none%27 stroke=%27%23ff9900%27 stroke-width=%278%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E">
+<!-- Las fuentes llegan sin bloquear: si el salón no tiene internet, la página
+     se ve igual con las fuentes del sistema en lugar de quedarse en blanco. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" media="print" onload="this.media='all'">
+</head>
+<body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-candado" viewBox="0 0 64 64"><rect x="13" y="28" width="38" height="28" rx="4"/><path d="M21 28V18a11 11 0 0 1 22 0v10M32 39v7"/></symbol>
+    <symbol id="i-abierto" viewBox="0 0 64 64"><rect x="13" y="28" width="38" height="28" rx="4"/><path d="M21 28V18a11 11 0 0 1 21-4M32 39v7"/></symbol>
+    <symbol id="i-reloj" viewBox="0 0 64 64"><circle cx="32" cy="32" r="23"/><path d="M32 18v15l10 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 64 64"><path d="m11 34 13 13 29-30"/></symbol>
+    <symbol id="i-x" viewBox="0 0 64 64"><path d="M16 16l32 32M48 16 16 48"/></symbol>
+    <symbol id="i-flecha" viewBox="0 0 64 64"><path d="M8 32h46M37 11l21 21-21 21"/></symbol>
+    <symbol id="i-copiar" viewBox="0 0 64 64"><rect x="20" y="20" width="34" height="36" rx="4"/><path d="M44 20v-8a4 4 0 0 0-4-4H14a4 4 0 0 0-4 4v32a4 4 0 0 0 4 4h6"/></symbol>
+    <symbol id="i-libro" viewBox="0 0 64 64"><path d="M10 12h18c5 0 8 3 8 8v32c0-5-3-8-8-8H10ZM54 12H36c-5 0-8 3-8 8"/><path d="M10 44h18c5 0 8 3 8 8V20c0-5 3-8 8-8h10Z"/></symbol>
+    <symbol id="i-consola" viewBox="0 0 64 64"><rect x="8" y="13" width="48" height="38" rx="5"/><path d="m19 27 8 6-8 6M31 40h13"/></symbol>
+    <symbol id="i-alerta" viewBox="0 0 64 64"><path d="m32 7 25 48H7Z"/><path d="M32 23v15M32 45v2"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 64 64"><rect x="8" y="12" width="48" height="40" rx="4"/><path d="M40 12v40"/></symbol>
+    <symbol id="i-lupa" viewBox="0 0 64 64"><circle cx="27" cy="27" r="16"/><path d="m39 39 16 16"/></symbol>
+    <symbol id="i-nube" viewBox="0 0 64 48"><path d="M16 39h35a10 10 0 0 0 1-20 16 16 0 0 0-30-3A12 12 0 0 0 16 39Z"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+  <p class="cargando">Cargando la evaluación…</p>
+</div>
+
+<noscript><p class="cargando">Esta evaluación necesita JavaScript. Ábrela en Chrome, Edge, Firefox o Safari actualizados.</p></noscript>
+<script type="module" src="app.js"></script>
+</body>
+</html>

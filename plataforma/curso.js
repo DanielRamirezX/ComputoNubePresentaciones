@@ -11,7 +11,11 @@
 //   'enlace'   — algo que vive fuera (una liga). Solo aparece en el índice.
 //
 // `seccion` (opcional) agrupa el módulo bajo un título aparte en el índice,
-// después de las clases. Hoy existe una: «Recursos didácticos».
+// después de las clases. Hoy existen dos: «Evaluación» (con su propio tono) y
+// «Recursos didácticos».
+//
+// `accesos` (opcional) muestra un módulo como varias tarjetas, cada una con su
+// `ruta` dentro del módulo (por ejemplo '#/simulacro-1').
 // ---------------------------------------------------------------------------
 
 export const CURSO = {
@@ -59,6 +63,34 @@ export const CURSO = {
       etiqueta: 'Laboratorio',
       tipo: 'express',
       ruta: '../curso-aws-practitioner'
+    },
+    {
+      id: 'evaluacion',
+      titulo: 'Evaluación AWS',
+      etiqueta: 'Evaluación',
+      tipo: 'express',
+      ruta: '../evaluacion-aws',
+      seccion: 'Evaluación',
+      accesos: [
+        {
+          titulo: 'Simulacro 1',
+          etiqueta: 'Martes 20 de octubre',
+          resumen: 'Ensayo del examen: casos de negocio de las sesiones 1 a 4 y un laboratorio de una hora en una consola de AWS simulada. Tu docente lo abre en clase.',
+          ruta: '#/simulacro-1'
+        },
+        {
+          titulo: 'Simulacro 2',
+          etiqueta: 'Viernes 23 de octubre',
+          resumen: 'Segundo ensayo con casos y laboratorio distintos. Al entregar ves qué hiciste bien y qué te faltó.',
+          ruta: '#/simulacro-2'
+        },
+        {
+          titulo: 'Examen bimestral · parte práctica',
+          etiqueta: 'Martes 27 de octubre',
+          resumen: 'El laboratorio del examen en la consola simulada: máximo una hora. Tu docente lo abre en clase.',
+          ruta: '#/bimestral'
+        }
+      ]
     },
     {
       id: 'viaje-paquete',

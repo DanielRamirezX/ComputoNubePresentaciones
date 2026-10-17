@@ -57,6 +57,23 @@ async function montarExpress(app, modulo, carpeta) {
 }
 
 /**
+ * Un módulo con `accesos` se muestra como varias tarjetas que entran a partes
+ * distintas de él (por ejemplo, cada evaluación). Sin `accesos`, una tarjeta.
+ */
+function tarjetasDe(modulo, publico, resultado) {
+  if (!modulo.accesos?.length) return [{ ...publico, ...resultado }];
+  return modulo.accesos.map((a, i) => ({
+    ...publico,
+    id: `${modulo.id}-${i + 1}`,
+    titulo: a.titulo,
+    resumen: a.resumen ?? '',
+    etiqueta: a.etiqueta ?? publico.etiqueta,
+    ...resultado,
+    url: resultado.url && resultado.url + (a.ruta ?? '')
+  }));
+}
+
+/**
  * Monta todos los módulos del curso. Un módulo roto NO tumba el servidor:
  * se marca con su motivo y aparece así en el índice, para que en clase sepas
  * de inmediato qué falta en lugar de ver una pantalla en blanco.
@@ -89,9 +106,9 @@ export async function montarModulos(app, curso, raiz) {
           ? montarEstatico(app, modulo, carpeta)
           : await montarExpress(app, modulo, carpeta);
 
-      reporte.push({ ...publico, estado: 'ok', url });
+      reporte.push(...tarjetasDe(modulo, publico, { estado: 'ok', url }));
     } catch (e) {
-      reporte.push({ ...publico, estado: 'error', url: null, detalle: e.message });
+      reporte.push(...tarjetasDe(modulo, publico, { estado: 'error', url: null, detalle: e.message }));
     }
   }
 

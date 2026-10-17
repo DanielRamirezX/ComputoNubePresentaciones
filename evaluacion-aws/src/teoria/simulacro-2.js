@@ -1,0 +1,769 @@
+// Parte teórica del simulacro 2 (viernes 23 de octubre de 2026): 5 casos de
+// negocio con 5 preguntas cada uno, al estilo del examen AWS Certified Cloud
+// Practitioner (CLF-C02), sobre las sesiones 1 a 4 de la Ruta AWS. Las empresas
+// y las situaciones son otras que las del simulacro 1; algunos conceptos se
+// repiten, vistos desde otro ángulo. La respuesta correcta y la
+// retroalimentación viven solo en el servidor; la clave está balanceada (6 en
+// A, 6 en B, 7 en C y 6 en D, sin rachas de tres) y cada distractor es una
+// confusión real. Corre `node src/teoria/verificar-teoria.js` si cambias algo.
+
+import { bancoPublico, calificarBanco } from './comun.js';
+
+export const TEMAS = ['Fundamentos y EC2', 'Identidad y seguridad', 'Redes', 'Almacenamiento'];
+
+export const MINUTOS = 45;
+
+// Lo que se muestra antes de empezar.
+export const CASO = `
+  <p>Segundo simulacro, con <strong>empresas y problemas nuevos</strong>. Igual que en el examen <strong>AWS Certified Cloud Practitioner (CLF-C02)</strong>, cada pregunta describe una situación y te pide la mejor opción. Son <strong>5 casos con 5 preguntas cada uno, en 45 minutos</strong>.</p>
+  <ul>
+    <li><strong>Lee la historia completa</strong> antes de contestar: los datos que deciden la respuesta (cuántos equipos, qué tan seguido se consulta algo, qué rango de IP tienen) están ahí.</li>
+    <li>Busca la <strong>palabra clave</strong>: “no puede interrumpirse”, “se regeneran”, “sin salir a internet”, “nadie, ni los administradores”, “IP fijas”…</li>
+    <li>Si dos opciones funcionan, quédate con la que <strong>cumple todo con menos costo y menos trabajo</strong>.</li>
+    <li>Una pregunta sin contestar cuenta como error: no dejes ninguna en blanco.</li>
+  </ul>`;
+
+export const CASOS = [
+  {
+    id: 'c1',
+    empresa: 'Ramírez & Garza Contadores',
+    titulo: 'La temporada de declaraciones',
+    historia: `
+      <p><strong>Ramírez &amp; Garza</strong> es un despacho contable de Monterrey con <strong>25 contadores</strong> que trabajan en computadoras con Windows. Comparten una carpeta de red (la unidad <em>Z:</em>) en un servidor viejo, con permisos por usuario de Active Directory, y quieren pasarla a AWS sin cambiar su forma de trabajar.</p>
+      <p>De febrero a abril, en la temporada de declaraciones anuales, necesitan <strong>8 servidores extra</strong> para calcular impuestos; ese trabajo no puede interrumpirse porque hay fechas límite del SAT. El resto del año no los usan.</p>
+      <p>Deben conservar las facturas (CFDI) de sus clientes <strong>5 años</strong>: el primer año se consultan seguido; después, solo si hay una revisión del SAT, y para eso pueden esperar un día. Su aviso de privacidad promete borrarlas al cumplir 5 años. En mayo, un auditor externo revisará su cuenta de AWS durante dos semanas.</p>`
+  },
+  {
+    id: 'c2',
+    empresa: 'Hoteles Casa Maya',
+    titulo: 'Reservas desde todo el mundo',
+    historia: `
+      <p><strong>Casa Maya</strong> tiene tres hoteles boutique en Mérida, Tulum y Bacalar. El <strong>60&nbsp;%</strong> de sus huéspedes reserva desde Canadá, Estados Unidos y Europa. Su sitio de reservas corre en <strong>dos instancias EC2</strong> del mismo tipo en mx-central-1, encendidas 24/7, y no cambiarán de tipo en los próximos <strong>3 años</strong>. Las fotos y videos de las habitaciones están en un bucket de S3.</p>
+      <p>Los huéspedes de la Unión Europea deben ver una versión del sitio en euros, con el aviso de privacidad europeo, alojada en la región de España. El buscador de disponibilidad escribe archivos temporales que se regeneran en cada búsqueda.</p>
+      <p>Desde hace un mes, el portal de huéspedes recibe <strong>miles de intentos de inicio de sesión por minuto</strong> con contraseñas robadas, desde cientos de direcciones IP que cambian cada hora.</p>`
+  },
+  {
+    id: 'c3',
+    empresa: 'Laboratorios Biomédica del Bajío',
+    titulo: 'Resultados que nadie más debe ver',
+    historia: `
+      <p><strong>Biomédica del Bajío</strong> es una cadena de laboratorios de análisis clínicos con <strong>14 sucursales</strong> en Guanajuato y unos 1,200 pacientes al día. Los resultados se guardan como PDF en un bucket de S3 y cada paciente los descarga desde el sitio.</p>
+      <p>La ley de protección de datos personales les exige cuidar nombres, CURP y diagnósticos. Con los años se crearon <strong>40 buckets</strong> y nadie sabe si en alguno quedaron PDF de pacientes. La auditoría de diciembre pide revisar las vulnerabilidades de sus <strong>6 instancias EC2</strong> y cifrar los resultados con llaves que el laboratorio controle.</p>
+      <p>Los servidores que generan los PDF viven en una subred privada <strong>sin salida a internet</strong> y leen la contraseña de la base de datos en Secrets Manager. El área de investigación guarda <strong>30 TB</strong> de imágenes de microscopía: unas se consultan a diario, otras nunca, y eso cambia con cada estudio.</p>`
+  },
+  {
+    id: 'c4',
+    empresa: 'Instituto de Ciencias del Clima',
+    titulo: 'Pronósticos que no se detienen',
+    historia: `
+      <p>El <strong>Instituto de Ciencias del Clima</strong>, de una universidad pública de Hermosillo, publica cada hora alertas de ondas de calor para Sonora. Su modelo de pronóstico corre <strong>24/7</strong> en un clúster de <strong>200 nodos</strong> que usa mucho procesador y poca memoria, y no puede interrumpirse. En los próximos 3 años piensan cambiar varias veces de tipo de instancia y, quizá, de región.</p>
+      <p>Los 200 nodos leen al mismo tiempo, a altísima velocidad, imágenes satelitales que están guardadas en S3.</p>
+      <p>El instituto tiene <strong>12 VPC</strong>, una por proyecto de investigación, más la red del campus conectada por VPN, y todas deben poder hablar entre sí. Su VPC principal es <strong>10.8.0.0/16</strong> y, para un clúster nuevo de <strong>60 nodos</strong> (una IP por nodo), crearon la subred <strong>10.8.4.0/26</strong>.</p>`
+  },
+  {
+    id: 'c5',
+    empresa: 'Tandapp',
+    titulo: 'Una fintech que crece rápido',
+    historia: `
+      <p><strong>Tandapp</strong> es una startup de la Ciudad de México con una app para organizar tandas entre amigos: ya tiene <strong>50,000 usuarios</strong> y 8 desarrolladores. Usa AWS Organizations con <strong>4 cuentas miembro</strong> (desarrollo, pruebas, producción y seguridad). Su regla de oro: <strong>nadie, ni los administradores de cada cuenta, puede apagar CloudTrail</strong> ni borrar sus registros.</p>
+      <p>Su API, <em>api.tandapp.mx</em>, necesita HTTPS y corre detrás de un balanceador de carga en dos regiones: México y, de respaldo, Virginia del Norte. Los <strong>3 bancos aliados</strong> solo aceptan conexiones hacia direcciones IP fijas que registran en su firewall.</p>
+      <p>Su panel interno lo usan 8 personas: casi no consume procesador, salvo 10 minutos a las 9:00. Además, el equipo quiere probar con datos ficticios un servicio nuevo de AWS que todavía no existe en mx-central-1.</p>`
+  }
+];
+
+export const PREGUNTAS = [
+  /* ---------------------------------------------- c1 · Ramírez & Garza */
+  {
+    id: 'c1p1',
+    caso: 'c1',
+    tema: 'Almacenamiento',
+    sesion: 4,
+    concepto: 'Amazon FSx for Windows File Server',
+    texto: 'Ramírez & Garza quiere pasar su unidad Z: a AWS: una carpeta compartida para 25 equipos Windows, con los mismos permisos de Active Directory. ¿Qué servicio usa?',
+    opciones: [
+      {
+        texto: 'Amazon EFS',
+        retro: 'EFS es la carpeta compartida para instancias Linux (por NFS); no funciona con equipos Windows ni se integra con sus permisos de Active Directory.'
+      },
+      {
+        texto: 'Un bucket de Amazon S3',
+        retro: 'S3 guarda objetos y se usa por internet o por API, no como una unidad de red con permisos de Active Directory. Cambiaría la forma de trabajar del despacho.'
+      },
+      {
+        texto: 'Amazon FSx for Windows File Server',
+        retro: '¡Correcto! FSx for Windows File Server es un servidor de archivos Windows administrado: carpetas compartidas que se integran con Active Directory. “Archivos compartidos para Windows” → FSx.'
+      },
+      {
+        texto: 'Un volumen EBS compartido por los 25 equipos',
+        retro: 'EBS es el disco de una instancia EC2 en una zona; las computadoras de la oficina no se conectan a él como carpeta compartida.'
+      }
+    ],
+    correcta: 2
+  },
+  {
+    id: 'c1p2',
+    caso: 'c1',
+    tema: 'Identidad y seguridad',
+    sesion: 2,
+    concepto: 'Rol para alguien de otra cuenta',
+    texto: 'El auditor externo revisará la cuenta del despacho durante dos semanas, desde la cuenta de AWS de su propia firma y solo para leer. ¿Cómo se le da acceso?',
+    opciones: [
+      {
+        texto: 'Con un rol de solo lectura que el auditor asume desde su cuenta',
+        retro: '¡Exacto! Un rol da credenciales temporales que se renuevan solas, sin crear usuarios ni mandar llaves. Al terminar la auditoría, basta con borrar el rol.'
+      },
+      {
+        texto: 'Con un usuario de IAM y unas llaves de acceso que le mandan por correo',
+        retro: 'Funcionaría, pero son credenciales permanentes viajando por correo: si se filtran, sirven hasta que alguien las borre. Para alguien de otra cuenta, lo indicado es un rol.'
+      },
+      {
+        texto: 'Con la contraseña del usuario raíz, quitándole el MFA unas semanas',
+        retro: 'El usuario raíz puede todo y nadie lo puede limitar; jamás se comparte ni se le quita el MFA. El auditor solo necesita leer.'
+      },
+      {
+        texto: 'Con una SCP de Organizations que le permita leer la cuenta',
+        retro: 'Las SCP no dan permisos: solo ponen el techo de lo que se puede hacer. El acceso se da con políticas pegadas a un usuario, grupo o rol.'
+      }
+    ],
+    correcta: 0
+  },
+  {
+    id: 'c1p3',
+    caso: 'c1',
+    tema: 'Fundamentos y EC2',
+    sesion: 1,
+    concepto: 'On-Demand para una temporada',
+    texto: 'Los 8 servidores de la temporada de declaraciones solo se usan de febrero a abril y su trabajo no puede interrumpirse. ¿Qué opción de compra conviene?',
+    opciones: [
+      {
+        texto: 'Instancias Spot, porque tienen hasta 90 % de descuento',
+        retro: 'Son las más baratas, pero AWS puede recuperarlas con 2 minutos de aviso. Un cálculo que no puede interrumpirse antes de la fecha del SAT no debe depender de Spot.'
+      },
+      {
+        texto: 'Instancias reservadas por 1 año',
+        retro: 'Las reservadas se pagan los 12 meses aunque solo las uses 3. Convienen a servidores que corren todo el año.'
+      },
+      {
+        texto: 'Dedicated Hosts, para tener servidores separados',
+        retro: 'Nada en el caso pide hardware exclusivo ni licencias por servidor físico; sería pagar de más.'
+      },
+      {
+        texto: 'Instancias On-Demand, que se apagan al terminar abril',
+        retro: '¡Bien! On-Demand no tiene compromiso: pagas por segundo solo los meses que las usas, y AWS no te las quita a media temporada. Uso corto o de temporada → On-Demand.'
+      }
+    ],
+    correcta: 3
+  },
+  {
+    id: 'c1p4',
+    caso: 'c1',
+    tema: 'Almacenamiento',
+    sesion: 4,
+    concepto: 'Ciclo de vida con transición y expiración',
+    texto: 'Las facturas (CFDI) se consultan seguido el primer año y después casi nunca; al cumplir 5 años deben borrarse. ¿Cómo lo automatiza el despacho en S3?',
+    opciones: [
+      {
+        texto: 'Con Intelligent-Tiering, que también las borra a los 5 años',
+        retro: 'Intelligent-Tiering mueve objetos entre niveles según su uso, pero nunca los borra. Además, aquí sí se sabe cuándo bajan las consultas: al año.'
+      },
+      {
+        texto: 'Con una regla de ciclo de vida: a Deep Archive al año y expiración a los 5',
+        retro: '¡Correcto! Una sola regla puede cambiar la clase según la edad del objeto y también borrarlo (expiración). Como el despacho puede esperar un día cuando revisa el SAT, Glacier Deep Archive es la clase más barata.'
+      },
+      {
+        texto: 'Activando el versionado durante 5 años',
+        retro: 'El versionado guarda cada versión para recuperar lo borrado; no mueve objetos a clases más baratas ni los borra a tiempo. De hecho, guardaría todavía más copias.'
+      },
+      {
+        texto: 'Con S3 Object Lock y una retención de 5 años',
+        retro: 'Object Lock impide borrar antes de tiempo, pero no borra nada al terminar el plazo ni abarata el almacenamiento. Aquí hace falta mover y borrar.'
+      }
+    ],
+    correcta: 1
+  },
+  {
+    id: 'c1p5',
+    caso: 'c1',
+    tema: 'Identidad y seguridad',
+    sesion: 2,
+    concepto: 'Responsabilidad compartida en un servicio administrado',
+    texto: 'Ya en Amazon FSx, ¿quién instala los parches del Windows Server que hay detrás de la carpeta compartida?',
+    opciones: [
+      {
+        texto: 'El despacho, porque el sistema operativo siempre es del cliente',
+        retro: 'Eso pasa en EC2 (IaaS), donde tú administras el sistema operativo. FSx es un servicio administrado: ahí los parches los pone AWS.'
+      },
+      {
+        texto: 'AWS, porque FSx es administrado; el despacho cuida datos y accesos',
+        retro: '¡Exacto! En un servicio administrado, AWS parcha y mantiene los servidores. Lo que siempre es tuyo: tus datos, quién tiene permiso y la configuración que eliges.'
+      },
+      {
+        texto: 'AWS, que también decide qué contador puede abrir cada carpeta',
+        retro: 'AWS sí parcha el servidor, pero quién tiene acceso a qué siempre es responsabilidad del cliente, en cualquier servicio.'
+      },
+      {
+        texto: 'Cada contador, con Windows Update desde su computadora',
+        retro: 'Las actualizaciones de las computadoras de los contadores no tocan el servidor de FSx. Ese servidor lo mantiene AWS.'
+      }
+    ],
+    correcta: 1
+  },
+
+  /* ---------------------------------------------- c2 · Hoteles Casa Maya */
+  {
+    id: 'c2p1',
+    caso: 'c2',
+    tema: 'Redes',
+    sesion: 3,
+    concepto: 'CloudFront y las ubicaciones de borde',
+    texto: 'Casa Maya pondrá Amazon CloudFront delante de su bucket de fotos para que carguen rápido en Canadá y Europa. ¿Qué pasará con las fotos?',
+    opciones: [
+      {
+        texto: 'CloudFront moverá el bucket a la región más cercana a cada huésped',
+        retro: 'CloudFront no mueve tu bucket: el original se queda en su región. Lo que reparte son copias temporales en el borde.'
+      },
+      {
+        texto: 'Se copiarán a las zonas de disponibilidad de cada país',
+        retro: 'Las zonas de disponibilidad son parte de una región y ahí corren tus recursos. CloudFront usa otra cosa: ubicaciones de borde, mucho más numerosas.'
+      },
+      {
+        texto: 'Se guardarán en el instance store de las instancias EC2',
+        retro: 'El instance store es el disco temporal de una instancia; no tiene nada que ver con acercar contenido a usuarios de otros países.'
+      },
+      {
+        texto: 'Habrá copias en ubicaciones de borde; el original seguirá en S3',
+        retro: '¡Bien! CloudFront es una red de entrega de contenido (CDN): guarda copias en ubicaciones de borde y cada huésped las recibe desde la más cercana. El original vive en el bucket de mx-central-1.'
+      }
+    ],
+    correcta: 3
+  },
+  {
+    id: 'c2p2',
+    caso: 'c2',
+    tema: 'Identidad y seguridad',
+    sesion: 2,
+    concepto: 'AWS WAF con reglas basadas en tasa',
+    texto: 'El portal de huéspedes recibe miles de intentos de inicio de sesión por minuto desde cientos de IP que cambian cada hora. Quieren bloquear a quien mande demasiadas peticiones. ¿Qué usan?',
+    opciones: [
+      {
+        texto: 'AWS WAF con una regla basada en tasa',
+        retro: '¡Correcto! WAF revisa cada petición web, y una regla basada en tasa bloquea sola a cualquier IP que pase del límite que fijes, aunque las IP cambien. WAF = proteger la aplicación web.'
+      },
+      {
+        texto: 'AWS Shield Standard',
+        retro: 'Shield Standard frena ataques DDoS de red y ya viene gratis, pero no revisa inicios de sesión ni cuenta las peticiones de cada IP en tu aplicación.'
+      },
+      {
+        texto: 'Una NACL con una regla Deny para cada IP',
+        retro: 'Una NACL sí puede negar IP, pero tendrías que escribir cientos de reglas a mano cada hora. Para reglas que se adaptan solas al tráfico web está WAF.'
+      },
+      {
+        texto: 'Amazon GuardDuty',
+        retro: 'GuardDuty detecta actividad sospechosa en tu cuenta y te avisa, pero no bloquea las peticiones que llegan a tu sitio.'
+      }
+    ],
+    correcta: 0
+  },
+  {
+    id: 'c2p3',
+    caso: 'c2',
+    tema: 'Almacenamiento',
+    sesion: 4,
+    concepto: 'Instance store',
+    texto: 'El buscador de disponibilidad escribe archivos temporales que se regeneran en cada búsqueda. Quieren el disco más rápido posible y no les importa perderlos. ¿Qué usan?',
+    opciones: [
+      {
+        texto: 'Un volumen EBS HDD en frío (sc1)',
+        retro: 'sc1 es el disco más barato para datos que casi no se leen; es justo lo contrario de “lo más rápido”.'
+      },
+      {
+        texto: 'La clase S3 Glacier Instant Retrieval',
+        retro: 'Es una clase de archivo para datos que se leen muy poco. Para archivos temporales que se escriben en cada búsqueda no tiene sentido.'
+      },
+      {
+        texto: 'El instance store de la instancia',
+        retro: '¡Exacto! El instance store es un disco pegado físicamente al servidor: el más rápido, pero se borra al detener la instancia. “Temporal, rapidísimo y no importa perderlo” → instance store.'
+      },
+      {
+        texto: 'Un sistema de archivos Amazon EFS',
+        retro: 'EFS es una carpeta compartida por la red para muchas instancias. Es persistente, pero no es lo más rápido para los archivos temporales de una sola instancia.'
+      }
+    ],
+    correcta: 2
+  },
+  {
+    id: 'c2p4',
+    caso: 'c2',
+    tema: 'Redes',
+    sesion: 3,
+    concepto: 'Enrutamiento por geolocalización',
+    texto: 'Los huéspedes que se conectan desde la Unión Europea deben llegar a la versión en euros alojada en España, y el resto, a la de México. ¿Qué enrutamiento de Route 53 usan?',
+    opciones: [
+      {
+        texto: 'Por latencia',
+        retro: 'Latencia manda a cada huésped a la región que le responde más rápido; casi siempre coincidiría, pero no lo garantiza por país. Aquí la regla depende del país, por la moneda y el aviso de privacidad.'
+      },
+      {
+        texto: 'Ponderado (weighted)',
+        retro: 'El ponderado reparte las visitas en porcentajes, sin fijarse de dónde vienen.'
+      },
+      {
+        texto: 'Por conmutación por error (failover)',
+        retro: 'Failover manda todo al sitio principal y usa el otro solo si el principal falla.'
+      },
+      {
+        texto: 'Por geolocalización',
+        retro: '¡Correcto! Geolocalización responde según el país o el continente desde donde se conecta el usuario. “Según el país” → geolocalización.'
+      }
+    ],
+    correcta: 3
+  },
+  {
+    id: 'c2p5',
+    caso: 'c2',
+    tema: 'Fundamentos y EC2',
+    sesion: 1,
+    concepto: 'Instancias reservadas',
+    texto: 'Las dos instancias del sitio de reservas corren 24/7, no pueden interrumpirse y no cambiarán de tipo en 3 años. ¿Qué opción de compra da el mayor ahorro?',
+    opciones: [
+      {
+        texto: 'On-Demand, para no comprometerse',
+        retro: 'No tiene compromiso, pero es la opción más cara por hora. Si sabes que la instancia correrá 3 años, comprometerte te ahorra mucho.'
+      },
+      {
+        texto: 'Instancias reservadas por 3 años',
+        retro: '¡Bien! Al reservar un tipo de instancia por 1 o 3 años ahorras hasta 72 %. “24/7, estable y por años” → instancias reservadas o Savings Plans.'
+      },
+      {
+        texto: 'Instancias Spot',
+        retro: 'Spot es lo más barato, pero puede interrumpirse con 2 minutos de aviso, y el sitio de reservas no puede caerse.'
+      },
+      {
+        texto: 'Dedicated Hosts',
+        retro: 'Un servidor físico exclusivo solo se justifica por licencias o reglas de cumplimiento; aquí nada lo pide y cuesta más.'
+      }
+    ],
+    correcta: 1
+  },
+
+  /* ------------------------------------------- c3 · Biomédica del Bajío */
+  {
+    id: 'c3p1',
+    caso: 'c3',
+    tema: 'Identidad y seguridad',
+    sesion: 2,
+    concepto: 'Amazon Macie',
+    texto: 'Biomédica quiere revisar sus 40 buckets para encontrar PDF con nombres, CURP o diagnósticos que hayan quedado fuera de lugar. ¿Qué servicio usa?',
+    opciones: [
+      {
+        texto: 'Amazon Macie',
+        retro: '¡Exacto! Macie revisa tus buckets de S3 y encuentra datos personales o sensibles, como nombres o números de tarjeta; incluso le puedes enseñar patrones propios, como la CURP. “Datos personales en S3” → Macie.'
+      },
+      {
+        texto: 'Amazon Inspector',
+        retro: 'Inspector busca vulnerabilidades de software en instancias y contenedores, no datos personales dentro de archivos.'
+      },
+      {
+        texto: 'AWS Config',
+        retro: 'Config revisa cómo están configurados tus recursos (por ejemplo, si un bucket es público), pero no lee el contenido de los archivos.'
+      },
+      {
+        texto: 'Amazon GuardDuty',
+        retro: 'GuardDuty detecta amenazas y actividad sospechosa en tu cuenta; no clasifica qué datos hay en cada archivo.'
+      }
+    ],
+    correcta: 0
+  },
+  {
+    id: 'c3p2',
+    caso: 'c3',
+    tema: 'Almacenamiento',
+    sesion: 4,
+    concepto: 'Cifrado con SSE-KMS',
+    texto: 'La auditoría pide cifrar los resultados con una llave que el laboratorio controle: decidir quién puede usarla, ver cada uso y poder desactivarla. ¿Qué configura en el bucket?',
+    opciones: [
+      {
+        texto: 'El cifrado por omisión, SSE-S3',
+        retro: 'Ya viene encendido y protege los datos, pero las llaves las administra S3: no decides quién las usa ni puedes desactivarlas. Para controlar la llave, KMS.'
+      },
+      {
+        texto: 'La llave guardada en AWS Secrets Manager',
+        retro: 'Secrets Manager guarda contraseñas y llaves de API, y las rota. Las llaves con las que S3 cifra tus objetos se crean y se controlan en KMS.'
+      },
+      {
+        texto: 'SSE-KMS con una llave de KMS del laboratorio',
+        retro: '¡Correcto! Con SSE-KMS y una llave propia en KMS decides quién la usa, cada uso queda en CloudTrail y puedes desactivarla. “Controlar las llaves de cifrado” → KMS.'
+      },
+      {
+        texto: 'Un certificado de AWS Certificate Manager',
+        retro: 'Los certificados de ACM cifran los datos en tránsito (HTTPS). La auditoría habla de los datos guardados, en reposo.'
+      }
+    ],
+    correcta: 2
+  },
+  {
+    id: 'c3p3',
+    caso: 'c3',
+    tema: 'Identidad y seguridad',
+    sesion: 2,
+    concepto: 'Amazon Inspector',
+    texto: 'Antes de la auditoría de diciembre, el laboratorio debe saber si sus 6 instancias EC2 tienen software con vulnerabilidades conocidas. ¿Qué servicio lo revisa?',
+    opciones: [
+      {
+        texto: 'Amazon GuardDuty',
+        retro: 'GuardDuty vigila la actividad de tu cuenta y de tu red para detectar amenazas en curso; no revisa qué software vulnerable tienes instalado.'
+      },
+      {
+        texto: 'Amazon Macie',
+        retro: 'Macie busca datos personales en buckets de S3, no vulnerabilidades en servidores.'
+      },
+      {
+        texto: 'Amazon Inspector',
+        retro: '¡Bien! Inspector revisa tus instancias EC2 y contenedores, y te dice qué software tiene vulnerabilidades conocidas y qué tan graves son. Truco: Inspector inspecciona servidores.'
+      },
+      {
+        texto: 'AWS Shield',
+        retro: 'Shield protege contra ataques DDoS; no revisa el software de tus instancias.'
+      }
+    ],
+    correcta: 2
+  },
+  {
+    id: 'c3p4',
+    caso: 'c3',
+    tema: 'Redes',
+    sesion: 3,
+    concepto: 'Interface endpoint (PrivateLink)',
+    texto: 'Los servidores que generan los PDF están en una subred privada sin salida a internet y deben leer una contraseña de Secrets Manager. ¿Qué agregan para que el tráfico no salga de la red de AWS?',
+    opciones: [
+      {
+        texto: 'Un interface endpoint (PrivateLink) para Secrets Manager',
+        retro: '¡Exacto! Un interface endpoint pone dentro de tu VPC una entrada privada a un servicio de AWS. Sirve para casi todos los servicios, como Secrets Manager o KMS.'
+      },
+      {
+        texto: 'Un gateway endpoint para Secrets Manager',
+        retro: 'Los gateway endpoints solo existen para S3 y DynamoDB. Para los demás servicios se usa un interface endpoint.'
+      },
+      {
+        texto: 'Un NAT Gateway en la subred privada',
+        retro: 'Un NAT daría salida a internet, que es justo lo que se quiere evitar. Además, el NAT Gateway debe vivir en una subred pública.'
+      },
+      {
+        texto: 'Un Internet Gateway y una IP pública por servidor',
+        retro: 'Así los servidores de resultados quedarían expuestos a internet. Un endpoint resuelve el acceso sin abrir nada.'
+      }
+    ],
+    correcta: 0
+  },
+  {
+    id: 'c3p5',
+    caso: 'c3',
+    tema: 'Almacenamiento',
+    sesion: 4,
+    concepto: 'S3 Intelligent-Tiering',
+    texto: 'Para los 30 TB de imágenes de microscopía, cuyo uso cambia con cada estudio, el laboratorio quiere pagar lo menos posible sin crear reglas ni vigilar nada. ¿Qué le conviene?',
+    opciones: [
+      {
+        texto: 'Guardarlas en S3 Standard-IA',
+        retro: 'Es barata para lo que se lee poco, pero cobra cada lectura: con las imágenes que se consultan a diario saldría cara. Aquí no sabes cuáles se van a leer.'
+      },
+      {
+        texto: 'Una regla de ciclo de vida a Glacier Flexible a los 90 días',
+        retro: 'El ciclo de vida mueve objetos por su edad, pero aquí la edad no dice si se van a usar: una imagen vieja podría necesitarse mañana y tardaría de minutos a horas en volver.'
+      },
+      {
+        texto: 'Guardarlas en S3 Standard',
+        retro: 'Funciona, pero pagas precio de acceso frecuente incluso por las imágenes que nadie abre.'
+      },
+      {
+        texto: 'Guardarlas en S3 Intelligent-Tiering',
+        retro: '¡Correcto! Intelligent-Tiering mueve cada objeto, solo, entre niveles según su uso, sin cobrarte las lecturas. “No se sabe qué tan seguido se usarán” → Intelligent-Tiering.'
+      }
+    ],
+    correcta: 3
+  },
+
+  /* ------------------------------------ c4 · Instituto de Ciencias del Clima */
+  {
+    id: 'c4p1',
+    caso: 'c4',
+    tema: 'Fundamentos y EC2',
+    sesion: 1,
+    concepto: 'Familia optimizada para cómputo',
+    texto: 'El modelo de pronóstico usa mucho procesador y poca memoria. ¿Qué familia de instancias le conviene al clúster?',
+    opciones: [
+      {
+        texto: 'Optimizada para memoria (familia r)',
+        retro: 'La familia r da mucha RAM por cada vCPU, ideal para bases de datos en memoria. Aquí sobra memoria y falta procesador.'
+      },
+      {
+        texto: 'Optimizada para cómputo (familia c)',
+        retro: '¡Bien! La familia c da mucho procesador por cada GiB de memoria: simulaciones, cálculos científicos y videojuegos. “Mucho procesador” → optimizada para cómputo.'
+      },
+      {
+        texto: 'Cómputo acelerado con GPU (familia g o p)',
+        retro: 'Las GPU son para inteligencia artificial y gráficos. El caso habla de procesador (CPU), no de GPU, y las GPU cuestan mucho más.'
+      },
+      {
+        texto: 'Propósito general ampliable (familia t)',
+        retro: 'Las t acumulan créditos de CPU para picos cortos; un clúster que trabaja al máximo 24/7 se los acabaría enseguida.'
+      }
+    ],
+    correcta: 1
+  },
+  {
+    id: 'c4p2',
+    caso: 'c4',
+    tema: 'Almacenamiento',
+    sesion: 4,
+    concepto: 'Amazon FSx for Lustre',
+    texto: 'Los 200 nodos deben leer al mismo tiempo, a altísima velocidad, las imágenes satelitales que están en S3. ¿Qué almacenamiento ponen en medio?',
+    opciones: [
+      {
+        texto: 'Amazon FSx for Lustre, enlazado al bucket de S3',
+        retro: '¡Correcto! FSx for Lustre es el sistema de archivos de alto rendimiento para cómputo científico (HPC): cientos de servidores leen a la vez a gran velocidad, y se conecta directo con S3.'
+      },
+      {
+        texto: 'Amazon FSx for Windows File Server',
+        retro: 'Es la carpeta compartida para equipos Windows, como la de una oficina. No está pensada para cientos de nodos de cómputo científico.'
+      },
+      {
+        texto: 'Un volumen EBS por nodo, con una copia de los datos',
+        retro: 'Cada volumen sería de un solo nodo y habría que copiar los datos 200 veces. Lo que hace falta es un sistema compartido.'
+      },
+      {
+        texto: 'La clase S3 Glacier Flexible Retrieval',
+        retro: 'Es una clase de archivo: recuperar los datos tarda de minutos a horas. Lo contrario de “altísima velocidad”.'
+      }
+    ],
+    correcta: 0
+  },
+  {
+    id: 'c4p3',
+    caso: 'c4',
+    tema: 'Fundamentos y EC2',
+    sesion: 1,
+    concepto: 'Compute Savings Plans',
+    texto: 'El clúster correrá 24/7 los próximos 3 años, pero el instituto cambiará varias veces de tipo de instancia y quizá de región. ¿Qué opción da un buen descuento sin amarrarlo?',
+    opciones: [
+      {
+        texto: 'Instancias reservadas de un tipo fijo',
+        retro: 'Ahorran mucho, pero quedan atadas al tipo de instancia que reservaste. Si el instituto cambia de tipo o de región, el descuento ya no le sirve igual.'
+      },
+      {
+        texto: 'Instancias Spot',
+        retro: 'Spot es lo más barato, pero puede interrumpirse, y el pronóstico corre 24/7 y no puede detenerse.'
+      },
+      {
+        texto: 'On-Demand',
+        retro: 'Es flexible, pero no tiene ningún descuento: para un uso constante de 3 años pagarías de más.'
+      },
+      {
+        texto: 'Un Compute Savings Plan por 3 años',
+        retro: '¡Exacto! Con un Savings Plan te comprometes a gastar cierto monto por hora, y el descuento se aplica aunque cambies de tipo de instancia o de región. Compromiso con flexibilidad → Savings Plans.'
+      }
+    ],
+    correcta: 3
+  },
+  {
+    id: 'c4p4',
+    caso: 'c4',
+    tema: 'Redes',
+    sesion: 3,
+    concepto: 'Transit Gateway',
+    texto: 'Las 12 VPC del instituto y la red del campus deben poder hablar entre sí. Con VPC Peering harían falta 66 conexiones solo entre las VPC. ¿Qué lo simplifica?',
+    opciones: [
+      {
+        texto: 'Hacer las 66 conexiones de VPC Peering',
+        retro: 'Funciona entre VPC, pero es inmanejable y el peering no es transitivo: el campus no podría pasar por una VPC para llegar a otra. Para muchas redes hay un punto central.'
+      },
+      {
+        texto: 'Un Internet Gateway en cada VPC',
+        retro: 'El tráfico entre proyectos viajaría por internet y seguiría sin haber un punto central. El Internet Gateway es para salir a internet.'
+      },
+      {
+        texto: 'AWS Transit Gateway como punto central',
+        retro: '¡Bien! Transit Gateway es un centro de conexiones: cada VPC y la VPN del campus se conectan una sola vez a él, y desde ahí todas se alcanzan. “Muchas VPC” → Transit Gateway.'
+      },
+      {
+        texto: 'AWS Direct Connect hacia cada VPC',
+        retro: 'Direct Connect es una línea física entre un centro de datos y AWS; no sirve para unir VPC entre sí.'
+      }
+    ],
+    correcta: 2
+  },
+  {
+    id: 'c4p5',
+    caso: 'c4',
+    tema: 'Redes',
+    sesion: 3,
+    concepto: 'Direcciones reservadas en una subred',
+    texto: 'Para el clúster nuevo de 60 nodos, con una IP por nodo, el instituto creó la subred 10.8.4.0/26. ¿Le alcanza?',
+    opciones: [
+      {
+        texto: 'Sí: una /26 tiene 64 direcciones y sobran 4',
+        retro: 'Se te olvidó que AWS se queda con 5 direcciones de cada subred. De 64 quedan 59.'
+      },
+      {
+        texto: 'No: de sus 64 direcciones, AWS reserva 5 y quedan 59',
+        retro: '¡Correcto! En cada subred AWS reserva 5 direcciones (la de red, la del router, la del DNS, una para el futuro y la última). Para 60 nodos necesitan una /25: 128 − 5 = 123.'
+      },
+      {
+        texto: 'Sí, de sobra: una /26 tiene 256 direcciones',
+        retro: '256 son las de una /24. Recuerda: mientras más grande el número después de la diagonal, más chica la red; una /26 tiene 64.'
+      },
+      {
+        texto: 'No: AWS no permite subredes más chicas que /24',
+        retro: 'AWS permite subredes desde /16 hasta /28. El problema es otro: las 5 direcciones que AWS reserva en cada subred.'
+      }
+    ],
+    correcta: 1
+  },
+
+  /* ------------------------------------------------------- c5 · Tandapp */
+  {
+    id: 'c5p1',
+    caso: 'c5',
+    tema: 'Identidad y seguridad',
+    sesion: 2,
+    concepto: 'SCP en AWS Organizations',
+    texto: 'Tandapp quiere que nadie, ni siquiera el administrador de cada una de sus 4 cuentas miembro, pueda apagar CloudTrail ni borrar sus registros. ¿Qué usa?',
+    opciones: [
+      {
+        texto: 'Una política de IAM con Deny pegada a cada usuario',
+        retro: 'Ayuda, pero un administrador podría quitársela, y no aplica al usuario raíz de cada cuenta. Para un techo que nadie dentro de la cuenta pueda brincarse está la SCP.'
+      },
+      {
+        texto: 'Una regla de AWS Config que revise si CloudTrail está encendido',
+        retro: 'Config te avisaría después de que alguien lo apague, pero no lo impide. El caso pide que nadie pueda hacerlo.'
+      },
+      {
+        texto: 'IAM Identity Center, con un solo inicio de sesión para todos',
+        retro: 'Identity Center da un solo inicio de sesión para varias cuentas; no pone límites a lo que hacen los administradores.'
+      },
+      {
+        texto: 'Una SCP con Deny para esas acciones, aplicada a las 4 cuentas',
+        retro: '¡Exacto! Una SCP pone el techo de lo que se puede hacer en las cuentas miembro de la organización, incluidos su administrador y su usuario raíz. Y una denegación explícita siempre gana.'
+      }
+    ],
+    correcta: 3
+  },
+  {
+    id: 'c5p2',
+    caso: 'c5',
+    tema: 'Identidad y seguridad',
+    sesion: 2,
+    concepto: 'AWS Certificate Manager',
+    texto: 'La API api.tandapp.mx necesita HTTPS con un certificado TLS gratuito que se renueve solo. ¿Qué servicio lo da?',
+    opciones: [
+      {
+        texto: 'AWS Certificate Manager (ACM)',
+        retro: '¡Correcto! ACM emite certificados SSL/TLS públicos sin costo para usarlos con servicios de AWS, y los renueva solo. “Certificado” o “HTTPS” → ACM.'
+      },
+      {
+        texto: 'AWS Key Management Service (KMS)',
+        retro: 'KMS crea y guarda las llaves con que se cifran tus datos guardados; no emite certificados para HTTPS.'
+      },
+      {
+        texto: 'AWS Secrets Manager',
+        retro: 'Secrets Manager guarda y rota contraseñas y llaves de API; los certificados para HTTPS los da ACM.'
+      },
+      {
+        texto: 'AWS Shield Advanced',
+        retro: 'Shield protege contra DDoS, pero no da certificados. HTTPS cifra el tráfico; Shield lo defiende de ataques de volumen.'
+      }
+    ],
+    correcta: 0
+  },
+  {
+    id: 'c5p3',
+    caso: 'c5',
+    tema: 'Redes',
+    sesion: 3,
+    concepto: 'Global Accelerator',
+    texto: 'Los 3 bancos aliados solo aceptan conexiones hacia IP fijas, y la API de Tandapp corre en dos regiones. ¿Qué servicio le da un par de IP fijas frente a ambas regiones?',
+    opciones: [
+      {
+        texto: 'Amazon CloudFront',
+        retro: 'CloudFront es una red de entrega de contenido: acerca y guarda en caché fotos, videos y páginas. Para poner un par de IP fijas frente a una aplicación que corre en varias regiones, el servicio pensado es otro.'
+      },
+      {
+        texto: 'Route 53 con enrutamiento por latencia',
+        retro: 'Route 53 responde con la dirección del destino más rápido, pero esas direcciones pueden cambiar. Los bancos quieren IP que nunca cambien.'
+      },
+      {
+        texto: 'AWS Global Accelerator',
+        retro: '¡Bien! Global Accelerator te da dos IP fijas que reciben el tráfico en el borde y lo llevan por la red privada de AWS a la región que esté sana. “IP fijas” + “global” → Global Accelerator.'
+      },
+      {
+        texto: 'Un Internet Gateway con IP fija en cada región',
+        retro: 'El Internet Gateway es la puerta de la VPC a internet y no tiene una IP propia que registrar. Además, no reparte tráfico entre regiones.'
+      }
+    ],
+    correcta: 2
+  },
+  {
+    id: 'c5p4',
+    caso: 'c5',
+    tema: 'Fundamentos y EC2',
+    sesion: 1,
+    concepto: 'Servicios disponibles por región',
+    texto: 'El equipo quiere probar, con datos ficticios, un servicio nuevo de AWS que todavía no existe en mx-central-1. ¿Qué hace?',
+    opciones: [
+      {
+        texto: 'Pide que lo activen en otra zona de disponibilidad de mx-central-1',
+        retro: 'Las zonas de una región ofrecen los mismos servicios: si el servicio no ha llegado a la región, no está en ninguna de sus zonas.'
+      },
+      {
+        texto: 'Hace la prueba en una región donde sí exista, como us-east-1',
+        retro: '¡Correcto! No todos los servicios existen en todas las regiones; los nuevos suelen llegar primero a unas cuantas. Como son datos ficticios, ninguna ley lo obliga a quedarse en México.'
+      },
+      {
+        texto: 'Lo usa desde la ubicación de borde de la Ciudad de México',
+        retro: 'Las ubicaciones de borde sirven a CloudFront y Route 53; no ofrecen los servicios que viven en una región.'
+      },
+      {
+        texto: 'Nada: cada cuenta de AWS solo puede usar una región',
+        retro: 'Una cuenta puede usar todas sus regiones habilitadas, y tú eliges dónde crear cada recurso.'
+      }
+    ],
+    correcta: 1
+  },
+  {
+    id: 'c5p5',
+    caso: 'c5',
+    tema: 'Fundamentos y EC2',
+    sesion: 1,
+    concepto: 'Instancias ampliables (burstable)',
+    texto: 'El panel interno casi no usa procesador, salvo 10 minutos a las 9:00 cuando entran las 8 personas. ¿Qué familia de instancia es la más barata que cumple?',
+    opciones: [
+      {
+        texto: 'Optimizada para cómputo (familia c)',
+        retro: 'Tendrías procesador de sobra las 24 horas para usarlo 10 minutos al día: pagarías por una potencia que casi nunca usas.'
+      },
+      {
+        texto: 'Optimizada para memoria (familia r)',
+        retro: 'El panel no pide mucha RAM; la familia r cuesta más por algo que no necesitas.'
+      },
+      {
+        texto: 'De propósito general ampliable (familia t)',
+        retro: '¡Exacto! Las t son ampliables (burstable): acumulan créditos de CPU mientras están tranquilas y los gastan en el pico de las 9:00. Perfectas para poco uso con picos cortos.'
+      },
+      {
+        texto: 'Cómputo acelerado con GPU (familia g)',
+        retro: 'Las GPU son para inteligencia artificial y gráficos; un panel interno no las necesita y son de las más caras.'
+      }
+    ],
+    correcta: 2
+  }
+];
+
+/** Lo que sí puede ver el alumno: casos y preguntas sin la correcta ni la retroalimentación. */
+export function publica() {
+  return bancoPublico(CASO, CASOS, PREGUNTAS);
+}
+
+/** Califica `{ c1p1: 2, c1p2: 0, … }`. Lo que no sea un índice válido cuenta como error. */
+export function calificar(respuestas) {
+  return calificarBanco(PREGUNTAS, respuestas);
+}

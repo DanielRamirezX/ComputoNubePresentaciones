@@ -215,3 +215,47 @@ body.proyectar {
   /* En un teléfono no cabe en una línea; ahí sí conviene que se parta. */
   .proyeccion__url { white-space: normal; overflow-wrap: anywhere; }
 }
+
+/* ============================== sección «Evaluación» ====================
+   Otro tono a propósito: azul marino con naranja, para que en el índice se
+   distinga de las clases y de los recursos. Es la sección de los simulacros y
+   del examen. */
+
+.bloque--evaluacion {
+  margin: 40px 6px 0 0;
+  padding: 6px 20px 26px;
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(255, 153, 0, .18), transparent 42%),
+    #16202c;
+  box-shadow: 6px 6px 0 #ff9900;
+  color: #f2f3f3;
+}
+
+.bloque--evaluacion .seccion { margin-top: 22px; color: #fff; }
+.bloque--evaluacion .seccion::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: #ff9900;
+}
+.bloque--evaluacion .seccion::after { background: #ff9900; }
+
+.bloque--evaluacion .tarjeta {
+  border-color: #0b1119;
+  background: #232f3e;
+  box-shadow: 4px 4px 0 #0b1119;
+  color: #f2f3f3;
+}
+.bloque--evaluacion .tarjeta p { color: #c6ccd4; }
+.bloque--evaluacion a.tarjeta:hover,
+.bloque--evaluacion a.tarjeta:focus-visible { box-shadow: 6px 6px 0 #ff9900; border-color: #ff9900; }
+.bloque--evaluacion .tarjeta__etiqueta { border-color: #ff9900; background: #ff9900; color: #16191f; }
+.bloque--evaluacion .tarjeta__abrir { color: #ffb84d; }
+.bloque--evaluacion .tarjeta--error { background: #1b2531; border-color: #5f6b7a; }
+
+@media (max-width: 720px) {
+  .bloque--evaluacion { padding-left: 14px; padding-right: 14px; }
+}

@@ -3,6 +3,14 @@ const $ = (id) => document.getElementById(id);
 const escapar = (t) =>
   String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+const slug = (t) =>
+  String(t)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
 function tarjeta(m) {
   const etiqueta = m.etiqueta ? `<span class="tarjeta__etiqueta">${escapar(m.etiqueta)}</span>` : '';
   const cuerpo = `
@@ -49,11 +57,15 @@ async function cargar() {
       if (!secciones.has(nombre)) secciones.set(nombre, []);
       secciones.get(nombre).push(m);
     }
+    // Cada sección lleva su nombre como clase (bloque--evaluacion…): así una
+    // sección puede tener su propio tono sin tocar las demás.
     $('rejilla').innerHTML = [...secciones]
       .filter(([, modulos]) => modulos.length)
       .map(([nombre, modulos]) => `
-        ${nombre ? `<h2 class="seccion">${escapar(nombre)}</h2>` : ''}
-        <div class="rejilla">${modulos.map(tarjeta).join('')}</div>`)
+        <section class="bloque${nombre ? ` bloque--${escapar(slug(nombre))}` : ''}">
+          ${nombre ? `<h2 class="seccion">${escapar(nombre)}</h2>` : ''}
+          <div class="rejilla">${modulos.map(tarjeta).join('')}</div>
+        </section>`)
       .join('');
     // El mismo texto no puede ser cierto en los dos lados: local, este servidor
     // es la laptop del docente; desplegado, es un servidor rentado. Decirlo bien
