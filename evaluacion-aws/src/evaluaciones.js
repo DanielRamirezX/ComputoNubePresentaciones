@@ -20,7 +20,10 @@ export const EVALUACIONES = [
     // La calificación combinada: 60 % la teórica y 40 % la práctica.
     pesos: { teoria: 60, practica: 40 },
     retro: 'completa',
-    autorrevision: true
+    autorrevision: true,
+    // Quien ya entregó puede repetir cada parte para practicar. Solo cuenta la
+    // primera entrega: los intentos se califican y no se guardan.
+    reintentos: true
   },
   {
     id: 'simulacro-2',
@@ -32,7 +35,8 @@ export const EVALUACIONES = [
     lab: 'simulacro-2',
     pesos: { teoria: 60, practica: 40 },
     retro: 'completa',
-    autorrevision: true
+    autorrevision: true,
+    reintentos: true
   },
   {
     id: 'bimestral',
@@ -44,7 +48,8 @@ export const EVALUACIONES = [
     lab: 'bimestral',
     pesos: { practica: 100 },
     retro: 'calificacion',
-    autorrevision: false
+    autorrevision: false,
+    reintentos: false
   }
 ];
 

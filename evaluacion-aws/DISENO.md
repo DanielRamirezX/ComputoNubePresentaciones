@@ -184,6 +184,14 @@ Alumno:
 - `POST api/practica/revisar` → la rúbrica a medio camino, solo si el docente
   permite autorrevisión (simulacros sí, bimestral no por omisión).
 - `POST api/practica/entregar` `{ alumno, evaluacion, estado }`.
+- Intentos de práctica (solo si la evaluación tiene `reintentos`, es decir,
+  los simulacros, y el alumno ya entregó esa parte; abierta o cerrada):
+  `POST api/teoria/intento` da las preguntas, `POST api/teoria/intento/calificar`
+  `{ respuestas }`, `POST api/practica/intento` da la identidad del laboratorio
+  y `POST api/practica/intento/calificar` `{ estado }` (sirve también para
+  «Revisar mi avance»). Califican con la retroalimentación vigente y **no
+  guardan nada**: la entrega que cuenta es la primera. El avance del intento
+  vive solo en el `localStorage` del alumno.
 
 Docente (cabecera `x-clave-docente`, misma `CLAVE_DOCENTE` que los demás
 paneles): entrar, resumen por evaluación y grupo, abrir y cerrar cada parte,

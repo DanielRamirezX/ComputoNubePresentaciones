@@ -315,7 +315,7 @@ async function pintar() {
   document.body.classList.remove('modo-lab');
   window.scrollTo(0, 0);
 
-  const [primera = '', segunda = ''] = ruta();
+  const [primera = '', segunda = '', tercera = ''] = ruta();
   if (!perfil || primera === 'registro') return vistaRegistro();
 
   if (!servidor) {
@@ -332,6 +332,7 @@ async function pintar() {
   const ev = primera ? evDe(primera) : null;
   if (primera && !ev) return ir('');
   if (!ev) return vistaInicio();
+  if (tercera === 'intento') return puedeRepetir(ev, segunda) ? vistaIntento(ev, segunda) : ir(ev.id);
   if (segunda === 'teoria' && ev.partes.teoria) return vistaTeoria(ev);
   if (segunda === 'practica' && ev.partes.practica) return vistaPractica(ev);
   if (segunda === 'resultado') return vistaResultado(ev);
@@ -529,7 +530,10 @@ function vistaEvaluacion(ev) {
       .map((n) => {
         const p = estadoParte(ev, n);
         let accion = '';
-        if (p.entrega) accion = `<a class="boton" href="#/${ev.id}/resultado">Ver mi resultado ${icono('i-flecha')}</a>`;
+        if (p.entrega) {
+          accion = `<a class="boton" href="#/${ev.id}/resultado">Ver mi resultado ${icono('i-flecha')}</a>`;
+          if (puedeRepetir(ev, n)) accion += `<a class="boton boton--sutil" href="#/${ev.id}/${n}/intento">${hayIntento(ev.id, n) ? 'Continuar mi intento' : 'Intentar de nuevo'}</a>`;
+        }
         else if (p.estado === 'abierta') {
           accion = `<a class="boton boton--primario" href="#/${ev.id}/${n}">${p.empezada ? 'Continuar' : 'Empezar'} la ${NOMBRE_PARTE[n].toLowerCase()} ${icono('i-flecha')}</a>`;
         }
@@ -567,7 +571,13 @@ function vistaEvaluacion(ev) {
       <h1>${escapar(ev.titulo)}</h1>
       <p class="evaluacion__resumen">${escapar(ev.resumen)}</p>
       <div id="partes">${pintarPartes()}</div>
-      ${ev.partes.teoria || ev.partes.practica ? '<p class="sutil">Cada parte se entrega <strong>una sola vez</strong>. Si algo sale mal, avísale a tu docente.</p>' : ''}
+      ${
+        ev.reintentos
+          ? '<p class="sutil">Cada parte se entrega <strong>una sola vez</strong> y esa entrega es tu calificación. Después puedes repetirla las veces que quieras para practicar: los intentos no la cambian.</p>'
+          : ev.partes.teoria || ev.partes.practica
+            ? '<p class="sutil">Cada parte se entrega <strong>una sola vez</strong>. Si algo sale mal, avísale a tu docente.</p>'
+            : ''
+      }
     </main>`;
 
   let antes = JSON.stringify(ev);
@@ -719,11 +729,21 @@ async function arrancarTeoria(ev) {
   teoriaAbierta(ev, datos);
 }
 
-function teoriaAbierta(ev, datos) {
-  const { casos, preguntas, minutos, inicio } = datos;
-  const clave = claveTeoria(ev.id);
+/**
+ * La teórica en marcha. Con `intento`, es un intento de práctica después de
+ * entregar: se guarda solo en este equipo, con su propio reloj y otro orden de
+ * opciones, y al terminar se califica sin cambiar la entrega.
+ */
+function teoriaAbierta(ev, datos, { intento = false } = {}) {
+  const { casos, preguntas, minutos } = datos;
+  const clave = intento ? claveIntento(ev.id, 'teoria') : claveTeoria(ev.id);
   const estado = leer(clave, null) ?? { respuestas: {}, caso: 0, fase: 'casos' };
   if (estado.fase === 'inicio') estado.fase = 'casos';
+  if (intento) {
+    estado.inicio ??= new Date(ahora()).toISOString();
+    estado.semilla ??= nuevoId();
+  }
+  const inicio = intento ? estado.inicio : datos.inicio;
   // Si cambió el banco, se descartan respuestas que ya no existen.
   const ids = new Set(preguntas.map((q) => q.id));
   for (const id of Object.keys(estado.respuestas)) if (!ids.has(id)) delete estado.respuestas[id];
@@ -731,16 +751,20 @@ function teoriaAbierta(ev, datos) {
 
   const numero = new Map(preguntas.map((q, i) => [q.id, i + 1]));
   const delCaso = (c) => preguntas.filter((q) => q.caso === c.id);
-  const ordenes = Object.fromEntries(preguntas.map((q) => [q.id, barajar(q.opciones.length, `${perfil.id}:${q.id}`)]));
+  const ordenes = Object.fromEntries(preguntas.map((q) => [q.id, barajar(q.opciones.length, `${perfil.id}:${q.id}${intento ? `:${estado.semilla}` : ''}`)]));
   const contestada = (q) => Number.isInteger(estado.respuestas[q.id]);
   const contestadas = () => preguntas.filter(contestada).length;
   const recordar = () => guardar(clave, estado);
   let cerradaAviso = false;
 
-  const titulo = `${ev.titulo} · Parte teórica`;
+  const titulo = `${ev.titulo} · Parte teórica${intento ? ' · intento de práctica' : ''}`;
   const cabeza = () => `
     ${barra({ volver: { ruta: ev.id, texto: ev.titulo }, titulo, detalle: '<span class="reloj" id="reloj"></span>' })}
-    <div class="aviso-cierre" id="aviso-cierre" ${cerradaAviso ? '' : 'hidden'} role="alert">${icono('i-alerta')} Tu docente cerró la parte teórica. Si no alcanzaste a entregar, avísale.</div>`;
+    ${
+      intento
+        ? `<div class="aviso-intento">${icono('i-libro')}<span><strong>Intento de práctica:</strong> tu calificación es la de tu primera entrega y no cambia.</span></div>`
+        : `<div class="aviso-cierre" id="aviso-cierre" ${cerradaAviso ? '' : 'hidden'} role="alert">${icono('i-alerta')} Tu docente cerró la parte teórica. Si no alcanzaste a entregar, avísale.</div>`
+    }`;
 
   function mapa() {
     return `<div class="mapa" aria-label="Mapa de preguntas: ${contestadas()} de ${preguntas.length} contestadas">
@@ -916,7 +940,7 @@ function teoriaAbierta(ev, datos) {
             .join('')}
           <div class="acciones">
             <button class="boton" type="button" id="btn-volver">Seguir contestando</button>
-            <button class="boton boton--primario" type="button" id="btn-entregar">Entregar la parte teórica</button>
+            <button class="boton boton--primario" type="button" id="btn-entregar">${intento ? 'Calificar mi intento' : 'Entregar la parte teórica'}</button>
           </div>
           <p class="error" id="error-entrega" role="alert"></p>
         </div>
@@ -946,18 +970,33 @@ function teoriaAbierta(ev, datos) {
 
   async function entregar() {
     const faltan = preguntas.length - contestadas();
-    const si = await confirmar({
-      titulo: '¿Entregar la parte teórica?',
-      texto: `<p>${faltan ? `<strong>Te faltan ${faltan} pregunta${faltan === 1 ? '' : 's'}</strong> (cuentan como error). ` : 'Contestaste todo. '}Después de entregar ya no podrás cambiar ninguna respuesta.</p>`,
-      si: 'Sí, entregar',
-      no: 'Seguir revisando'
-    });
+    const falta = faltan ? `<strong>Te faltan ${faltan} pregunta${faltan === 1 ? '' : 's'}</strong> (cuentan como error). ` : 'Contestaste todo. ';
+    const si = await confirmar(
+      intento
+        ? {
+            titulo: '¿Calificar tu intento?',
+            texto: `<p>${falta}Vas a ver cómo te fue en este intento. Tu calificación oficial no cambia.</p>`,
+            si: 'Sí, calificar',
+            no: 'Seguir revisando'
+          }
+        : {
+            titulo: '¿Entregar la parte teórica?',
+            texto: `<p>${falta}Después de entregar ya no podrás cambiar ninguna respuesta.</p>`,
+            si: 'Sí, entregar',
+            no: 'Seguir revisando'
+          }
+    );
     if (!si) return;
     const boton = document.getElementById('btn-entregar');
     const error = document.getElementById('error-entrega');
     boton.disabled = true;
     error.textContent = '';
     try {
+      if (intento) {
+        const r = await api('api/teoria/intento/calificar', { alumno: perfil, evaluacion: ev.id, respuestas: estado.respuestas });
+        guardar(clave, null);
+        return vistaResultadoIntento(ev, 'teoria', r.resultado);
+      }
       const r = await api('api/teoria/entregar', { alumno: perfil, evaluacion: ev.id, respuestas: estado.respuestas });
       terminar(r);
     } catch (e) {
@@ -975,7 +1014,8 @@ function teoriaAbierta(ev, datos) {
     ir(`${ev.id}/resultado`);
   }
 
-  alLatido = (s) => {
+  // En un intento ya hay entrega y no importa si la parte se cierra: nada que vigilar.
+  if (!intento) alLatido = (s) => {
     const p = s.evaluaciones.find((x) => x.id === ev.id)?.partes.teoria;
     if (!p) return;
     if (p.entrega) return pintar(); // entregó desde otro equipo
@@ -1091,17 +1131,22 @@ const ordenDato = (k) => {
   return i === -1 ? 99 : i;
 };
 
-function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
+/**
+ * El laboratorio en marcha. Con `intento`, es un intento de práctica después de
+ * entregar: la cuenta vive solo en este equipo (el servidor no guarda copias),
+ * tiene su propio reloj y al terminar se califica sin cambiar la entrega.
+ */
+function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { intento = false } = {}) {
   const identidad = datosServidor.identidad ?? { nombre: perfil.nombre, matricula: perfil.matricula };
   const datos = datosAlumno(identidad);
-  const clave = claveLab(ev.id);
+  const clave = intento ? claveIntento(ev.id, 'practica') : claveLab(ev.id);
   let autorrevision = datosServidor.autorrevision;
 
   // ¿Con qué cuenta se arranca? La más avanzada entre la de este equipo y la
   // copia del servidor (cuenta por número de cambios, no por reloj: los relojes
   // de dos equipos no coinciden). Sin ninguna, la cuenta inicial del laboratorio.
   const enEquipo = leer(clave, null);
-  const enServidor = datosServidor.copia;
+  const enServidor = intento ? null : datosServidor.copia;
   let cuenta;
   let rev;
   if (enEquipo?.estado && (!enServidor || (enEquipo.rev ?? 0) >= (enServidor.rev ?? 0))) {
@@ -1114,7 +1159,9 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
     cuenta = LAB.estadoInicial(datos);
     rev = 0;
   }
-  guardar(clave, { estado: cuenta, rev, hora: new Date().toISOString() });
+  const inicio = intento ? enEquipo?.inicio ?? new Date(ahora()).toISOString() : datosServidor.inicio;
+  const enEsteEquipo = () => ({ estado: cuenta, rev, hora: new Date().toISOString(), ...(intento ? { inicio } : {}) });
+  guardar(clave, enEsteEquipo());
 
   const tareas = LAB.tareas(datos);
   // Las tareas bono son opcionales: no cuentan en los 100 puntos.
@@ -1131,16 +1178,20 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
     <div class="lab ${plegado ? 'lab--plegado' : ''}" id="lab">
       <header class="lab__barra">
         <a class="lab__salir" href="#/${ev.id}" title="Tu avance queda guardado">${icono('i-flecha', 'icono icono--atras')}<span>Salir</span></a>
-        <div class="lab__titulo"><span>${escapar(tituloParte(ev, 'practica'))}</span><strong>${escapar(LAB.titulo)}</strong></div>
+        <div class="lab__titulo"><span>${escapar(tituloParte(ev, 'practica'))}${intento ? ' · intento de práctica' : ''}</span><strong>${escapar(LAB.titulo)}</strong></div>
         <span class="lab__guardado" id="guardado" aria-live="polite"></span>
         <span class="reloj reloj--oscuro" id="reloj"></span>
         <div class="lab__acciones">
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-panel" aria-controls="panel" aria-expanded="${!plegado}">${icono('i-panel')}<span>${plegado ? 'Mostrar' : 'Ocultar'} instrucciones</span></button>
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-revisar" ${autorrevision ? '' : 'hidden'}>${icono('i-lupa')}<span>Revisar mi avance</span></button>
-          <button class="boton boton--primario boton--chico" type="button" id="btn-entregar">Entregar laboratorio</button>
+          <button class="boton boton--primario boton--chico" type="button" id="btn-entregar">${intento ? 'Calificar mi intento' : 'Entregar laboratorio'}</button>
         </div>
       </header>
-      <div class="aviso-cierre" id="aviso-cierre" hidden role="alert">${icono('i-alerta')} Tu docente cerró la parte práctica. Tu avance quedó guardado; si no alcanzaste a entregar, avísale.</div>
+      ${
+        intento
+          ? `<div class="aviso-intento">${icono('i-libro')}<span><strong>Intento de práctica:</strong> tu calificación es la de tu primera entrega y no cambia. Esta cuenta se guarda solo en este equipo.</span></div>`
+          : `<div class="aviso-cierre" id="aviso-cierre" hidden role="alert">${icono('i-alerta')} Tu docente cerró la parte práctica. Tu avance quedó guardado; si no alcanzaste a entregar, avísale.</div>`
+      }
       ${movil ? `<div class="aviso-movil" id="aviso-movil">${icono('i-alerta')}<span>Se recomienda una computadora para el laboratorio. Puedes seguir aquí: las instrucciones están debajo de la consola.</span><button class="boton boton--chico" type="button" id="btn-aviso-movil">Entendido</button></div>` : ''}
       <div class="lab__cuerpo">
         <div class="lab__consola" id="consola" role="region" aria-label="Consola de AWS simulada"></div>
@@ -1269,9 +1320,11 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
   };
 
   function guardarEnEquipo() {
-    if (!guardar(clave, { estado: cuenta, rev, hora: new Date().toISOString() })) {
+    if (!guardar(clave, enEsteEquipo())) {
       textoGuardado('No pude guardar en este equipo', 'lab__guardado--mal');
+      return false;
     }
+    return true;
   }
 
   const cuerpoCopia = () => ({ alumno: perfil, evaluacion: ev.id, estado: cuenta, rev });
@@ -1301,6 +1354,10 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
   function alCambiar(estado) {
     cuenta = estado;
     rev += 1;
+    if (intento) {
+      if (guardarEnEquipo()) textoGuardado('Guardado en este equipo', 'lab__guardado--bien');
+      return;
+    }
     pendiente = true;
     guardarEnEquipo();
     textoGuardado('Guardando…');
@@ -1357,9 +1414,9 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
     document.body.classList.remove('modo-lab');
   });
 
-  reloj($('reloj'), datosServidor.inicio, LAB.minutos || 60, (t) => aviso(t, 'reloj'));
+  reloj($('reloj'), inicio, LAB.minutos || 60, (t) => aviso(t, 'reloj'));
   textoGuardado(enServidor && rev === (enServidor.rev ?? 0) ? 'Guardado' : '');
-  if (rev > (enServidor?.rev ?? -1)) {
+  if (!intento && rev > (enServidor?.rev ?? -1)) {
     pendiente = true;
     enviarCopia();
   }
@@ -1390,9 +1447,9 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
     const boton = $('btn-revisar');
     boton.disabled = true;
     try {
-      const r = await api('api/practica/revisar', cuerpoCopia());
+      const r = await api(intento ? 'api/practica/intento/calificar' : 'api/practica/revisar', cuerpoCopia());
       pendiente = false;
-      revision = { ...r.revision, hora: new Date().toISOString() };
+      revision = { ...(intento ? r.resultado : r.revision), hora: new Date().toISOString() };
       if (plegado) $('btn-panel').click();
       pintarRevision();
       mostrarPestana('avance');
@@ -1407,18 +1464,32 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
   });
 
   $('btn-entregar').addEventListener('click', async () => {
-    const si = await confirmar({
-      titulo: '¿Entregar el laboratorio?',
-      texto: `<p>Se califica tu cuenta tal como está ahora. Después de entregar <strong>ya no podrás cambiar nada</strong>.</p>${
-        autorrevision ? '<p>¿Ya usaste «Revisar mi avance»? Es buena idea antes de entregar.</p>' : ''
-      }`,
-      si: 'Sí, entregar',
-      no: 'Seguir trabajando'
-    });
+    const si = await confirmar(
+      intento
+        ? {
+            titulo: '¿Calificar tu intento?',
+            texto: '<p>Se califica tu cuenta tal como está ahora, para que veas cómo te fue. Tu calificación oficial no cambia.</p>',
+            si: 'Sí, calificar',
+            no: 'Seguir trabajando'
+          }
+        : {
+            titulo: '¿Entregar el laboratorio?',
+            texto: `<p>Se califica tu cuenta tal como está ahora. Después de entregar <strong>ya no podrás cambiar nada</strong>.</p>${
+              autorrevision ? '<p>¿Ya usaste «Revisar mi avance»? Es buena idea antes de entregar.</p>' : ''
+            }`,
+            si: 'Sí, entregar',
+            no: 'Seguir trabajando'
+          }
+    );
     if (!si) return;
     const boton = $('btn-entregar');
     boton.disabled = true;
     try {
+      if (intento) {
+        const r = await api('api/practica/intento/calificar', cuerpoCopia());
+        guardar(clave, null);
+        return vistaResultadoIntento(ev, 'practica', r.resultado);
+      }
       const r = await api('api/practica/entregar', cuerpoCopia());
       terminar(r);
     } catch (e) {
@@ -1454,7 +1525,8 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
     aviso('Tu cuenta volvió a empezar.', 'info');
   });
 
-  alLatido = (s) => {
+  // En un intento ya hay entrega y no importa si la parte se cierra: nada que vigilar.
+  if (!intento) alLatido = (s) => {
     const p = s.evaluaciones.find((x) => x.id === ev.id);
     if (!p) return;
     if (p.partes.practica?.entrega) return pintar();
@@ -1462,6 +1534,102 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola) {
     actualizarAutorrevision(p.autorrevision);
     if (pendiente && !espera) enviarCopia();
   };
+}
+
+/* ------------------------------------------------- intentos de práctica */
+
+// En los simulacros, después de entregar una parte se puede repetir para
+// practicar. La entrega (lo que ve el docente) no cambia: el intento vive en
+// este equipo y el servidor solo lo califica.
+const claveIntento = (evId, parte) => `intento-${parte}-${perfil.id}-${evId}`;
+const hayIntento = (evId, parte) => Boolean(leer(claveIntento(evId, parte), null));
+const puedeRepetir = (ev, parte) => Boolean(ev.reintentos && ev.partes[parte]?.entrega);
+
+async function vistaIntento(ev, parte) {
+  const titulo = `${tituloParte(ev, parte)} · intento de práctica`;
+  app.innerHTML = `${barra({ volver: { ruta: ev.id, texto: ev.titulo }, titulo })}<main class="pagina"><p class="cargando">${parte === 'teoria' ? 'Cargando los casos…' : 'Preparando tu cuenta de AWS simulada…'}</p></main>`;
+  const pedido = location.hash;
+  let datos;
+  let labs;
+  let consolaModulo;
+  try {
+    if (parte === 'practica') [labs, consolaModulo] = await Promise.all([cargarLabs(), import('./consola/consola.js')]);
+    datos = await api(`api/${parte}/intento`, { alumno: perfil, evaluacion: ev.id });
+  } catch (e) {
+    console.error(e);
+    if (location.hash === pedido) vistaError(ev, e.message);
+    return;
+  }
+  if (location.hash !== pedido) return;
+  desfase = Date.parse(datos.ahora) - Date.now();
+  if (parte === 'teoria') return teoriaAbierta(ev, datos, { intento: true });
+  const LAB = labs.LABS.get(ev.lab);
+  if (!LAB) return vistaError(ev, 'No encontré este laboratorio');
+  laboratorio(ev, LAB, labs, datos, consolaModulo.montarConsola, { intento: true });
+}
+
+/** Borra el intento a medias (si hay) y empieza uno desde cero. */
+async function empezarIntento(ev, parte, { preguntar = true } = {}) {
+  if (preguntar) {
+    const si = await confirmar({
+      titulo: `¿Repetir la ${NOMBRE_PARTE[parte].toLowerCase()}?`,
+      texto: `<p>Empiezas de cero${parte === 'practica' ? ', con la cuenta de AWS del principio' : ''}. <strong>Tu calificación no cambia:</strong> cuenta solo tu primera entrega, que tu docente ya tiene.</p><p>Al terminar ves cómo te fue y puedes repetirla las veces que quieras.</p>`,
+      si: 'Sí, empezar de nuevo',
+      no: 'Cancelar'
+    });
+    if (!si) return;
+  }
+  guardar(claveIntento(ev.id, parte), null);
+  const destino = `${ev.id}/${parte}/intento`;
+  if (location.hash === `#/${destino}`) pintar();
+  else ir(destino);
+}
+
+function vistaResultadoIntento(ev, parte, r) {
+  for (const f of alSalir) f();
+  alSalir = [];
+  alLatido = null;
+  document.body.classList.remove('modo-lab');
+  window.scrollTo(0, 0);
+  const oficial = ev.partes[parte]?.entrega;
+  const detalle = (x) => (parte === 'teoria' ? `${x.aciertos} de ${x.total} aciertos` : `${decimal(x.obtenidos)} de ${x.total} puntos`);
+  app.innerHTML = `
+    ${barra({ volver: { ruta: ev.id, texto: ev.titulo }, titulo: `${ev.titulo} · Intento de práctica` })}
+    <main class="pagina pagina--media resultado">
+      <p class="etiqueta">${NOMBRE_PARTE[parte]} · intento de práctica</p>
+      <h1>Así te fue en este intento</h1>
+      <p class="aviso-suave">${icono('i-alerta')}<span>Este intento <strong>no cambia tu calificación</strong>: tu docente solo toma tu primera entrega.</span></p>
+      <div class="marcadores">
+        <div class="marcador marcador--combinada"><span class="marcador__nombre">Este intento</span><span class="marcador__cifra">${decimal(r.calificacion)}</span><span class="marcador__detalle">${detalle(r)}</span></div>
+        ${oficial ? `<a class="marcador" href="#/${ev.id}/resultado"><span class="marcador__nombre">Tu entrega (la que cuenta)</span><span class="marcador__cifra">${decimal(oficial.calificacion)}</span><span class="marcador__detalle">${detalle(oficial)}</span></a>` : ''}
+      </div>
+      ${parte === 'teoria' ? seccionTeoria(r) : seccionPractica(r)}
+      <div class="acciones">
+        <button class="boton boton--primario" type="button" id="btn-otra-vez">Intentar otra vez</button>
+        <a class="boton" href="#/${ev.id}/resultado">Ver mi resultado oficial</a>
+      </div>
+    </main>`;
+  document.getElementById('btn-otra-vez').addEventListener('click', () => empezarIntento(ev, parte, { preguntar: false }));
+}
+
+/** En la página de resultados: repetir cada parte entregada, para practicar. */
+function htmlIntentos(ev, partes) {
+  const repetibles = partes.filter((n) => puedeRepetir(ev, n));
+  if (!repetibles.length) return '';
+  return `
+    <section class="hoja intentos" aria-labelledby="titulo-intentos">
+      <h2 id="titulo-intentos">¿Quieres practicar otra vez?</h2>
+      <p>Puedes repetir ${repetibles.length > 1 ? 'cada parte' : 'esta parte'} desde cero, las veces que quieras. <strong>Tu calificación no cambia:</strong> tu docente solo toma tu primera entrega.</p>
+      <div class="acciones">
+        ${repetibles
+          .map(
+            (n) => `<button class="boton" type="button" data-intento="${n}">Repetir la ${NOMBRE_PARTE[n].toLowerCase()}</button>${
+              hayIntento(ev.id, n) ? `<a class="boton boton--sutil" href="#/${ev.id}/${n}/intento">Continuar mi intento de la ${n === 'teoria' ? 'teórica' : 'práctica'}</a>` : ''
+            }`
+          )
+          .join('')}
+      </div>
+    </section>`;
 }
 
 /**
@@ -1610,8 +1778,13 @@ async function vistaResultado(ev) {
         </dl>
         <p class="sutil">Tómale captura a esta pantalla: es tu comprobante. Este equipo también guarda una copia firmada por si el servidor se reinicia.</p>
       </section>
+      ${datos.offline ? '' : htmlIntentos(e, partes)}
       <div class="acciones"><a class="boton" href="#/${ev.id}">Volver a ${escapar(ev.titulo)}</a><a class="boton boton--sutil" href="#/">Mis evaluaciones</a></div>
     </main>`;
+  app.querySelector('.intentos')?.addEventListener('click', (evento) => {
+    const boton = evento.target.closest('[data-intento]');
+    if (boton) empezarIntento(e, boton.dataset.intento);
+  });
 }
 
 function barras(lista, etiqueta) {

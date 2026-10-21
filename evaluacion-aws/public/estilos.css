@@ -313,6 +313,7 @@ code { font-family: var(--mono); font-size: .92em; background: var(--marino-suav
 .parte--entregada { border-left: 10px solid var(--verde); }
 .parte__icono .icono { width: 46px; height: 46px; padding: 9px; border-radius: 12px; background: var(--marino); color: var(--naranja); stroke-width: 4; }
 .parte h2 { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 0 0 6px; font-size: 1.35rem; }
+.parte__accion { display: grid; gap: 8px; justify-items: stretch; }
 .parte__describe, .parte__estado { margin: 0; }
 .parte__describe { color: var(--gris); }
 .parte__estado { margin-top: 6px; font-weight: 700; }
@@ -359,6 +360,18 @@ code { font-family: var(--mono); font-size: .92em; background: var(--marino-suav
   color: var(--rojo-texto);
   font-weight: 700;
 }
+
+/* Intento de práctica: no es un error, solo recuerda que la calificación no cambia. */
+.aviso-intento {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--ambar-suave);
+  border-bottom: 2px solid #e2b35c;
+  color: var(--tinta);
+}
+.aviso-intento .icono { flex: none; color: var(--naranja-texto); }
 
 .aviso-flotante {
   position: fixed;
@@ -632,6 +645,9 @@ code { font-family: var(--mono); font-size: .92em; background: var(--marino-suav
 .repaso__icono { flex: none; width: 1.1em; height: 1.1em; margin-top: 2px; color: var(--naranja-texto); }
 
 .comprobante dl { display: grid; gap: 8px; margin: 0 0 12px; }
+.intentos { margin-top: 22px; }
+.intentos h2 { margin-top: 0; }
+.intentos .acciones { margin-bottom: 0; }
 .comprobante dl div { display: grid; grid-template-columns: 7em 1fr; gap: 10px; }
 .comprobante dt { color: var(--gris); font-weight: 700; }
 .comprobante dd { margin: 0; }

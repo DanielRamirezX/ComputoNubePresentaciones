@@ -281,6 +281,7 @@ export function crearApp() {
       pesos: ev.pesos,
       retro: cfg.retro,
       autorrevision: cfg.autorrevision,
+      reintentos: Boolean(ev.reintentos),
       partes,
       combinada: combinada(ev, porcentajes)
     };
@@ -472,6 +473,58 @@ export function crearApp() {
     };
     almacen.guardarEntrega(ev.id, 'practica', entrega);
     enviarJson(res, 201, { ...marca(), ...respuestaEntregada(ev, 'practica', entrega) });
+  });
+
+  // ------------------------------------------------ intentos de práctica
+
+  // En los simulacros, quien ya entregó una parte puede repetirla para
+  // practicar. Al docente solo le importa la primera entrega: los intentos se
+  // califican igual (con la retroalimentación que él eligió) y no se guardan.
+  // Se pueden repetir aunque la parte ya esté cerrada: así estudian en casa.
+  function intentoDe(cuerpo, parte) {
+    const ev = evaluacionPedida(cuerpo.evaluacion);
+    exigirParte(ev, parte);
+    const alumno = alumnoDe(cuerpo);
+    if (!ev.reintentos) throw fallo(403, `${ev.titulo} no se puede repetir`);
+    const entrega = almacen.entregaDe(alumno, ev.id, parte);
+    if (!entrega) throw fallo(409, 'Primero entrega esta parte: tu primera entrega es la que cuenta');
+    if (!disponible(ev, parte)) throw fallo(423, 'Esta parte todavía está en preparación');
+    return { ev, alumno, entrega, cfg: almacen.config(ev.id) };
+  }
+
+  /** Lo que lleva cualquier resultado de un intento: el alumno de la entrega y la hora. */
+  const baseIntento = (entrega) => ({ nombre: entrega.nombre, matricula: entrega.matricula, grupo: entrega.grupo, fin: new Date().toISOString() });
+
+  app.post('/api/teoria/intento', async (req, res) => {
+    const { ev } = intentoDe(await leerJson(req), 'teoria');
+    enviarJson(res, 200, { ...marca(), ...teoriaPublica(bancoDe(ev)) });
+  });
+
+  app.post('/api/teoria/intento/calificar', async (req, res) => {
+    const cuerpo = await leerJson(req);
+    const { ev, entrega, cfg } = intentoDe(cuerpo, 'teoria');
+    const banco = bancoDe(ev);
+    const respuestas = respuestasValidas(cuerpo.respuestas, banco);
+    const intento = { ...baseIntento(entrega), respuestas, ...calificarTeoria(banco, respuestas) };
+    enviarJson(res, 200, { ...marca(), resultado: { ...resultadoTeoria(ev, intento, cfg.retro), intento: true } });
+  });
+
+  // Los datos del laboratorio salen de la identidad de la primera entrega:
+  // la misma VPC, el mismo sufijo, la misma IP de casa.
+  const identidadDe = (entrega) => entrega.identidad ?? { nombre: entrega.nombre, matricula: entrega.matricula };
+
+  app.post('/api/practica/intento', async (req, res) => {
+    const { ev, entrega, cfg } = intentoDe(await leerJson(req), 'practica');
+    enviarJson(res, 200, { ...marca(), lab: ev.lab, identidad: identidadDe(entrega), autorrevision: cfg.autorrevision, retro: cfg.retro });
+  });
+
+  // Sirve para «Revisar mi avance» y para terminar el intento: no guarda nada.
+  app.post('/api/practica/intento/calificar', async (req, res) => {
+    const cuerpo = await leerJson(req, LIMITE_CUERPO_CUENTA);
+    const { ev, entrega, cfg } = intentoDe(cuerpo, 'practica');
+    const { resultado } = calificar(ev, cuentaDe(cuerpo), identidadDe(entrega));
+    const intento = { ...baseIntento(entrega), obtenidos: resultado.obtenidos, total: resultado.total, tareas: resultado.tareas };
+    enviarJson(res, 200, { ...marca(), resultado: { ...resultadoPractica(ev, intento, cfg.retro), intento: true } });
   });
 
   // El navegador regresa los comprobantes de entregas que el servidor ya no

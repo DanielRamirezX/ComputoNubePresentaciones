@@ -43,6 +43,12 @@ fundamentos y EC2, identidad y seguridad, redes y almacenamiento.
    - su consola en modo de solo lectura, con su bitácora.
 
    Puedes borrar una entrega para que el alumno repita.
+
+   En los **simulacros**, quien ya entregó una parte puede **repetirla para
+   practicar** («Intentar de nuevo»), las veces que quiera y aunque la parte
+   ya esté cerrada. Solo cuenta la primera entrega: los intentos se califican
+   con la misma retroalimentación, pero no se guardan ni aparecen en el panel
+   ni en el CSV. El bimestral no se puede repetir.
 6. **Al terminar cada clase, descarga el CSV.** Render borra el disco cada vez
    que reinicia el servidor. Cada alumno guarda en su navegador un comprobante
    firmado de su entrega, y la vuelve a subir sola si el servidor la perdió.
