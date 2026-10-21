@@ -4,8 +4,9 @@
 // y las situaciones son otras que las del simulacro 1; algunos conceptos se
 // repiten, vistos desde otro ángulo. La respuesta correcta y la
 // retroalimentación viven solo en el servidor; la clave está balanceada (6 en
-// A, 6 en B, 7 en C y 6 en D, sin rachas de tres) y cada distractor es una
-// confusión real. Cada pregunta trae `repaso`: la lámina de la Ruta AWS donde
+// A, 6 en B, 7 en C y 6 en D, sin rachas de tres). Después del simulacro 1
+// (teórica con mediana de 64 %) se simplificó: menos servicios especializados
+// y, en las preguntas difíciles, un solo distractor que se confunde de verdad. Cada pregunta trae `repaso`: la lámina de la Ruta AWS donde
 // se explica su tema ('s3-vpc/2'), o un arreglo con esa lámina y el paso del
 // laboratorio donde se practicó; el catálogo está en src/repaso.js. Todo lo que
 // se pregunta se vio en esas láminas: no hay que hacer cuentas ni saber detalles
@@ -23,7 +24,7 @@ export const CASO = `
   <p>Segundo simulacro, con <strong>empresas y problemas nuevos</strong>. Igual que en el examen <strong>AWS Certified Cloud Practitioner (CLF-C02)</strong>, cada pregunta describe una situación y te pide la mejor opción. Son <strong>5 casos con 5 preguntas cada uno, en 45 minutos</strong>.</p>
   <ul>
     <li><strong>Lee la historia completa</strong> antes de contestar: los datos que deciden la respuesta (cuántos equipos, qué tan seguido se consulta algo, qué rango de IP tienen) están ahí.</li>
-    <li>Busca la <strong>palabra clave</strong>: “no puede interrumpirse”, “se regeneran”, “sin salir a internet”, “nadie, ni los administradores”, “IP fijas”…</li>
+    <li>Busca la <strong>palabra clave</strong>: “no puede interrumpirse”, “se regeneran”, “sin salir a internet”, “nadie, ni los administradores”, “si una región falla”…</li>
     <li>Si dos opciones funcionan, quédate con la que <strong>cumple todo con menos costo y menos trabajo</strong>.</li>
     <li>Una pregunta sin contestar cuenta como error: no dejes ninguna en blanco.</li>
   </ul>`;
@@ -54,7 +55,7 @@ export const CASOS = [
     historia: `
       <p><strong>Biomédica del Bajío</strong> es una cadena de laboratorios de análisis clínicos con <strong>14 sucursales</strong> en Guanajuato y unos 1,200 pacientes al día. Los resultados se guardan como PDF en un bucket de S3 y cada paciente los descarga desde el sitio.</p>
       <p>La ley de protección de datos personales les exige cuidar nombres, CURP y diagnósticos. Con los años se crearon <strong>40 buckets</strong> y nadie sabe si en alguno quedaron PDF de pacientes. La auditoría de diciembre pide revisar las vulnerabilidades de sus <strong>6 instancias EC2</strong> y cifrar los resultados con llaves que el laboratorio controle.</p>
-      <p>Los servidores que generan los PDF viven en una subred privada <strong>sin salida a internet</strong> y leen la contraseña de la base de datos en Secrets Manager. El área de investigación guarda <strong>30 TB</strong> de imágenes de microscopía: unas se consultan a diario, otras nunca, y eso cambia con cada estudio.</p>`
+      <p>Los servidores que generan los PDF viven en una subred privada <strong>sin salida a internet</strong>. El área de investigación guarda <strong>30 TB</strong> de imágenes de microscopía: unas se consultan a diario, otras nunca, y eso cambia con cada estudio.</p>`
   },
   {
     id: 'c4',
@@ -62,8 +63,8 @@ export const CASOS = [
     titulo: 'Pronósticos que no se detienen',
     historia: `
       <p>El <strong>Instituto de Ciencias del Clima</strong>, de una universidad pública de Hermosillo, publica cada hora alertas de ondas de calor para Sonora. Su modelo de pronóstico corre <strong>24/7</strong> en un clúster de <strong>200 nodos</strong> que usa mucho procesador y poca memoria, y no puede interrumpirse. En los próximos 3 años piensan cambiar varias veces de tipo de instancia y, quizá, de región.</p>
-      <p>Los 200 nodos leen al mismo tiempo, a altísima velocidad, imágenes satelitales que están guardadas en S3.</p>
-      <p>El instituto tiene <strong>12 VPC</strong>, una por proyecto de investigación, más la red del campus conectada por VPN, y todas deben poder hablar entre sí. Su VPC principal es <strong>10.8.0.0/16</strong> y, para un clúster nuevo de <strong>14 nodos</strong> (una IP por nodo), crearon la subred <strong>10.8.4.0/28</strong>.</p>`
+      <p>Cada nodo guarda sus cálculos en un <strong>volumen EBS</strong>. Antes de cada actualización del modelo quieren respaldar esos discos, por si algo sale mal.</p>
+      <p>El instituto tiene <strong>12 VPC</strong>, una por proyecto de investigación, más la red del campus conectada por VPN, y todas deben poder hablar entre sí. Las alertas se publican en un <strong>sitio web</strong> que corre en una instancia EC2 de una subred pública.</p>`
   },
   {
     id: 'c5',
@@ -71,7 +72,7 @@ export const CASOS = [
     titulo: 'Una fintech que crece rápido',
     historia: `
       <p><strong>Tandapp</strong> es una startup de la Ciudad de México con una app para organizar tandas entre amigos: ya tiene <strong>50,000 usuarios</strong> y 8 desarrolladores. Usa AWS Organizations con <strong>4 cuentas miembro</strong> (desarrollo, pruebas, producción y seguridad). Su regla de oro: <strong>nadie, ni los administradores de cada cuenta, puede apagar CloudTrail</strong> ni borrar sus registros.</p>
-      <p>Su API, <em>api.tandapp.mx</em>, necesita HTTPS y corre detrás de un balanceador de carga en dos regiones: México y, de respaldo, Virginia del Norte. Los <strong>3 bancos aliados</strong> solo aceptan conexiones hacia direcciones IP fijas que registran en su firewall.</p>
+      <p>Su API, <em>api.tandapp.mx</em>, necesita HTTPS y corre en dos regiones: México y, de respaldo, Virginia del Norte. <strong>Si la región de México falla</strong>, los usuarios deben pasar solos a Virginia, sin que nadie cambie nada a mano.</p>
       <p>Su panel interno lo usan 8 personas: casi no consume procesador, salvo 10 minutos a las 9:00. Además, el equipo quiere probar con datos ficticios un servicio nuevo de AWS que todavía no existe en mx-central-1.</p>`
   }
 ];
@@ -128,8 +129,8 @@ export const PREGUNTAS = [
         retro: 'El usuario raíz puede todo y nadie lo puede limitar; jamás se comparte ni se le quita el MFA. El auditor solo necesita leer.'
       },
       {
-        texto: 'Con una SCP de Organizations que le permita leer la cuenta',
-        retro: 'Las SCP no dan permisos: solo ponen el techo de lo que se puede hacer. El acceso se da con políticas pegadas a un usuario, grupo o rol.'
+        texto: 'Con el par de llaves (.pem) de las instancias EC2',
+        retro: 'El par de llaves sirve para entrar por SSH a una instancia, no para revisar la cuenta de AWS. Además, le daría acceso a los servidores, no solo para leer.'
       }
     ],
     correcta: 0
@@ -255,7 +256,7 @@ export const PREGUNTAS = [
     sesion: 2,
     concepto: 'AWS WAF',
     repaso: 's2-servicios/3',
-    texto: 'El portal de huéspedes recibe miles de intentos de inicio de sesión por minuto desde cientos de IP que cambian cada hora. Quieren un filtro que revise cada petición web antes de que llegue al portal y bloquee las dañinas. ¿Qué usan?',
+    texto: 'El portal de huéspedes recibe miles de intentos de inicio de sesión con contraseñas robadas. Quieren un filtro que revise cada petición web antes de que llegue al portal y bloquee las dañinas. ¿Qué usan?',
     opciones: [
       {
         texto: 'AWS WAF',
@@ -270,8 +271,8 @@ export const PREGUNTAS = [
         retro: 'Una NACL sí puede negar IP, pero tendrías que escribir cientos de reglas a mano cada hora, y no ve qué pide cada petición web. Para filtrar el tráfico de una aplicación web está WAF.'
       },
       {
-        texto: 'Amazon GuardDuty',
-        retro: 'GuardDuty detecta actividad sospechosa en tu cuenta y te avisa, pero no bloquea las peticiones que llegan a tu sitio.'
+        texto: 'AWS Artifact',
+        retro: 'Artifact es donde descargas los reportes de cumplimiento de AWS (ISO, SOC); no filtra el tráfico de tu sitio.'
       }
     ],
     correcta: 0
@@ -380,12 +381,12 @@ export const PREGUNTAS = [
         retro: 'Inspector busca vulnerabilidades de software en instancias y contenedores, no datos personales dentro de archivos.'
       },
       {
-        texto: 'AWS Config',
-        retro: 'Config revisa cómo están configurados tus recursos (por ejemplo, si un bucket es público), pero no lee el contenido de los archivos.'
+        texto: 'AWS Certificate Manager',
+        retro: 'Certificate Manager da certificados para HTTPS; no revisa qué hay dentro de los buckets.'
       },
       {
-        texto: 'Amazon GuardDuty',
-        retro: 'GuardDuty detecta amenazas y actividad sospechosa en tu cuenta; no clasifica qué datos hay en cada archivo.'
+        texto: 'Amazon CloudFront',
+        retro: 'CloudFront reparte contenido desde las ubicaciones de borde para que cargue rápido; no busca datos personales.'
       }
     ],
     correcta: 0
@@ -404,16 +405,16 @@ export const PREGUNTAS = [
         retro: 'Ya viene encendido y protege los datos, pero las llaves las administra S3, no el laboratorio. Para cifrar con una llave propia, SSE-KMS.'
       },
       {
-        texto: 'La llave guardada en AWS Secrets Manager',
-        retro: 'Secrets Manager guarda contraseñas y llaves de API, y las rota. Las llaves con las que S3 cifra tus objetos se crean y se controlan en KMS.'
+        texto: 'Activar el versionado del bucket',
+        retro: 'El versionado guarda las versiones anteriores de cada archivo; no cifra nada.'
       },
       {
         texto: 'SSE-KMS con una llave de KMS del laboratorio',
         retro: '¡Correcto! KMS crea y guarda las llaves de cifrado; con SSE-KMS, S3 cifra cada objeto con una llave de KMS que es del laboratorio. “Llaves de cifrado que controla el cliente” → KMS.'
       },
       {
-        texto: 'Un certificado de AWS Certificate Manager',
-        retro: 'Los certificados de ACM cifran los datos en tránsito (HTTPS). La auditoría habla de los datos guardados, en reposo.'
+        texto: 'Un grupo de seguridad para el bucket',
+        retro: 'Los grupos de seguridad protegen a las instancias en la red; no se ponen en un bucket ni cifran archivos.'
       }
     ],
     correcta: 2
@@ -428,8 +429,8 @@ export const PREGUNTAS = [
     texto: 'Antes de la auditoría de diciembre, el laboratorio debe saber si sus 6 instancias EC2 tienen software con vulnerabilidades conocidas. ¿Qué servicio lo revisa?',
     opciones: [
       {
-        texto: 'Amazon GuardDuty',
-        retro: 'GuardDuty vigila la actividad de tu cuenta y de tu red para detectar amenazas en curso; no revisa qué software vulnerable tienes instalado.'
+        texto: 'Amazon Route 53',
+        retro: 'Route 53 es la agenda de internet (DNS): traduce nombres a direcciones. No revisa el software de las instancias.'
       },
       {
         texto: 'Amazon Macie',
@@ -440,8 +441,8 @@ export const PREGUNTAS = [
         retro: '¡Bien! Inspector revisa tus instancias EC2 y contenedores, y te dice qué software tiene vulnerabilidades conocidas y qué tan graves son. Truco: Inspector inspecciona servidores.'
       },
       {
-        texto: 'AWS Shield',
-        retro: 'Shield protege contra ataques DDoS; no revisa el software de tus instancias.'
+        texto: 'AWS Snowball',
+        retro: 'Snowball es un equipo físico para mover muchos datos a AWS; no busca vulnerabilidades.'
       }
     ],
     correcta: 2
@@ -451,25 +452,25 @@ export const PREGUNTAS = [
     caso: 'c3',
     tema: 'Redes',
     sesion: 3,
-    concepto: 'Interface endpoint (PrivateLink)',
-    repaso: 's3-conectar/2',
-    texto: 'Los servidores que generan los PDF están en una subred privada sin salida a internet y deben leer una contraseña de Secrets Manager. ¿Qué agregan para que el tráfico no salga de la red de AWS?',
+    concepto: 'Qué hace privada a una subred',
+    repaso: ['s3-vpc/3', 's3-lab-vpc/11'],
+    texto: 'Los servidores que generan los PDF viven en una subred privada, sin salida a internet. ¿Qué es lo que la hace privada?',
     opciones: [
       {
-        texto: 'Un interface endpoint (PrivateLink) para Secrets Manager',
-        retro: '¡Exacto! Un interface endpoint pone dentro de tu VPC una entrada privada a un servicio de AWS. Sirve para casi todos los servicios, como Secrets Manager o KMS.'
+        texto: 'Su tabla de rutas no manda 0.0.0.0/0 a un Internet Gateway',
+        retro: '¡Correcto! Lo que vuelve pública o privada a una subred es su tabla de rutas: si manda 0.0.0.0/0 a un Internet Gateway, es pública; si no, es privada. Es justo lo que revisaste en el laboratorio de la sesión 3.'
       },
       {
-        texto: 'Un gateway endpoint para Secrets Manager',
-        retro: 'Los gateway endpoints solo existen para S3 y DynamoDB. Para los demás servicios se usa un interface endpoint.'
+        texto: 'Que su nombre dice «privada»',
+        retro: 'El nombre es solo una etiqueta para las personas: AWS no lo lee. Una subred llamada «privada» con la ruta 0.0.0.0/0 hacia el Internet Gateway sería pública.'
       },
       {
-        texto: 'Un NAT Gateway en la subred privada',
-        retro: 'Un NAT daría salida a internet, que es justo lo que se quiere evitar. Además, el NAT Gateway debe vivir en una subred pública.'
+        texto: 'Que está en otra zona de disponibilidad',
+        retro: 'La zona dice en qué centro de datos vive la subred, no si tiene salida a internet. En una misma zona puede haber subredes públicas y privadas.'
       },
       {
-        texto: 'Un Internet Gateway y una IP pública por servidor',
-        retro: 'Así los servidores de resultados quedarían expuestos a internet. Un endpoint resuelve el acceso sin abrir nada.'
+        texto: 'Que su grupo de seguridad no tiene reglas de salida',
+        retro: 'El grupo de seguridad filtra el tráfico de cada instancia, pero no decide si la subred tiene camino a internet. Eso lo decide la tabla de rutas.'
       }
     ],
     correcta: 0
@@ -537,25 +538,25 @@ export const PREGUNTAS = [
     caso: 'c4',
     tema: 'Almacenamiento',
     sesion: 4,
-    concepto: 'Amazon FSx for Lustre',
-    repaso: 's4-discos/1',
-    texto: 'Los 200 nodos deben leer al mismo tiempo, a altísima velocidad, las imágenes satelitales. Necesitan un sistema de archivos compartido de alto rendimiento. ¿Qué servicio usan?',
+    concepto: 'Snapshot de un volumen EBS',
+    repaso: ['s4-discos/2', 's4-lab-almacenamiento/11'],
+    texto: 'Antes de actualizar el modelo, el instituto quiere un respaldo de los volúmenes EBS de los nodos para poder regresar si algo sale mal. ¿Qué hace?',
     opciones: [
       {
-        texto: 'Amazon FSx for Lustre',
-        retro: '¡Correcto! FSx for Lustre es el sistema de archivos de alto rendimiento de la familia FSx: muchos servidores leen los mismos archivos a la vez, a gran velocidad. “Alto rendimiento” → FSx for Lustre.'
+        texto: 'Toma un snapshot de cada volumen',
+        retro: '¡Bien! Un snapshot es la foto de un volumen en un momento dado: AWS la guarda en S3 y con ella puedes crear otro volumen igual al de antes. Es el respaldo de un disco EBS, como en el laboratorio de la sesión 4.'
       },
       {
-        texto: 'Amazon FSx for Windows File Server',
-        retro: 'Es la carpeta compartida para equipos Windows, como la de una oficina. La de alto rendimiento de la familia FSx es otra: Lustre.'
+        texto: 'Activa el versionado en cada volumen',
+        retro: 'El versionado es de los buckets de S3, no de los discos EBS. Para respaldar un volumen se toma un snapshot.'
       },
       {
-        texto: 'Un volumen EBS por nodo, con una copia de los datos',
-        retro: 'Cada volumen sería de un solo nodo y habría que copiar los datos 200 veces. Lo que hace falta es un sistema compartido.'
+        texto: 'Copia los cálculos al instance store',
+        retro: 'El instance store se borra cuando la instancia se detiene o falla: es lo contrario de un respaldo.'
       },
       {
-        texto: 'La clase S3 Glacier Flexible Retrieval',
-        retro: 'Es una clase de archivo: recuperar los datos tarda de minutos a horas. Lo contrario de “altísima velocidad”.'
+        texto: 'Cambia los volúmenes a la clase S3 Glacier',
+        retro: 'Glacier es una clase de S3 para objetos; un volumen EBS no tiene clases de S3. El respaldo de un volumen es un snapshot.'
       }
     ],
     correcta: 0
@@ -610,8 +611,8 @@ export const PREGUNTAS = [
         retro: '¡Bien! Transit Gateway es un centro de conexiones: cada VPC y la VPN del campus se conectan una sola vez a él, y desde ahí todas se alcanzan. “Muchas VPC” → Transit Gateway.'
       },
       {
-        texto: 'AWS Direct Connect hacia cada VPC',
-        retro: 'Direct Connect es una línea física entre un centro de datos y AWS; no sirve para unir VPC entre sí.'
+        texto: 'Un bucket de S3 compartido por las 12 VPC',
+        retro: 'Un bucket guarda archivos; no conecta redes para que sus servidores hablen entre sí.'
       }
     ],
     correcta: 2
@@ -621,25 +622,25 @@ export const PREGUNTAS = [
     caso: 'c4',
     tema: 'Redes',
     sesion: 3,
-    concepto: 'Direcciones reservadas en una subred',
-    repaso: ['s3-vpc/2', 's3-lab-vpc/8'],
-    texto: 'Para el clúster nuevo de 14 nodos, con una IP por nodo, el instituto creó la subred 10.8.4.0/28. ¿Le alcanza?',
+    concepto: 'El grupo de seguridad recuerda la conexión',
+    repaso: ['s2-servicios/3', 's2-lab-seguridad/15'],
+    texto: 'El grupo de seguridad del sitio de alertas deja entrar HTTP (puerto 80) desde cualquier lugar. ¿Hace falta otra regla para que la respuesta del servidor regrese al visitante?',
     opciones: [
       {
-        texto: 'Sí: una /28 tiene 16 direcciones y sobran 2',
-        retro: 'Se te olvidó que AWS se queda con 5 direcciones de cada subred. De 16 quedan 11, y 11 no alcanzan para 14 nodos.'
+        texto: 'Sí: una regla de salida por el puerto 80',
+        retro: 'La respuesta no regresa por el puerto 80, sino a un puerto alto del visitante. Y de todos modos no hace falta: el grupo de seguridad recuerda la conexión y deja salir la respuesta sola.'
       },
       {
-        texto: 'No: de sus 16 direcciones, AWS reserva 5 y quedan 11',
-        retro: '¡Correcto! AWS se queda con 5 direcciones de cada subred para su propio uso. Una /28 tiene 16, así que quedan 11 y faltan 3. Necesitan una subred más grande, como una /24: 256 − 5 = 251.'
+        texto: 'No: el grupo recuerda la conexión y deja salir la respuesta',
+        retro: '¡Exacto! El grupo de seguridad tiene estado (stateful): si dejó entrar la petición, deja salir su respuesta sin otra regla. La que no recuerda nada es la NACL, que sí necesita su regla de salida.'
       },
       {
-        texto: 'Sí, de sobra: una /28 tiene 256 direcciones',
-        retro: '256 son las de una /24. Recuerda: mientras más grande el número después de la diagonal, más chica la red; una /28 es la más chica y tiene 16.'
+        texto: 'Sí: una regla de salida para los puertos 1024-65535',
+        retro: 'Esa regla la necesita una NACL, que no recuerda las conexiones. El grupo de seguridad sí las recuerda: la respuesta sale sola.'
       },
       {
-        texto: 'No: AWS no permite subredes más chicas que /24',
-        retro: 'AWS sí permite subredes más chicas: la más chica es la /28, con 16 direcciones. El problema es otro: las 5 direcciones que AWS se queda en cada subred.'
+        texto: 'No: el grupo de seguridad no revisa el tráfico web',
+        retro: 'Sí lo revisa: por eso hubo que abrir el puerto 80. Lo que pasa es que, una vez que deja entrar la petición, la respuesta sale sola.'
       }
     ],
     correcta: 1
@@ -660,12 +661,12 @@ export const PREGUNTAS = [
         retro: 'Ayuda, pero un administrador podría quitársela, y no aplica al usuario raíz de cada cuenta. Para un techo que nadie dentro de la cuenta pueda brincarse está la SCP.'
       },
       {
-        texto: 'Una regla de AWS Config que revise si CloudTrail está encendido',
-        retro: 'Config te avisaría después de que alguien lo apague, pero no lo impide. El caso pide que nadie pueda hacerlo.'
+        texto: 'Activar MFA en el usuario raíz de cada cuenta',
+        retro: 'El MFA protege el inicio de sesión, pero un administrador con MFA podría apagar CloudTrail igual. Hace falta un techo que nadie pueda saltarse.'
       },
       {
-        texto: 'IAM Identity Center, con un solo inicio de sesión para todos',
-        retro: 'Identity Center da un solo inicio de sesión para varias cuentas; no pone límites a lo que hacen los administradores.'
+        texto: 'Un grupo de seguridad que bloquee CloudTrail',
+        retro: 'Los grupos de seguridad filtran el tráfico de red de las instancias; no limitan lo que se puede hacer en la cuenta.'
       },
       {
         texto: 'Una SCP con Deny para esas acciones, aplicada a las 4 cuentas',
@@ -692,8 +693,8 @@ export const PREGUNTAS = [
         retro: 'KMS crea y guarda las llaves con que se cifran tus datos guardados; no emite certificados para HTTPS.'
       },
       {
-        texto: 'AWS Secrets Manager',
-        retro: 'Secrets Manager guarda y rota contraseñas y llaves de API; los certificados para HTTPS los da ACM.'
+        texto: 'Amazon EBS',
+        retro: 'EBS es el disco de una instancia; no da certificados para HTTPS.'
       },
       {
         texto: 'AWS Shield Advanced',
@@ -707,25 +708,25 @@ export const PREGUNTAS = [
     caso: 'c5',
     tema: 'Redes',
     sesion: 3,
-    concepto: 'Global Accelerator',
-    repaso: 's3-borde/2',
-    texto: 'Los 3 bancos aliados solo aceptan conexiones hacia IP fijas, y la API de Tandapp corre en dos regiones. ¿Qué servicio le da un par de IP fijas frente a ambas regiones?',
+    concepto: 'Route 53 con conmutación por error',
+    repaso: 's3-borde/1',
+    texto: 'Si la región de México falla, api.tandapp.mx debe mandar a los usuarios a la copia de Virginia del Norte, sin que nadie cambie nada a mano. ¿Qué usa Tandapp?',
     opciones: [
       {
-        texto: 'Amazon CloudFront',
-        retro: 'CloudFront es una red de entrega de contenido: acerca y guarda en caché fotos, videos y páginas. Para poner un par de IP fijas frente a una aplicación que corre en varias regiones, el servicio pensado es otro.'
+        texto: 'Un Internet Gateway en cada región',
+        retro: 'El Internet Gateway conecta una VPC con internet; no decide a qué región llegan los usuarios.'
       },
       {
-        texto: 'Route 53 con enrutamiento por latencia',
-        retro: 'Route 53 responde con la dirección del destino más rápido, pero esas direcciones pueden cambiar. Los bancos quieren IP que nunca cambien.'
+        texto: 'Route 53 con enrutamiento ponderado (weighted)',
+        retro: 'El ponderado reparte a los usuarios por porcentajes (por ejemplo, 90 y 10) aunque las dos regiones estén bien; no espera a que una falle.'
       },
       {
-        texto: 'AWS Global Accelerator',
-        retro: '¡Bien! Global Accelerator te da dos IP fijas que reciben el tráfico en el borde y lo llevan por la red privada de AWS a la región que esté sana. “IP fijas” + “global” → Global Accelerator.'
+        texto: 'Route 53 con conmutación por error (failover)',
+        retro: '¡Correcto! Route 53 revisa si la región principal contesta y, si falla, responde con la dirección de la de respaldo. Es la agenda de internet con plan B.'
       },
       {
-        texto: 'Un Internet Gateway con IP fija en cada región',
-        retro: 'El Internet Gateway es la puerta de la VPC a internet y no tiene una IP propia que registrar. Además, no reparte tráfico entre regiones.'
+        texto: 'VPC Peering entre las dos regiones',
+        retro: 'El peering conecta dos VPC para que hablen en privado; no cambia a dónde apunta el nombre api.tandapp.mx.'
       }
     ],
     correcta: 2

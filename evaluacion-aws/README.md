@@ -7,7 +7,7 @@ fundamentos y EC2, identidad y seguridad, redes y almacenamiento.
 | Evaluación | Fecha | Parte teórica | Parte práctica |
 |---|---|---|---|
 | Simulacro 1 | martes 20 de octubre de 2026 | 5 casos de negocio, 25 preguntas, 45 min | «La cafetería El Grano de Oro»: construir desde cero |
-| Simulacro 2 | viernes 23 de octubre de 2026 | 5 casos **distintos**, 25 preguntas, 45 min | «Veterinaria Patitas»: diagnosticar y reparar |
+| Simulacro 2 | viernes 23 de octubre de 2026 | 5 casos **distintos**, 25 preguntas, 45 min; más sencilla que la del simulacro 1 | «Veterinaria Patitas»: diagnosticar y reparar, con pistas generales (sin la ruta de clics) |
 | Examen bimestral | martes 27 de octubre de 2026 | — (la aplica el docente) | «Ferretería Don Beto»: mixto y sin pistas; la subred privada es bono opcional (máx. 100) |
 
 - Cada laboratorio está pensado para durar **máximo 60 minutos**.

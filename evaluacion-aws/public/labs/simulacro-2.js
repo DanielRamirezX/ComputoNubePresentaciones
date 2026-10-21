@@ -1,4 +1,8 @@
-// Simulacro 2 · viernes 23 de octubre de 2026 · con pistas.
+// Simulacro 2 · viernes 23 de octubre de 2026 · con pistas generales.
+// En el simulacro 1 todos los que entregaron sacaron 100 siguiendo pistas con
+// la ruta exacta de clics. Aquí la pista dice a qué servicio y sección ir y
+// en qué pensar, pero ya no los clics ni qué está mal: eso lo encuentra el
+// alumno, como en el bimestral (que no trae pistas).
 // Veterinaria Patitas: el sobrino dejó la cuenta a medias. Diagnosticar y reparar.
 // Es la última práctica antes del bimestral: aquí se ensayan una tabla de rutas
 // propia, asociar y editar una NACL y conectar un volumen EBS a una instancia.
@@ -147,20 +151,20 @@ export const LAB = {
             `Nadie del mundo puede intentar SSH: quita la regla SSH abierta a ${c('0.0.0.0/0')} o deja SSH solo desde tu IP ${c(`${x.ipCasa}/32`)}.`
           ])}`,
         pista:
-          'VPC → Internet gateways: patitas-igw dice «Detached» (suelto); Actions → Attach to VPC. VPC → Route tables → Create route table (elige patitas-vpc); ábrela, pestaña Routes → Edit routes → Add route (0.0.0.0/0, Target: Internet Gateway), y luego pestaña Subnet associations → Edit subnet associations → marca solo patitas-publica. EC2 → Security Groups → patitas-web-sg → Edit inbound rules. Piensa en el camino del paquete: puerta (Internet Gateway) → letrero (ruta) → caseta (NACL) → guardia (grupo de seguridad) → Apache.'
+          'Sigue el camino del paquete, en orden: puerta (Internet Gateway) → letrero (tabla de rutas) → caseta (NACL) → guardia (grupo de seguridad) → Apache. Revisa cada pieza en VPC (Internet gateways, Route tables) y en EC2 (Security Groups). Una tabla de rutas sirve a las subredes que tiene asociadas.'
       },
       {
         id: 'nacl',
         titulo: 'La caseta de la calle: la NACL correcta',
         puntos: 12,
         html: `
-          <p>El sobrino hizo dos NACL en ${c(x.vpcNombre)}: la buena, ${c(x.nacl)}, y una de pruebas, ${c(x.naclPruebas)}, que se le olvidó quitar.</p>
+          <p>El sobrino hizo dos NACL en ${c(x.vpcNombre)}: la buena, ${c(x.nacl)}, y una de pruebas, ${c(x.naclPruebas)}.</p>
           ${vinetas([
             `La subred ${c(x.publicaNombre)} debe usar la NACL ${c(x.nacl)} (no ${c(x.naclPruebas)} ni la de omisión).`,
-            `${c(x.nacl)} debe dejar <strong>entrar</strong> HTTP (80) desde ${c('0.0.0.0/0')} y dejar <strong>salir</strong> las respuestas. Ojo: la respuesta de Apache no regresa al puerto 80, sino al puerto que abrió el navegador del cliente, un número alto entre ${c('1024')} y ${c('65535')}. Una NACL no recuerda conexiones: la salida se permite aparte.`
+            `${c(x.nacl)} debe dejar <strong>entrar</strong> HTTP (80) desde ${c('0.0.0.0/0')} y dejar <strong>salir</strong> las respuestas de Apache hacia los visitantes.`
           ])}`,
         pista:
-          'VPC → Network ACLs. Primero mira las Inbound rules de patitas-pruebas: se leen de menor a mayor número y la primera que coincide decide. Luego selecciona patitas-nacl → pestaña Subnet associations → Edit subnet associations → marca patitas-publica → Save changes. Después, en patitas-nacl → pestaña Outbound rules → Edit outbound rules → Add new rule: número 110, tipo Custom TCP, puertos 1024-65535, destino 0.0.0.0/0, Allow.'
+          'Todo está en VPC → Network ACLs. Las reglas se leen de menor a mayor número y la primera que coincide decide. Una NACL no recuerda conexiones: la respuesta de Apache no regresa al puerto 80, sino a un puerto alto que abrió el navegador del visitante (1024-65535).'
       },
       {
         id: 'iam',
@@ -169,11 +173,11 @@ export const LAB = {
         html: `
           <p>El sobrino ahora atiende la recepción: solo necesita <strong>ver</strong> los expedientes en S3 y si el servidor está encendido en EC2.</p>
           ${vinetas([
-            `El usuario ${c(x.sobrino)} sin políticas puestas directo (hoy tiene ${c('AdministratorAccess')}).`,
+            `El usuario ${c(x.sobrino)} sin políticas puestas directo.`,
             `Un grupo ${c(x.grupo)} con ${c(x.politicasGrupo[0])} y ${c(x.politicasGrupo[1])}, y nada que deje escribir o leer toda la cuenta.`,
             `El usuario ${c(x.sobrino)} dentro del grupo ${c(x.grupo)}.`
           ])}`,
-        pista: 'IAM → Users → sobrino → pestaña Permissions → selecciona AdministratorAccess → Remove; IAM → User groups → Create group (ahí mismo agregas al usuario y eliges las dos políticas). Los permisos se dan a grupos, no a personas.'
+        pista: 'Todo está en IAM (Users y User groups). Revisa qué permisos tiene hoy el sobrino. Los permisos se dan a grupos, no a personas: la persona hereda los de su grupo.'
       },
       {
         id: 'rol',
@@ -185,7 +189,7 @@ export const LAB = {
             `Un rol de IAM para EC2 (trusted entity: <em>AWS service → EC2</em>), por ejemplo ${c(x.rol)}, con ${c(x.politicaRol)} y nada más.`,
             `Ese rol asignado a la instancia ${c(x.instancia)} (sin relanzarla).`
           ])}`,
-        pista: 'IAM → Roles → Create role → AWS service → EC2 → elige la política; luego EC2 → Instances → patitas-web → Actions → Security → Modify IAM role. Un rol da credenciales temporales que se renuevan solas: no hay nada que robar del disco.'
+        pista: 'El rol se crea en IAM → Roles y se le asigna a la instancia desde EC2 (busca en Actions de la instancia). Un rol da credenciales temporales que se renuevan solas: no hay nada que robar del disco.'
       },
       {
         id: 's3',
@@ -194,7 +198,7 @@ export const LAB = {
         html: `
           <p>El bucket ${c(x.bucket)} ya existe y tiene expedientes.</p>
           ${vinetas([
-            '<strong>Todo</strong> el acceso público bloqueado (hoy está apagado).',
+            '<strong>Todo</strong> el acceso público bloqueado.',
             'Versionado activado.',
             `Una regla de ciclo de vida <strong>activa</strong> para <strong>todos</strong> los objetos del bucket que:
               <ul>
@@ -204,7 +208,7 @@ export const LAB = {
               </ul>`
           ])}`,
         pista:
-          'S3 → el bucket → Permissions → Block public access → Edit; Properties → Bucket Versioning → Edit; Management → Create lifecycle rule, con «Apply to all objects in the bucket». Marca «Transition current versions of objects between storage classes» y también «Expire current versions of objects». A los 180 días elige Glacier Flexible Retrieval, no Deep Archive como en la sesión 4.'
+          'Todo está en S3, dentro del bucket: el bloqueo público en Permissions, el versionado en Properties y el ciclo de vida en Management. Una sola regla puede mover y también borrar. Fíjate en la clase de los 180 días: no es la misma que en el laboratorio de la sesión 4.'
       },
       {
         id: 'discos',
@@ -218,7 +222,7 @@ export const LAB = {
             `Un snapshot de ese volumen con la descripción ${c(x.descSnap)}.`
           ])}`,
         pista:
-          'Primero mira la zona: EC2 → Instances → patitas-web → pestaña Details → Availability Zone. Luego EC2 → Volumes → Create volume: gp3, 5 GiB y esa misma zona (no dejes la que viene). Cuando diga Available: selecciónalo → Actions → Attach volume → elige patitas-web. Al final, con el volumen seleccionado: Actions → Create snapshot y escribe la descripción.'
+          'Todo está en EC2, en la sección Elastic Block Store (Volumes y Snapshots). Un volumen EBS solo se puede conectar a una instancia de su misma zona de disponibilidad: averigua primero en qué zona está patitas-web.'
       }
     ];
   }
