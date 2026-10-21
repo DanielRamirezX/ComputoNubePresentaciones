@@ -120,8 +120,9 @@ const delGrupo = (grupo) => (x) => !grupo || x.grupo === grupo;
 /** Lo guardado de una evaluación, creándolo si todavía no existe. */
 function evaluacion(evId) {
   const e = (estado.evaluaciones[evId] ??= {});
-  e.teoria ??= { abierta: false };
-  e.practica ??= { abierta: false };
+  // Sin `abierta` guardado, manda el valor de arranque de la evaluación (config).
+  e.teoria ??= {};
+  e.practica ??= {};
   e.inicios ??= { teoria: {}, practica: {} };
   e.entregas ??= { teoria: {}, practica: {} };
   return e;
@@ -168,8 +169,8 @@ export const almacen = {
     const ev = evaluacionDe(evId);
     const e = estado.evaluaciones[evId];
     return {
-      teoria: { abierta: Boolean(e?.teoria?.abierta) },
-      practica: { abierta: Boolean(e?.practica?.abierta) },
+      teoria: { abierta: e?.teoria?.abierta ?? Boolean(ev.abierta?.teoria) },
+      practica: { abierta: e?.practica?.abierta ?? Boolean(ev.abierta?.practica) },
       retro: e?.retro ?? ev.retro,
       autorrevision: e?.autorrevision ?? ev.autorrevision
     };

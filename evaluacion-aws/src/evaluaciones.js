@@ -23,7 +23,10 @@ export const EVALUACIONES = [
     autorrevision: true,
     // Quien ya entregó puede repetir cada parte para practicar. Solo cuenta la
     // primera entrega: los intentos se califican y no se guardan.
-    reintentos: true
+    reintentos: true,
+    // Ya se aplicó (20 de octubre): queda abierto para quien faltó, aunque
+    // Render reinicie el servidor. El docente aún puede cerrarlo en el panel.
+    abierta: { teoria: true, practica: true }
   },
   {
     id: 'simulacro-2',
