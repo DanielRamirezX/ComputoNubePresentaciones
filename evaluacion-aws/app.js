@@ -2,7 +2,9 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-import { almacen } from './src/almacen.js';
+import { LABS } from './public/labs/index.js';
+import { almacen, llave as llaveAlumno } from './src/almacen.js';
+import { MAX_CARACTERES, MAX_PREGUNTAS, hayLlave, responder } from './src/asistente.js';
 import { calificarCuenta, conRepaso, datosDe, hayRubrica } from './src/calificar.js';
 import { repasosDe } from './src/repaso.js';
 import { EVALUACIONES, RETROS, combinada, evaluacionDe, tieneParte } from './src/evaluaciones.js';
@@ -243,6 +245,16 @@ export function crearApp() {
     comprobante: comprobanteDe(ev, parte, entrega)
   });
 
+  // El asistente solo funciona si el docente lo dejó prendido y el servidor
+  // tiene la llave de la API (ANTHROPIC_API_KEY).
+  const asistenteActivo = (ev, cfg) => Boolean(tieneParte(ev, 'practica') && cfg.asistente && hayLlave());
+  const preguntasDe = (mensajes) => mensajes.filter((m) => m.rol === 'alumno').length;
+  /** La conversación del alumno con el asistente, tal como la necesita su laboratorio. */
+  function asistenteDe(ev, alumno, cfg) {
+    const mensajes = almacen.conversacionDe(alumno, ev.id);
+    return { activo: asistenteActivo(ev, cfg), mensajes, restantes: Math.max(0, MAX_PREGUNTAS - preguntasDe(mensajes)), max: MAX_PREGUNTAS };
+  }
+
   const porcentajeEntrega = (parte, e) => (parte === 'teoria' ? pct(e.aciertos, e.total) : pct(e.obtenidos, e.total));
 
   /** Cómo ve el alumno cada evaluación en su inicio. */
@@ -281,6 +293,7 @@ export function crearApp() {
       pesos: ev.pesos,
       retro: cfg.retro,
       autorrevision: cfg.autorrevision,
+      asistente: asistenteActivo(ev, cfg),
       reintentos: Boolean(ev.reintentos),
       partes,
       combinada: combinada(ev, porcentajes)
@@ -391,6 +404,7 @@ export function crearApp() {
       // Con este nombre y matrícula se calculan sus datos del laboratorio.
       identidad: inicio.identidad,
       autorrevision: cfg.autorrevision,
+      asistente: asistenteDe(ev, alumno, cfg),
       retro: cfg.retro,
       copia: copia ? { estado: copia.estado, rev: copia.rev, hora: copia.hora } : null
     });
@@ -411,7 +425,14 @@ export function crearApp() {
     const inicio = almacen.inicio(alumno, ev.id, 'practica') ?? almacen.iniciar(alumno, ev.id, 'practica');
     const copia = almacen.guardarCopia(alumno, ev.id, { estado: cuenta, rev: revDe(cuerpo.rev), identidad: inicio.identidad });
     const cfg = almacen.config(ev.id);
-    enviarJson(res, 200, { ...marca(), guardado: true, hora: copia.hora, abierta: cfg.practica.abierta, autorrevision: cfg.autorrevision });
+    enviarJson(res, 200, {
+      ...marca(),
+      guardado: true,
+      hora: copia.hora,
+      abierta: cfg.practica.abierta,
+      autorrevision: cfg.autorrevision,
+      asistente: asistenteActivo(ev, cfg)
+    });
   });
 
   // La rúbrica a medio camino. No guarda ninguna entrega: es para que el
@@ -433,6 +454,61 @@ export function crearApp() {
     almacen.guardarCopia(alumno, ev.id, { estado: cuenta, rev: revDe(cuerpo.rev), identidad: inicio.identidad });
     const { resultado } = calificar(ev, cuenta, inicio.identidad);
     enviarJson(res, 200, { ...marca(), revision: { ...resultado, porcentaje: pct(resultado.obtenidos, resultado.total) } });
+  });
+
+  // El asistente de IA (src/asistente.js). Como «Revisar mi avance», guarda la
+  // copia y califica la cuenta, pero el resultado no se le muestra al alumno:
+  // es el diagnóstico privado con el que el asistente lo orienta. Cada alumno
+  // tiene MAX_PREGUNTAS por laboratorio y una pregunta a la vez.
+  const pensando = new Set();
+  app.post('/api/practica/asistente', async (req, res) => {
+    const cuerpo = await leerJson(req, LIMITE_CUERPO_CUENTA);
+    const ev = evaluacionPedida(cuerpo.evaluacion);
+    exigirParte(ev, 'practica');
+    const alumno = alumnoDe(cuerpo);
+    const cfg = almacen.config(ev.id);
+    if (!cfg.asistente) return enviarJson(res, 403, { error: 'En esta evaluación tu docente no activó el asistente' });
+    if (!hayLlave()) return enviarJson(res, 503, { error: 'El asistente no está configurado en el servidor. Avísale a tu docente.' });
+    const entrega = almacen.entregaDe(alumno, ev.id, 'practica');
+    if (entrega) return enviarJson(res, 409, { ...marca(), error: 'Ya entregaste este laboratorio', ...respuestaEntregada(ev, 'practica', entrega) });
+    const lab = LABS.get(ev.lab);
+    if (!lab || !hayRubrica(ev.lab) || !cfg.practica.abierta) return enviarJson(res, 423, { error: 'La parte práctica está cerrada' });
+
+    // Sin caracteres de control; los saltos de línea sí se quedan.
+    const pregunta = String(cuerpo.pregunta ?? '')
+      .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ')
+      .trim()
+      .slice(0, MAX_CARACTERES);
+    if (pregunta.length < 3) return enviarJson(res, 400, { error: 'Escribe tu pregunta' });
+    const historial = almacen.conversacionDe(alumno, ev.id);
+    if (preguntasDe(historial) >= MAX_PREGUNTAS) {
+      return enviarJson(res, 429, { error: `Ya usaste tus ${MAX_PREGUNTAS} preguntas al asistente en este laboratorio`, asistente: asistenteDe(ev, alumno, cfg) });
+    }
+    const quien = llaveAlumno(alumno);
+    if (pensando.has(quien)) return enviarJson(res, 429, { error: 'Espera la respuesta a tu pregunta anterior' });
+
+    const cuenta = cuentaDe(cuerpo);
+    const inicio = almacen.inicio(alumno, ev.id, 'practica') ?? almacen.iniciar(alumno, ev.id, 'practica');
+    almacen.guardarCopia(alumno, ev.id, { estado: cuenta, rev: revDe(cuerpo.rev), identidad: inicio.identidad });
+    const { cuenta: avanzada, datos, resultado } = calificar(ev, cuenta, inicio.identidad);
+
+    pensando.add(quien);
+    let respuesta;
+    try {
+      respuesta = await responder({ lab, datos, resultado, bitacora: avanzada.bitacora, historial, pregunta });
+    } finally {
+      pensando.delete(quien);
+    }
+    const hora = new Date().toISOString();
+    // Una pregunta que el modelo declinó no gasta del límite ni se guarda.
+    const mensajes = respuesta.rechazo
+      ? [...historial, { rol: 'alumno', texto: pregunta, hora }, { rol: 'asistente', texto: respuesta.texto, hora, rechazo: true }]
+      : almacen.agregarAConversacion(alumno, ev.id, [
+          { rol: 'alumno', texto: pregunta, hora },
+          { rol: 'asistente', texto: respuesta.texto, hora: new Date().toISOString() }
+        ]);
+    const restantes = Math.max(0, MAX_PREGUNTAS - preguntasDe(almacen.conversacionDe(alumno, ev.id)));
+    enviarJson(res, 200, { ...marca(), respuesta: respuesta.texto, asistente: { activo: true, mensajes, restantes, max: MAX_PREGUNTAS } });
   });
 
   app.post('/api/practica/entregar', async (req, res) => {
@@ -471,6 +547,10 @@ export function crearApp() {
       estado: final,
       folio: folioDe(id)
     };
+    // La conversación con el asistente viaja en la entrega (y en su comprobante):
+    // así el docente la sigue viendo aunque Render borre el disco.
+    const conversacion = almacen.conversacionDe(alumno, ev.id);
+    if (conversacion.length) entrega.asistente = conversacion;
     almacen.guardarEntrega(ev.id, 'practica', entrega);
     enviarJson(res, 201, { ...marca(), ...respuestaEntregada(ev, 'practica', entrega) });
   });
@@ -576,8 +656,17 @@ export function crearApp() {
     disponible: { teoria: tieneParte(ev, 'teoria') && disponible(ev, 'teoria'), practica: disponible(ev, 'practica') },
     minutosTeoria: Number(bancoDe(ev)?.MINUTOS) || null,
     preguntas: bancoDe(ev)?.PREGUNTAS?.length ?? null,
+    // Sin ANTHROPIC_API_KEY en el servidor, el asistente no funciona aunque esté prendido.
+    asistenteListo: hayLlave(),
+    maxPreguntasAsistente: MAX_PREGUNTAS,
     ...almacen.config(ev.id)
   });
+
+  /** La conversación con el asistente: la del servidor o, si se borró el disco, la que trae la entrega. */
+  const conversacionPanel = (a, ev, entrega) => {
+    const viva = almacen.conversacionDe(a, ev.id);
+    return viva.length ? viva : Array.isArray(entrega?.asistente) ? entrega.asistente : [];
+  };
 
   // Cuántas tareas lleva cada quien según su última copia. Calificar en cada
   // refresco del panel (cada 5 s) sería desperdicio: se recuerda por copia.
@@ -647,6 +736,9 @@ export function crearApp() {
 
     const teoria = parte('teoria');
     const practica = parte('practica');
+    if (practica && practica.estado !== 'sin-empezar') {
+      practica.preguntas = preguntasDe(conversacionPanel(a, ev, almacen.entregaDe(a, ev.id, 'practica')));
+    }
     return {
       id: a.id,
       ids: a.ids,
@@ -731,6 +823,11 @@ export function crearApp() {
         if (typeof cuerpo.autorrevision !== 'boolean') throw fallo(400, '«autorrevision» debe ser true o false');
         cambios.autorrevision = cuerpo.autorrevision;
       }
+      if (cuerpo.asistente !== undefined) {
+        if (typeof cuerpo.asistente !== 'boolean') throw fallo(400, '«asistente» debe ser true o false');
+        exigirParte(ev, 'practica');
+        cambios.asistente = cuerpo.asistente;
+      }
       almacen.configurar(ev.id, cambios);
       enviarJson(res, 200, { evaluacion: configPanel(ev) });
     })
@@ -784,7 +881,8 @@ export function crearApp() {
           // De dónde salió la cuenta que se muestra: la entregada o la última copia.
           fuente: e?.estado ? 'entrega' : copia ? 'copia' : null,
           guardado: copia?.hora ?? null,
-          bitacora: Array.isArray(cuenta?.bitacora) ? cuenta.bitacora : []
+          bitacora: Array.isArray(cuenta?.bitacora) ? cuenta.bitacora : [],
+          asistente: conversacionPanel(a, ev, e)
         };
       }
 
@@ -831,6 +929,7 @@ export function crearApp() {
         'practica_folio',
         'practica_inicio',
         'practica_entregada',
+        'preguntas_al_asistente',
         'combinada_porcentaje',
         'calificacion'
       ];
@@ -858,6 +957,7 @@ export function crearApp() {
             p?.folio ?? '',
             fecha(p?.inicio),
             fecha(p?.fin),
+            preguntasDe(conversacionPanel(a, ev, p)) || '',
             comb ?? '',
             comb === null ? '' : calificacion10(comb)
           ];

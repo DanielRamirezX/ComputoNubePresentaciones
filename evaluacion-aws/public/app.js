@@ -1076,6 +1076,7 @@ function instruccionesPractica(ev, LAB, labs) {
         <li>Tienes un máximo de <strong>${LAB.minutos || 60} minutos</strong>. El reloj solo avisa.</li>
         <li>Todo lo que haces se guarda solo, en este equipo y en el servidor.</li>
         ${ev.autorrevision ? '<li>Con <strong>«Revisar mi avance»</strong> ves qué llevas bien y qué te falta, sin entregar.</li>' : ''}
+        ${ev.asistente ? '<li>Si te atoras, pregúntale al <strong>asistente</strong>: te ayuda a encontrar dónde está el problema, pero <strong>no te da la respuesta</strong>. Tu docente puede leer la conversación.</li>' : ''}
         <li>Cuando termines, pulsa <strong>«Entregar laboratorio»</strong>. <strong>Solo se entrega una vez.</strong></li>
       </ul>
       <button class="boton boton--primario boton--ancho" type="button" id="btn-empezar">Abrir la consola · arranca el reloj ${icono('i-flecha')}</button>
@@ -1141,6 +1142,9 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   const datos = datosAlumno(identidad);
   const clave = intento ? claveIntento(ev.id, 'practica') : claveLab(ev.id);
   let autorrevision = datosServidor.autorrevision;
+  // El asistente de IA: solo en la entrega oficial (en un intento ya no hay límite que cuidar).
+  const asistente = intento ? null : datosServidor.asistente ?? null;
+  let conAsistente = Boolean(asistente?.activo);
 
   // ¿Con qué cuenta se arranca? La más avanzada entre la de este equipo y la
   // copia del servidor (cuenta por número de cambios, no por reloj: los relojes
@@ -1183,6 +1187,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
         <span class="reloj reloj--oscuro" id="reloj"></span>
         <div class="lab__acciones">
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-panel" aria-controls="panel" aria-expanded="${!plegado}">${icono('i-panel')}<span>${plegado ? 'Mostrar' : 'Ocultar'} instrucciones</span></button>
+          <button class="boton boton--oscuro boton--chico" type="button" id="btn-asistente" ${conAsistente ? '' : 'hidden'}>${icono('i-libro')}<span>Asistente</span></button>
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-revisar" ${autorrevision ? '' : 'hidden'}>${icono('i-lupa')}<span>Revisar mi avance</span></button>
           <button class="boton boton--primario boton--chico" type="button" id="btn-entregar">${intento ? 'Calificar mi intento' : 'Entregar laboratorio'}</button>
         </div>
@@ -1201,6 +1206,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
             <button type="button" role="tab" id="tab-tareas" data-pestana="tareas" aria-controls="tp-tareas">Tareas</button>
             <button type="button" role="tab" id="tab-datos" data-pestana="datos" aria-controls="tp-datos">Tus datos</button>
             <button type="button" role="tab" id="tab-avance" data-pestana="avance" aria-controls="tp-avance" ${autorrevision ? '' : 'hidden'}>Mi avance</button>
+            <button type="button" role="tab" id="tab-asistente" data-pestana="asistente" aria-controls="tp-asistente" ${conAsistente ? '' : 'hidden'}>Asistente</button>
           </div>
           <div class="lab__contenido">
             <section role="tabpanel" id="tp-caso" aria-labelledby="tab-caso" data-panel="caso" class="lab__caso">${LAB.historia}</section>
@@ -1238,6 +1244,18 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
               <p class="sutil">Tu cuenta: ${escapar(identidad.nombre)}${identidad.matricula ? ` · ${escapar(identidad.matricula)}` : ''}</p>
             </section>
             <section role="tabpanel" id="tp-avance" aria-labelledby="tab-avance" data-panel="avance"></section>
+            <section role="tabpanel" id="tp-asistente" aria-labelledby="tab-asistente" data-panel="asistente" class="asistente">
+              <p class="asistente__aviso">Pregúntale como le preguntarías a un compañero con experiencia. Ve cómo va tu cuenta y te ayuda a encontrar <strong>dónde</strong> estás atorado, pero <strong>no te da la respuesta</strong>. Tu docente puede leer esta conversación.</p>
+              <ol class="asistente__mensajes" id="asistente-mensajes" aria-live="polite"></ol>
+              <form class="asistente__forma" id="asistente-forma">
+                <label class="solo-lectores" for="asistente-texto">Tu pregunta para el asistente</label>
+                <textarea id="asistente-texto" rows="3" maxlength="600" placeholder="Ej.: Ya conecté el Internet Gateway pero la página sigue sin abrir. ¿Qué más reviso?"></textarea>
+                <div class="asistente__pie">
+                  <span class="sutil" id="asistente-quedan"></span>
+                  <button class="boton boton--primario boton--chico" type="submit" id="asistente-enviar">Preguntar</button>
+                </div>
+              </form>
+            </section>
           </div>
           <footer class="lab__pie">
             <button type="button" class="enlace-peligro" id="btn-reiniciar">Reiniciar mi cuenta</button>
@@ -1344,6 +1362,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
       if (rev === enviada) pendiente = false;
       textoGuardado(`Guardado ${hora(new Date().toISOString())}`, 'lab__guardado--bien');
       actualizarAutorrevision(r.autorrevision);
+      actualizarAsistente(r.asistente);
     } catch {
       textoGuardado('Sin conexión · guardado en este equipo', 'lab__guardado--mal');
     } finally {
@@ -1430,6 +1449,87 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
     lab.querySelector('[data-pestana="avance"]').hidden = !valor;
     if (!valor && pestana === 'avance') mostrarPestana('tareas');
   }
+
+  /* ------------------------------------------------------- el asistente */
+
+  // Las respuestas llegan como texto: se escapa todo y solo se respetan los
+  // `nombres de la consola` entre comillas invertidas y los saltos de línea.
+  const textoAsistente = (t) =>
+    escapar(t)
+      .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+      .replace(/\n/g, '<br>');
+
+  function pintarAsistente({ pensando = false } = {}) {
+    if (!asistente) return;
+    const lista = $('asistente-mensajes');
+    lista.innerHTML =
+      asistente.mensajes
+        .map(
+          (m) => `<li class="asistente__msg asistente__msg--${m.rol === 'alumno' ? 'alumno' : 'ia'}">
+            <span class="asistente__quien">${m.rol === 'alumno' ? 'Tú' : 'Asistente'} · ${hora(m.hora)}</span>
+            <p>${textoAsistente(m.texto)}</p>
+          </li>`
+        )
+        .join('') +
+      (pensando ? '<li class="asistente__msg asistente__msg--ia asistente__msg--pensando"><span class="asistente__quien">Asistente</span><p>Revisando tu cuenta…</p></li>' : '');
+    if (!asistente.mensajes.length && !pensando) {
+      lista.innerHTML = '<li class="asistente__vacio sutil">Cuéntale en qué tarea vas, qué intentaste y qué ves. Entre más claro, mejor te orienta.</li>';
+    }
+    const quedan = asistente.restantes;
+    $('asistente-quedan').textContent = quedan > 0 ? `Te quedan ${quedan} de ${asistente.max} preguntas` : `Ya usaste tus ${asistente.max} preguntas`;
+    const agotado = quedan <= 0;
+    $('asistente-texto').disabled = agotado || pensando;
+    $('asistente-enviar').disabled = agotado || pensando;
+    lista.lastElementChild?.scrollIntoView({ block: 'nearest' });
+  }
+  pintarAsistente();
+
+  function actualizarAsistente(valor) {
+    if (!asistente || typeof valor !== 'boolean' || valor === conAsistente) return;
+    conAsistente = valor;
+    $('btn-asistente').hidden = !valor;
+    lab.querySelector('[data-pestana="asistente"]').hidden = !valor;
+    if (!valor && pestana === 'asistente') mostrarPestana('tareas');
+  }
+
+  $('btn-asistente').addEventListener('click', () => {
+    if (plegado) $('btn-panel').click();
+    mostrarPestana('asistente');
+    $('asistente-texto').focus();
+  });
+
+  $('asistente-texto').addEventListener('keydown', (e) => {
+    // Enter manda la pregunta; Shift+Enter hace un salto de línea.
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      $('asistente-forma').requestSubmit();
+    }
+  });
+
+  $('asistente-forma').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const caja = $('asistente-texto');
+    const pregunta = caja.value.trim();
+    if (pregunta.length < 3) return caja.focus();
+    const antes = asistente.mensajes;
+    asistente.mensajes = [...antes, { rol: 'alumno', texto: pregunta, hora: new Date().toISOString() }];
+    caja.value = '';
+    pintarAsistente({ pensando: true });
+    try {
+      const r = await api('api/practica/asistente', { ...cuerpoCopia(), pregunta });
+      pendiente = false;
+      Object.assign(asistente, r.asistente);
+    } catch (err) {
+      asistente.mensajes = antes;
+      caja.value = pregunta;
+      if (err.datos?.asistente) Object.assign(asistente, err.datos.asistente);
+      if (err.estado === 403) actualizarAsistente(false);
+      if (err.estado === 409) return pintar();
+      aviso(err.message, 'error');
+    }
+    pintarAsistente();
+    if (!$('asistente-texto').disabled) $('asistente-texto').focus();
+  });
 
   function pintarRevision() {
     const r = revision;
@@ -1532,6 +1632,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
     if (p.partes.practica?.entrega) return pintar();
     $('aviso-cierre').hidden = p.partes.practica?.estado === 'abierta';
     actualizarAutorrevision(p.autorrevision);
+    actualizarAsistente(p.asistente);
     if (pendiente && !espera) enviarCopia();
   };
 }

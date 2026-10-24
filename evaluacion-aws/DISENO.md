@@ -192,6 +192,15 @@ Alumno:
   «Revisar mi avance»). Califican con la retroalimentación vigente y **no
   guardan nada**: la entrega que cuenta es la primera. El avance del intento
   vive solo en el `localStorage` del alumno.
+- `POST api/practica/asistente` `{ alumno, evaluacion, estado, pregunta }` → el
+  asistente de IA (`src/asistente.js`), si el docente lo dejó prendido y el
+  servidor tiene `ANTHROPIC_API_KEY`. Guarda la copia, califica la cuenta y
+  manda la rúbrica como «diagnóstico privado» al modelo (Claude Sonnet 5.5,
+  cambiable con `ASISTENTE_MODELO`), que orienta sin dar la respuesta. Hasta
+  15 preguntas por alumno, una a la vez; una pregunta que el modelo declina no
+  cuenta. La conversación se guarda en el almacén y viaja en la entrega (y en
+  su comprobante) para que el docente la lea aunque Render borre el disco.
+  Solo en la entrega oficial: en los intentos no hay asistente.
 
 Docente (cabecera `x-clave-docente`, misma `CLAVE_DOCENTE` que los demás
 paneles): entrar, resumen por evaluación y grupo, abrir y cerrar cada parte,

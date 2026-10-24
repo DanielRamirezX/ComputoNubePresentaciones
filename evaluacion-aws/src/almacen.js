@@ -125,6 +125,7 @@ function evaluacion(evId) {
   e.practica ??= {};
   e.inicios ??= { teoria: {}, practica: {} };
   e.entregas ??= { teoria: {}, practica: {} };
+  e.asistente ??= {};
   return e;
 }
 
@@ -164,7 +165,7 @@ export const almacen = {
     return alumno;
   },
 
-  /** Abierta/cerrada, retroalimentación y autorrevisión, con sus valores de arranque. */
+  /** Abierta/cerrada, retroalimentación, autorrevisión y asistente, con sus valores de arranque. */
   config(evId) {
     const ev = evaluacionDe(evId);
     const e = estado.evaluaciones[evId];
@@ -172,16 +173,18 @@ export const almacen = {
       teoria: { abierta: e?.teoria?.abierta ?? Boolean(ev.abierta?.teoria) },
       practica: { abierta: e?.practica?.abierta ?? Boolean(ev.abierta?.practica) },
       retro: e?.retro ?? ev.retro,
-      autorrevision: e?.autorrevision ?? ev.autorrevision
+      autorrevision: e?.autorrevision ?? ev.autorrevision,
+      asistente: e?.asistente?.activo ?? Boolean(ev.asistente)
     };
   },
 
-  configurar(evId, { teoria, practica, retro, autorrevision }) {
+  configurar(evId, { teoria, practica, retro, autorrevision, asistente }) {
     const e = evaluacion(evId);
     if (typeof teoria === 'boolean') e.teoria.abierta = teoria;
     if (typeof practica === 'boolean') e.practica.abierta = practica;
     if (retro !== undefined) e.retro = retro;
     if (typeof autorrevision === 'boolean') e.autorrevision = autorrevision;
+    if (typeof asistente === 'boolean') e.asistente.activo = asistente;
     guardar();
     return this.config(evId);
   },
@@ -231,6 +234,18 @@ export const almacen = {
     }
     guardar();
     return true;
+  },
+
+  /** Las preguntas al asistente de IA y sus respuestas: [{ rol, texto, hora }]. */
+  conversacionDe: (alumno, evId) => delAlumno(estado.evaluaciones[evId]?.asistente?.conversaciones, alumno)?.mensajes ?? [],
+
+  agregarAConversacion(alumno, evId, mensajes) {
+    const e = evaluacion(evId);
+    e.asistente.conversaciones ??= {};
+    const c = delAlumno(e.asistente.conversaciones, alumno) ?? (e.asistente.conversaciones[alumno.id] = { llave: llave(alumno), mensajes: [] });
+    c.mensajes.push(...mensajes);
+    guardar();
+    return c.mensajes;
   },
 
   /** La copia más reciente del laboratorio del alumno (de cualquiera de sus equipos). */

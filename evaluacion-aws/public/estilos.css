@@ -779,6 +779,22 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
 .mi-avance__cifra { margin: 0 0 4px; font-size: 1.1rem; }
 .mi-avance__cifra strong { font-family: var(--display); font-size: 2rem; }
 
+/* El asistente de IA: la conversación arriba y la caja para preguntar pegada abajo. */
+.asistente__aviso { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--marino-suave); font-size: .92rem; }
+.asistente__mensajes { display: grid; gap: 10px; margin: 0 0 12px; padding: 0; list-style: none; }
+.asistente__msg { max-width: 92%; padding: 9px 12px; border-radius: 12px; border: 2px solid var(--marino); background: var(--blanco); overflow-wrap: anywhere; }
+.asistente__msg p { margin: 2px 0 0; }
+.asistente__msg code { font-size: .88em; }
+.asistente__msg--alumno { justify-self: end; background: var(--naranja-suave); border-color: var(--naranja-texto); }
+.asistente__msg--ia { justify-self: start; }
+.asistente__msg--pensando p { color: var(--gris); font-style: italic; }
+.asistente__quien { font-size: .78rem; font-weight: 700; color: var(--gris); }
+.asistente__forma { position: sticky; bottom: -16px; display: grid; gap: 8px; margin: 0 -16px -16px; padding: 12px 16px 16px; border-top: 2px solid var(--linea); background: var(--papel); }
+.asistente__forma textarea { width: 100%; min-height: 4.5em; padding: 8px 10px; border: 2px solid var(--marino); border-radius: 10px; font: inherit; resize: vertical; background: var(--blanco); color: var(--tinta); }
+.asistente__forma textarea:focus-visible { outline: 3px solid var(--azul-foco); outline-offset: 1px; }
+.asistente__pie { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.asistente__pie .sutil { margin: 0; font-size: .86rem; }
+
 @media (max-width: 1000px) {
   body.modo-lab { overflow: auto; }
   .lab { position: static; min-height: 100vh; display: block; }

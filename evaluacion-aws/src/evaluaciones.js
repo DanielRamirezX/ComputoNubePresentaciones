@@ -39,7 +39,14 @@ export const EVALUACIONES = [
     pesos: { teoria: 60, practica: 40 },
     retro: 'completa',
     autorrevision: true,
-    reintentos: true
+    reintentos: true,
+    // Se subió un cambio el 23 de octubre con el simulacro en curso: arranca
+    // abierto para que el reinicio de Render no lo cierre a media clase.
+    abierta: { teoria: true, practica: true },
+    // El asistente de IA del laboratorio (src/asistente.js): ayuda a ubicar
+    // dónde está atorado el alumno sin darle la respuesta. El docente lo
+    // apaga o lo prende en el panel.
+    asistente: true
   },
   {
     id: 'bimestral',
@@ -52,7 +59,8 @@ export const EVALUACIONES = [
     pesos: { practica: 100 },
     retro: 'calificacion',
     autorrevision: false,
-    reintentos: false
+    reintentos: false,
+    asistente: false
   }
 ];
 

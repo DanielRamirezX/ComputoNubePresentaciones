@@ -228,6 +228,16 @@ function pintarControl() {
           <button type="button" data-auto="false" data-foco="auto-no" aria-pressed="${!ev.autorrevision}">No</button>
         </div>
         <p class="ajuste__ayuda">Con «Sí», el alumno ve qué lleva bien y qué le falta antes de entregar (ideal en simulacros). En el examen, «No».</p>
+      </div>
+      <div class="ajuste">
+        <span class="ajuste__nombre" id="et-asistente">Asistente de IA en el laboratorio</span>
+        <div class="segmentado" role="group" aria-labelledby="et-asistente">
+          <button type="button" data-asistente="true" data-foco="asis-si" aria-pressed="${ev.asistente}">Sí</button>
+          <button type="button" data-asistente="false" data-foco="asis-no" aria-pressed="${!ev.asistente}">No</button>
+        </div>
+        <p class="ajuste__ayuda">Con «Sí», cada alumno puede hacerle hasta ${ev.maxPreguntasAsistente} preguntas a un asistente que ve su cuenta y lo orienta sin darle la respuesta. Lees cada conversación en «Ver». En el examen, «No».${
+          ev.asistenteListo ? '' : ' <strong>Falta la llave ANTHROPIC_API_KEY en el servidor: aunque esté en «Sí», los alumnos no lo ven.</strong>'
+        }</p>
       </div>`
           : ''
       }
@@ -282,6 +292,8 @@ $('control').addEventListener('click', async (e) => {
   if (retro && retro !== ev.retro) return cambiar({ retro });
   const auto = e.target.closest('[data-auto]')?.dataset.auto;
   if (auto !== undefined && (auto === 'true') !== ev.autorrevision) return cambiar({ autorrevision: auto === 'true' });
+  const asis = e.target.closest('[data-asistente]')?.dataset.asistente;
+  if (asis !== undefined && (asis === 'true') !== ev.asistente) return cambiar({ asistente: asis === 'true' });
 });
 
 /* ------------------------------------------------------------- métricas */
@@ -314,10 +326,12 @@ function celdaPractica(p) {
   if (p.estado === 'sin-empezar') return '<span class="estado-celda estado-celda--sin">Sin empezar</span>';
   if (p.estado === 'en-curso') {
     const tareas = p.tareasTotal ? ` · ${p.tareasLogradas} de ${p.tareasTotal} tareas · ${decimal(p.obtenidos)} pts` : '';
-    return `<span class="estado-celda estado-celda--curso">En curso · ${p.minutos} min${tareas}</span>`;
+    return `<span class="estado-celda estado-celda--curso">En curso · ${p.minutos} min${tareas}</span>${preguntasCelda(p)}`;
   }
-  return `<span class="estado-celda ${p.porcentaje < APROBATORIO ? 'estado-celda--debil' : 'estado-celda--entregada'}">${icono('i-check')} ${decimal(p.obtenidos)}/${p.total} · ${p.tareasLogradas} de ${p.tareasTotal} tareas</span>${p.restaurada ? ' <small title="Repuesta desde el comprobante del alumno">↺</small>' : ''}`;
+  return `<span class="estado-celda ${p.porcentaje < APROBATORIO ? 'estado-celda--debil' : 'estado-celda--entregada'}">${icono('i-check')} ${decimal(p.obtenidos)}/${p.total} · ${p.tareasLogradas} de ${p.tareasTotal} tareas</span>${p.restaurada ? ' <small title="Repuesta desde el comprobante del alumno">↺</small>' : ''}${preguntasCelda(p)}`;
 }
+
+const preguntasCelda = (p) => (p.preguntas ? ` <small class="sutil" title="Preguntas al asistente de IA">· ${p.preguntas} al asistente</small>` : '');
 
 function pintarTabla() {
   const ev = datos.evaluacion;
@@ -491,7 +505,8 @@ function pintarDetalle(d) {
     d.teoria && ['teoria', 'Teórica'],
     d.practica && ['practica', 'Laboratorio'],
     d.practica && ['cuenta', 'Su cuenta'],
-    d.practica && ['bitacora', `Bitácora (${d.practica.bitacora.length})`]
+    d.practica && ['bitacora', `Bitácora (${d.practica.bitacora.length})`],
+    d.practica && (d.practica.asistente.length || d.evaluacion.asistente) && ['asistente', `Asistente (${d.practica.asistente.filter((m) => m.rol === 'alumno').length})`]
   ].filter(Boolean);
   if (!pestanas.some(([k]) => k === detallePestana)) detallePestana = pestanas[0][0];
 
@@ -502,7 +517,8 @@ function pintarDetalle(d) {
     ${d.teoria ? `<section data-dpanel="teoria">${detalleTeoria(d)}</section>` : ''}
     ${d.practica ? `<section data-dpanel="practica">${detallePractica(d)}</section>` : ''}
     ${d.practica ? `<section data-dpanel="cuenta">${detalleCuenta(d)}</section>` : ''}
-    ${d.practica ? `<section data-dpanel="bitacora">${detalleBitacora(d)}</section>` : ''}`;
+    ${d.practica ? `<section data-dpanel="bitacora">${detalleBitacora(d)}</section>` : ''}
+    ${d.practica ? `<section data-dpanel="asistente">${detalleAsistente(d)}</section>` : ''}`;
 
   const mostrar = (k) => {
     detallePestana = k;
@@ -656,6 +672,21 @@ function detalleBitacora(d) {
         (x) => `<tr><td>${x.t ? new Date(x.t).toLocaleTimeString('es-MX') : ''}</td><td>${escapar(x.servicio ?? '')}</td><td><span class="mono">${escapar(x.accion ?? '')}</span> ${escapar(x.detalle ?? '')}</td></tr>`
       )
       .join('')}</tbody></table>`;
+}
+
+function detalleAsistente(d) {
+  const lista = d.practica.asistente;
+  if (!lista.length) return '<p class="sutil">No le ha hecho preguntas al asistente.</p>';
+  const texto = (t) => escapar(t).replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\n/g, '<br>');
+  return `<p class="sutil">Lo que preguntó y lo que le contestó el asistente, en orden. Te dice dónde se atoró.</p>
+    <ol class="asistente__mensajes">${lista
+      .map(
+        (m) => `<li class="asistente__msg asistente__msg--${m.rol === 'alumno' ? 'alumno' : 'ia'}">
+          <span class="asistente__quien">${m.rol === 'alumno' ? escapar(d.alumno.nombre) : 'Asistente'} · ${m.hora ? new Date(m.hora).toLocaleTimeString('es-MX') : ''}</span>
+          <p>${texto(m.texto)}</p>
+        </li>`
+      )
+      .join('')}</ol>`;
 }
 
 async function borrarDesdeDetalle(e) {

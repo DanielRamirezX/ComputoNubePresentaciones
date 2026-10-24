@@ -36,6 +36,12 @@ fundamentos y EC2, identidad y seguridad, redes y almacenamiento.
      completa en los simulacros y solo calificación en el bimestral.
    - **«Revisar mi avance»:** deja que el alumno califique su laboratorio a
      medio camino. Viene activado en los simulacros y apagado en el bimestral.
+   - **Asistente de IA:** un compañero con experiencia al que el alumno le
+     pregunta cuando se atora. Ve cómo va su cuenta y lo orienta (dónde buscar,
+     qué concepto le falta), pero no le da la respuesta. Hasta 15 preguntas por
+     alumno. Viene prendido en el Simulacro 2 y apagado en los demás. En el
+     panel, «Ver» → «Asistente» muestra la conversación completa, y el CSV
+     trae cuántas preguntas hizo cada quien.
 4. Los alumnos entran desde la tarjeta de la sección Evaluación de la plataforma.
 5. En el panel ves en vivo:
    - quién empezó y quién entregó;
@@ -56,6 +62,11 @@ fundamentos y EC2, identidad y seguridad, redes y almacenamiento.
 
 > En Render hay que definir `CLAVE_DOCENTE`. Con la clave por defecto
 > (`cambiame`), cualquiera podría entrar al panel y falsificar comprobantes.
+>
+> Para el asistente, define también `ANTHROPIC_API_KEY` (una llave de
+> console.anthropic.com con saldo). Sin ella el asistente no aparece aunque
+> esté prendido, y el panel lo avisa. Cada pregunta cuesta alrededor de
+> 0.015 USD.
 
 ## Correr y verificar
 
