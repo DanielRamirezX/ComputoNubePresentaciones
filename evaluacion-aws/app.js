@@ -7,6 +7,7 @@ import { almacen, llave as llaveAlumno } from './src/almacen.js';
 import { MAX_CARACTERES, MAX_PREGUNTAS, hayLlave, responder } from './src/asistente.js';
 import { calificarCuenta, conRepaso, datosDe, hayRubrica } from './src/calificar.js';
 import { repasosDe } from './src/repaso.js';
+import { reporteHtml } from './src/reporte.js';
 import { EVALUACIONES, RETROS, combinada, evaluacionDe, tieneParte } from './src/evaluaciones.js';
 import { pct, resumen, resumirPractica, resumirTeoria } from './src/estadisticas.js';
 import { crearFirmador } from './src/firma.js';
@@ -249,10 +250,12 @@ export function crearApp() {
   // tiene la llave de la API (ANTHROPIC_API_KEY).
   const asistenteActivo = (ev, cfg) => Boolean(tieneParte(ev, 'practica') && cfg.asistente && hayLlave());
   const preguntasDe = (mensajes) => mensajes.filter((m) => m.rol === 'alumno').length;
+  /** Cuántas preguntas al asistente tiene cada alumno en esta evaluación. */
+  const maxPreguntas = (ev) => ev.preguntasAsistente ?? MAX_PREGUNTAS;
   /** La conversación del alumno con el asistente, tal como la necesita su laboratorio. */
   function asistenteDe(ev, alumno, cfg) {
     const mensajes = almacen.conversacionDe(alumno, ev.id);
-    return { activo: asistenteActivo(ev, cfg), mensajes, restantes: Math.max(0, MAX_PREGUNTAS - preguntasDe(mensajes)), max: MAX_PREGUNTAS };
+    return { activo: asistenteActivo(ev, cfg), mensajes, restantes: Math.max(0, maxPreguntas(ev) - preguntasDe(mensajes)), max: maxPreguntas(ev) };
   }
 
   const porcentajeEntrega = (parte, e) => (parte === 'teoria' ? pct(e.aciertos, e.total) : pct(e.obtenidos, e.total));
@@ -459,7 +462,7 @@ export function crearApp() {
   // El asistente de IA (src/asistente.js). Como «Revisar mi avance», guarda la
   // copia y califica la cuenta, pero el resultado no se le muestra al alumno:
   // es el diagnóstico privado con el que el asistente lo orienta. Cada alumno
-  // tiene MAX_PREGUNTAS por laboratorio y una pregunta a la vez.
+  // tiene maxPreguntas(ev) por laboratorio y una pregunta a la vez.
   const pensando = new Set();
   app.post('/api/practica/asistente', async (req, res) => {
     const cuerpo = await leerJson(req, LIMITE_CUERPO_CUENTA);
@@ -481,8 +484,8 @@ export function crearApp() {
       .slice(0, MAX_CARACTERES);
     if (pregunta.length < 3) return enviarJson(res, 400, { error: 'Escribe tu pregunta' });
     const historial = almacen.conversacionDe(alumno, ev.id);
-    if (preguntasDe(historial) >= MAX_PREGUNTAS) {
-      return enviarJson(res, 429, { error: `Ya usaste tus ${MAX_PREGUNTAS} preguntas al asistente en este laboratorio`, asistente: asistenteDe(ev, alumno, cfg) });
+    if (preguntasDe(historial) >= maxPreguntas(ev)) {
+      return enviarJson(res, 429, { error: `Ya usaste tus ${maxPreguntas(ev)} preguntas al asistente en este laboratorio`, asistente: asistenteDe(ev, alumno, cfg) });
     }
     const quien = llaveAlumno(alumno);
     if (pensando.has(quien)) return enviarJson(res, 429, { error: 'Espera la respuesta a tu pregunta anterior' });
@@ -507,8 +510,8 @@ export function crearApp() {
           { rol: 'alumno', texto: pregunta, hora },
           { rol: 'asistente', texto: respuesta.texto, hora: new Date().toISOString() }
         ]);
-    const restantes = Math.max(0, MAX_PREGUNTAS - preguntasDe(almacen.conversacionDe(alumno, ev.id)));
-    enviarJson(res, 200, { ...marca(), respuesta: respuesta.texto, asistente: { activo: true, mensajes, restantes, max: MAX_PREGUNTAS } });
+    const restantes = Math.max(0, maxPreguntas(ev) - preguntasDe(almacen.conversacionDe(alumno, ev.id)));
+    enviarJson(res, 200, { ...marca(), respuesta: respuesta.texto, asistente: { activo: true, mensajes, restantes, max: maxPreguntas(ev) } });
   });
 
   app.post('/api/practica/entregar', async (req, res) => {
@@ -658,7 +661,7 @@ export function crearApp() {
     preguntas: bancoDe(ev)?.PREGUNTAS?.length ?? null,
     // Sin ANTHROPIC_API_KEY en el servidor, el asistente no funciona aunque esté prendido.
     asistenteListo: hayLlave(),
-    maxPreguntasAsistente: MAX_PREGUNTAS,
+    maxPreguntasAsistente: maxPreguntas(ev),
     ...almacen.config(ev.id)
   });
 
@@ -967,6 +970,65 @@ export function crearApp() {
       const nombre = `evaluacion-${ev.id}-${(grupo || 'todos').replace(/[^\w-]+/g, '-').toLowerCase()}.csv`;
       // El BOM hace que Excel abra los acentos bien.
       enviarDescarga(res, nombre, 'text/csv; charset=utf-8', String.fromCharCode(0xfeff) + csv);
+    })
+  );
+
+  // El reporte de evidencia (src/reporte.js): un HTML para imprimir o guardar
+  // en PDF con todo lo que revisó la rúbrica de cada alumno. Del grupo, o de
+  // un solo alumno con ?alumno=.
+  app.get(
+    '/api/docente/reporte',
+    soloDocente((req, res, { query }) => {
+      const ev = evaluacionPedida(query.evaluacion);
+      const grupo = grupoPedido(query);
+      let lista;
+      if (query.alumno) {
+        const a = idValido(query.alumno) ? almacen.alumnoFundido(query.alumno) : null;
+        if (!a) return enviarJson(res, 404, { error: 'No encontré a ese alumno' });
+        lista = [a];
+      } else {
+        lista = almacen.alumnos(grupo).sort((a, b) => a.grupo.localeCompare(b.grupo) || a.nombre.localeCompare(b.nombre, 'es'));
+      }
+      const ahora = Date.now();
+      const alumnos = lista.map((a) => {
+        const fila = filaAlumno(ev, a, ahora);
+        const t = tieneParte(ev, 'teoria') ? almacen.entregaDe(a, ev.id, 'teoria') : null;
+        const p = tieneParte(ev, 'practica') ? almacen.entregaDe(a, ev.id, 'practica') : null;
+        let datos = null;
+        try {
+          datos = p ? datosDe(p.identidad ?? { nombre: a.nombre, matricula: a.matricula }) : null;
+        } catch {
+          datos = null;
+        }
+        return {
+          ...fila,
+          teoria: fila.teoria && { ...fila.teoria, resultado: t ? resultadoTeoria(ev, t, 'completa') : null },
+          practica: fila.practica && {
+            ...fila.practica,
+            resultado: p ? resultadoPractica(ev, p, 'completa') : null,
+            datos,
+            conversacion: p ? conversacionPanel(a, ev, p) : []
+          }
+        };
+      });
+      const html = reporteHtml({
+        materia: MATERIA,
+        ev,
+        alumnos,
+        grupo: alumnos.length === 1 && query.alumno ? alumnos[0].grupo : grupo,
+        generado: new Date(ahora).toISOString(),
+        zona: ZONA_HORARIA,
+        maxPreguntas: almacen.config(ev.id).asistente ? maxPreguntas(ev) : 0
+      });
+      const nombre = `reporte-${ev.id}-${(query.alumno ? alumnos[0].matricula || alumnos[0].nombre : grupo || 'todos').replace(/[^\w-]+/g, '-').toLowerCase()}.html`;
+      // En línea, no como descarga: el docente lo ve y lo imprime en la misma pestaña.
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Length': Buffer.byteLength(html),
+        'Content-Disposition': `inline; filename="${nombre}"`,
+        'Cache-Control': 'no-store'
+      });
+      res.end(html);
     })
   );
 

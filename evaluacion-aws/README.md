@@ -8,7 +8,7 @@ fundamentos y EC2, identidad y seguridad, redes y almacenamiento.
 |---|---|---|---|
 | Simulacro 1 | martes 20 de octubre de 2026 | 5 casos de negocio, 25 preguntas, 45 min | «La cafetería El Grano de Oro»: construir desde cero |
 | Simulacro 2 | viernes 23 de octubre de 2026 | 5 casos **distintos**, 25 preguntas, 45 min; más sencilla que la del simulacro 1 | «Veterinaria Patitas»: diagnosticar y reparar, con pistas generales (sin la ruta de clics) |
-| Examen bimestral | martes 27 de octubre de 2026 | — (la aplica el docente) | «Ferretería Don Beto»: mixto y sin pistas; la subred privada es bono opcional (máx. 100) |
+| Examen bimestral | martes 27 de octubre de 2026 | — (la aplica el docente) | «Ferretería Don Beto»: red, servidor, disco, S3 e IAM (sin NACL), con pistas generales; la subred privada es bono opcional (máx. 100) |
 
 - Cada laboratorio está pensado para durar **máximo 60 minutos**.
 - **Toda pregunta y todo punto de la rúbrica tienen retroalimentación**, tanto
@@ -33,13 +33,15 @@ fundamentos y EC2, identidad y seguridad, redes y almacenamiento.
 3. Opciones de cada evaluación:
    - **Retroalimentación al entregar:** completa, que muestra qué hicieron
      bien y qué no con su explicación, o solo la calificación. Por omisión es
-     completa en los simulacros y solo calificación en el bimestral.
+     completa en las tres evaluaciones.
    - **«Revisar mi avance»:** deja que el alumno califique su laboratorio a
-     medio camino. Viene activado en los simulacros y apagado en el bimestral.
+     medio camino. Viene activado en las tres evaluaciones.
    - **Asistente de IA:** un compañero con experiencia al que el alumno le
      pregunta cuando se atora. Ve cómo va su cuenta y lo orienta (dónde buscar,
      qué concepto le falta), pero no le da la respuesta. Hasta 15 preguntas por
-     alumno. Viene prendido en el Simulacro 2 y apagado en los demás. En el
+     alumno (5 en el bimestral, con `preguntasAsistente` en
+     `src/evaluaciones.js`). Viene prendido en el Simulacro 2 y en el
+     bimestral. En el
      panel, «Ver» → «Asistente» muestra la conversación completa, y el CSV
      trae cuántas preguntas hizo cada quien.
 4. Los alumnos entran desde la tarjeta de la sección Evaluación de la plataforma.
@@ -58,7 +60,10 @@ fundamentos y EC2, identidad y seguridad, redes y almacenamiento.
 6. **Al terminar cada clase, descarga el CSV.** Render borra el disco cada vez
    que reinicia el servidor. Cada alumno guarda en su navegador un comprobante
    firmado de su entrega, y la vuelve a subir sola si el servidor la perdió.
-   Aun así, el CSV es tu respaldo.
+   Aun así, el CSV es tu respaldo. Descarga también el **reporte de evidencia**
+   (o, desde «Ver», el de un solo alumno): un HTML para imprimir o guardar en
+   PDF con cada punto que revisó la rúbrica, cumplido o no, con su
+   explicación, y la conversación con el asistente (`src/reporte.js`).
 
 > En Render hay que definir `CLAVE_DOCENTE`. Con la clave por defecto
 > (`cambiame`), cualquiera podría entrar al panel y falsificar comprobantes.

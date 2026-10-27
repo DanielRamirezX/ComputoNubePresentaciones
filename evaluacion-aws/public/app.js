@@ -1754,6 +1754,13 @@ function puntosTarea(t) {
   return t.obtenidos >= t.puntos ? `+${decimal(t.obtenidos)} de bono` : `+${decimal(t.obtenidos)} de bono (de ${t.puntos} posibles)`;
 }
 
+/** El estado de la tarea en palabras: queda escrito en el resultado (y en su PDF). */
+function estadoTarea(t) {
+  const completa = t.puntos > 0 && t.obtenidos >= t.puntos;
+  if (t.bono) return completa ? 'Bono completo' : t.obtenidos > 0 ? 'Bono parcial' : 'Bono no realizado';
+  return completa ? 'Completa' : t.obtenidos > 0 ? 'Incompleta' : 'No realizada';
+}
+
 function claseTarea(t) {
   const completa = t.puntos > 0 && t.obtenidos >= t.puntos;
   if (t.bono) return `resultado-tarea--bono ${completa ? 'resultado-tarea--bien' : t.obtenidos > 0 ? 'resultado-tarea--media' : ''}`;
@@ -1794,6 +1801,7 @@ function htmlTareasPractica(tareas, conChecks) {
         ${t.bono ? '<p class="etiqueta-bono">Bono (opcional)</p>' : ''}
         <div class="resultado-tarea__cabeza">
           <h3>${escapar(t.titulo)}</h3>
+          <span class="resultado-tarea__estado">${estadoTarea(t)}</span>
           <span class="resultado-tarea__puntos">${puntosTarea(t)}</span>
         </div>
         <div class="progreso" aria-hidden="true"><span style="width:${pct}%"></span></div>
@@ -1803,7 +1811,7 @@ function htmlTareasPractica(tareas, conChecks) {
                 .map(
                   (c) => `<li class="check ${c.ok ? 'check--bien' : t.bono ? 'check--bono' : 'check--mal'}">
                     ${icono(c.ok ? 'i-check' : 'i-x', 'icono check__icono')}
-                    <div><p class="check__texto"><span class="solo-lectores">${c.ok ? 'Logrado: ' : t.bono ? 'Bono sin hacer: ' : 'Pendiente: '}</span>${escapar(c.texto)} <span class="check__puntos">${t.bono ? '+' : ''}${c.ok ? c.puntos : 0}/${c.puntos}</span></p>
+                    <div><p class="check__texto"><span class="check__estado">${c.ok ? 'Cumplido: ' : t.bono ? 'Bono sin hacer: ' : 'No cumplido: '}</span>${escapar(c.texto)} <span class="check__puntos">${t.bono ? '+' : ''}${c.ok ? c.puntos : 0}/${c.puntos}</span></p>
                     ${c.retro ? `<p class="check__retro">${escapar(c.retro)}</p>` : ''}
                     ${htmlRepaso(c.repaso, c.ok)}</div>
                   </li>`
@@ -1877,11 +1885,12 @@ async function vistaResultado(ev) {
           ${t ? `<div><dt>Teórica</dt><dd>folio <span class="mono">${escapar(t.folio)}</span> · ${escapar(fechaHora(t.fin))}</dd></div>` : ''}
           ${p ? `<div><dt>Práctica</dt><dd>folio <span class="mono">${escapar(p.folio)}</span> · ${escapar(fechaHora(p.fin))}</dd></div>` : ''}
         </dl>
-        <p class="sutil">Tómale captura a esta pantalla: es tu comprobante. Este equipo también guarda una copia firmada por si el servidor se reinicia.</p>
+        <p class="sutil">Guárdalo en PDF o tómale captura a esta pantalla: es tu comprobante. Este equipo también guarda una copia firmada por si el servidor se reinicia.</p>
       </section>
       ${datos.offline ? '' : htmlIntentos(e, partes)}
-      <div class="acciones"><a class="boton" href="#/${ev.id}">Volver a ${escapar(ev.titulo)}</a><a class="boton boton--sutil" href="#/">Mis evaluaciones</a></div>
+      <div class="acciones"><button class="boton boton--oscuro" type="button" id="btn-imprimir">Imprimir o guardar en PDF</button><a class="boton" href="#/${ev.id}">Volver a ${escapar(ev.titulo)}</a><a class="boton boton--sutil" href="#/">Mis evaluaciones</a></div>
     </main>`;
+  app.querySelector('#btn-imprimir').addEventListener('click', () => window.print());
   app.querySelector('.intentos')?.addEventListener('click', (evento) => {
     const boton = evento.target.closest('[data-intento]');
     if (boton) empezarIntento(e, boton.dataset.intento);

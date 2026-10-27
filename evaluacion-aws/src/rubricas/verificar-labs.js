@@ -25,7 +25,6 @@ import {
   crearGrupoIam,
   crearGrupoSeguridad,
   crearIgw,
-  crearNacl,
   crearReglaCiclo,
   crearRol,
   crearSnapshot,
@@ -273,21 +272,6 @@ function construirB(d, o = {}) {
       editarRutas(e, rt.id, [{ destino: '0.0.0.0/0', objetivo: igw.id }]);
       asociarSubredes(e, rt.id, [pub.id]);
     }
-    const nacl = e.nacls.find((n) => n.nombre === x.nacl);
-    if (o.naclPropia) {
-      const mia = crearNacl(e, { vpcId: vpc.id, nombre: 'mi-nacl' });
-      editarReglasNacl(e, mia.id, 'entrada', [
-        { numero: 10, protocolo: '-1', cidr: x.redAtacante, accion: 'deny' },
-        { numero: 100, protocolo: '-1', cidr: '0.0.0.0/0', accion: 'allow' }
-      ]);
-      editarReglasNacl(e, mia.id, 'salida', [{ numero: 100, protocolo: '-1', cidr: '0.0.0.0/0', accion: 'allow' }]);
-      asociarNacl(e, mia.id, [pub.id]);
-    } else {
-      asociarNacl(e, nacl.id, [pub.id]);
-      if (o.naclCambiarAAllow) editarReglasNacl(e, nacl.id, 'entrada', nacl.entrada.map((r) => (r.numero === 90 ? { ...r, accion: 'allow' } : r)));
-      else if (o.naclQuitarTodo) editarReglasNacl(e, nacl.id, 'entrada', [{ numero: 100, protocolo: '-1', cidr: '0.0.0.0/0', accion: 'allow' }]);
-      else if (!o.naclSinArreglar) editarReglasNacl(e, nacl.id, 'entrada', nacl.entrada.filter((r) => r.numero !== 90));
-    }
   }
 
   const sg = crearGrupoSeguridad(e, { nombre: x.sg, descripcion: 'web', vpcId: vpc.id, entrada: [tcp(80, '0.0.0.0/0'), tcp(22, `${x.ipCasa}/32`)] });
@@ -328,22 +312,18 @@ function construirB(d, o = {}) {
 const BONO = ['privada/subred', 'privada/cidr'];
 const CASOS_B = [
   { nombre: 'disco extra agregado al lanzar, t3.micro, auto-assign en la subred', o: { volumenAlLanzar: true, tipo: 't3.micro', autoAssign: true }, minimo: 100 },
-  { nombre: 'NACL arreglada cambiando la regla 90 a allow', o: { naclCambiarAAllow: true }, minimo: 100 },
-  { nombre: 'NACL propia que también bloquea a la red atacante', o: { naclPropia: true }, minimo: 100 },
-  { nombre: 'VPC and more nueva con el mismo CIDR (ignora la NACL del técnico; trae su propia privada)', o: { vpcAndMore: true }, minimo: 91, maximo: 91, fallan: ['red/publica-cidr', 'privada/cidr', 'nacl/nacl-bloqueo', 'nacl/nacl-http'], pasan: ['privada/subred'] },
+  { nombre: 'VPC and more nueva con el mismo CIDR (trae su propia privada)', o: { vpcAndMore: true }, minimo: 100, maximo: 100, fallan: ['red/publica-cidr', 'privada/cidr'], pasan: ['privada/subred'] },
   { nombre: 'BONO hecho: todo bien y la subred privada', o: { bono: true }, minimo: 100, maximo: 100, pasan: BONO },
   { nombre: 'BONO sin hacer: todo lo requerido bien sigue dando 100', o: {}, minimo: 100, maximo: 100, fallan: BONO, retro: { 'privada/subred': 'opcional' } },
-  { nombre: 'BONO compensa un error sin pasar de 100 (snapshot del raíz: 95 + 6)', o: { bono: true, snapshotRaiz: true }, minimo: 100, maximo: 100, fallan: ['discos/snapshot'], pasan: BONO },
-  { nombre: 'BONO compensa solo en parte (NACL sin arreglar: 85 + 6)', o: { bono: true, naclSinArreglar: true }, minimo: 91, maximo: 91, fallan: ['servidor/pagina', 'servidor/texto', 'nacl/nacl-http'], pasan: BONO },
-  { nombre: 'ERROR NACL asociada sin arreglar', o: { naclSinArreglar: true }, minimo: 85, maximo: 85, fallan: ['servidor/pagina', 'servidor/texto', 'nacl/nacl-http'], retro: { 'servidor/pagina': 'NACL', 'nacl/nacl-http': 'regla 90' } },
-  { nombre: 'ERROR NACL abierta del todo (sin bloqueo al atacante)', o: { naclQuitarTodo: true }, minimo: 95, maximo: 95, fallan: ['nacl/nacl-bloqueo'] },
-  { nombre: 'ERROR volumen en otra zona', o: { volumenOtraZona: true }, minimo: 95, maximo: 95, fallan: ['discos/adjunto'], retro: { 'discos/adjunto': 'misma zona' } },
-  { nombre: 'ERROR snapshot del disco raíz', o: { snapshotRaiz: true }, minimo: 95, maximo: 95, fallan: ['discos/snapshot'], retro: { 'discos/snapshot': 'disco raíz' } },
+  { nombre: 'BONO compensa un error sin pasar de 100 (snapshot del raíz: 94 + 6)', o: { bono: true, snapshotRaiz: true }, minimo: 100, maximo: 100, fallan: ['discos/snapshot'], pasan: BONO },
+  { nombre: 'BONO compensa solo en parte (volumen en otra zona: 93 + 6)', o: { bono: true, volumenOtraZona: true }, minimo: 99, maximo: 99, fallan: ['discos/adjunto'], pasan: BONO },
+  { nombre: 'ERROR volumen en otra zona', o: { volumenOtraZona: true }, minimo: 93, maximo: 93, fallan: ['discos/adjunto'], retro: { 'discos/adjunto': 'misma zona' } },
+  { nombre: 'ERROR snapshot del disco raíz', o: { snapshotRaiz: true }, minimo: 94, maximo: 94, fallan: ['discos/snapshot'], retro: { 'discos/snapshot': 'disco raíz' } },
   { nombre: 'ERROR ruta en la tabla principal (con el bono: la privada se vuelve pública)', o: { rutaPrincipal: true, bono: true }, minimo: 100, maximo: 100, fallan: ['privada/subred'], pasan: ['red/publica', 'privada/cidr'], retro: { 'privada/subred': 'tabla principal' } },
   { nombre: 'ERROR ciclo de vida solo para un prefijo', o: { cicloPrefijo: true }, minimo: 94, maximo: 94, fallan: ['s3/ciclo'], retro: { 's3/ciclo': 'prefijo' } },
-  { nombre: 'ERROR ReadOnlyAccess para la cajera', o: { readOnlyTodo: true }, minimo: 95, maximo: 95, fallan: ['iam/grupo'], retro: { 'iam/grupo': 'TODA la cuenta' } },
-  { nombre: 'ERROR grupo con una política extra de solo lectura (AmazonS3ReadOnlyAccess)', o: { politicaExtra: 'AmazonS3ReadOnlyAccess' }, minimo: 95, maximo: 95, fallan: ['iam/grupo'], retro: { 'iam/grupo': 'ninguna otra' } },
-  { nombre: 'ERROR grupo con AdministratorAccess además', o: { politicaExtra: 'AdministratorAccess' }, minimo: 95, maximo: 95, fallan: ['iam/grupo'], retro: { 'iam/grupo': 'AdministratorAccess' } }
+  { nombre: 'ERROR ReadOnlyAccess para la cajera', o: { readOnlyTodo: true }, minimo: 93, maximo: 93, fallan: ['iam/grupo'], retro: { 'iam/grupo': 'TODA la cuenta' } },
+  { nombre: 'ERROR grupo con una política extra de solo lectura (AmazonS3ReadOnlyAccess)', o: { politicaExtra: 'AmazonS3ReadOnlyAccess' }, minimo: 93, maximo: 93, fallan: ['iam/grupo'], retro: { 'iam/grupo': 'ninguna otra' } },
+  { nombre: 'ERROR grupo con AdministratorAccess además', o: { politicaExtra: 'AdministratorAccess' }, minimo: 93, maximo: 93, fallan: ['iam/grupo'], retro: { 'iam/grupo': 'AdministratorAccess' } }
 ];
 
 const ESCENARIOS = { 'simulacro-1': [construir1, CASOS_1], 'simulacro-2': [construir2, CASOS_2], bimestral: [construirB, CASOS_B] };

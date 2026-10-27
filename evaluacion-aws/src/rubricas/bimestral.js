@@ -4,7 +4,6 @@ import {
   adjuntarIgw,
   adjuntarVolumen,
   ami,
-  asociarNacl,
   asociarSubredes,
   avanzar,
   claseS3,
@@ -17,14 +16,10 @@ import {
   crearTablaRutas,
   crearUsuario,
   crearVolumen,
-  editarReglasNacl,
   editarRutas,
   igwDeVpc,
   lanzarInstancias,
-  reloj,
-  subredDe,
-  textoProtocolo,
-  textoPuertos
+  reloj
 } from '../../public/consola/modelo.js';
 import { esSubredPublica } from '../../public/consola/red.js';
 import { LAB, datosLab } from '../../public/labs/bimestral.js';
@@ -53,8 +48,6 @@ import {
   grupoIam,
   lista,
   mejorPor,
-  naclDeSubred,
-  naclPermite,
   preparar,
   probar,
   reglasTodoElBucket,
@@ -68,12 +61,11 @@ import {
 } from './comun.js';
 
 const MICROS = ['t2.micro', 't3.micro'];
-const IP_ATACANTE = '203.0.113.77';
 
 /**
  * Dónde repasar cada punto en la Ruta AWS (ver src/repaso.js). La clave
- * 'tarea/check' gana sobre la de la tarea. La NACL y el IAM solo se vieron en
- * teoría (y en el simulacro): apuntan a la lámina o al paso de la sesión 2.
+ * 'tarea/check' gana sobre la de la tarea. El IAM solo se vio en teoría (y en
+ * el simulacro): apunta a la lámina o al paso de la sesión 2.
  */
 export const REPASO = {
   red: 's3-vpc/3',
@@ -89,10 +81,6 @@ export const REPASO = {
   'servidor/ssh': ['s2-lab-seguridad/14', 's2-identidades/3'],
   'servidor/pagina': ['s1-lab-ec2/11', 's3-vpc/3'],
   'servidor/texto': 's1-lab-ec2/9',
-
-  nacl: 's2-servicios/3',
-  'nacl/nacl-bloqueo': ['s2-servicios/3', 's2-lab-seguridad/15'],
-  'nacl/nacl-http': ['s2-lab-seguridad/15', 's2-servicios/3'],
 
   discos: 's4-discos/2',
   'discos/volumen': ['s4-lab-almacenamiento/9', 's4-discos/2'],
@@ -244,7 +232,7 @@ function checksInstancia(estado, inst, x, vpc) {
       'La página del catálogo abre desde internet',
       6,
       abre,
-      abre ? `http://${inst.ipPublica} abre desde tu casa: gateway, ruta, NACL, grupo de seguridad y Apache están en orden.` : explicarPagina(estado, inst, r)
+      abre ? `http://${inst.ipPublica} abre desde tu casa: gateway, ruta, grupo de seguridad y Apache están en orden.` : explicarPagina(estado, inst, r)
     ),
     check(
       'texto',
@@ -271,43 +259,6 @@ function revisarServidor(estado, x) {
   if (mejor) return mejor.checks;
   const corta = sinInstanciaCorta(estado, vpc, x.vpcCidr);
   return checksInstancia(estado, null, x, vpc).map((c) => (c.id === 'instancia' ? c : { ...c, retro: corta }));
-}
-
-/* ================================================================= NACL */
-
-function revisarNacl(estado, x) {
-  const vpc = elegirVpc(estado, x.vpcCidr);
-  const inst = instanciaWeb(estado, x, vpc)?.candidata ?? null;
-  const subred = (inst && subredDe(estado, inst.subredId)) ?? (vpc ? elegirSubredes(estado, vpc, x).publica : null);
-  const t1 = `La subred pública usa una NACL que bloquea ${x.redAtacante}`;
-  const t2 = 'Esa NACL deja pasar HTTP (80) de los demás y sus respuestas';
-  if (!subred) {
-    const r = vpc ? `Todavía no hay subred pública en ${x.azPublica} para revisarle la NACL.` : sinVpc(estado, x.vpcCidr);
-    return [check('nacl-bloqueo', t1, 5, false, r), check('nacl-http', t2, 5, false, r)];
-  }
-  const nacl = naclDeSubred(estado, subred.id);
-  const propia = nacl && !nacl.porDefecto;
-  const deTecnico = estado.nacls.find((n) => n.nombre === x.nacl && n.vpcId === subred.vpcId);
-  const bloquea = propia && !naclPermite(nacl, 'entrada', 'tcp', 80, IP_ATACANTE).permite;
-  const usaDefecto = `Tu subred ${fmtSubred(subred)} usa la NACL por omisión (${nacl?.id}), que deja pasar todo. Se pidió que use ${x.nacl}${deTecnico ? ` (${deTecnico.id})` : ''}: VPC → Network ACLs → ${x.nacl} → Subnet associations → Edit subnet associations.`;
-
-  let r1;
-  if (bloquea) r1 = `La NACL ${nacl.id} de tu subred pública sigue negando a ${x.redAtacante}. Una NACL sí puede negar (un grupo de seguridad no): por eso se usa para bloquear a una red completa.`;
-  else if (!propia) r1 = usaDefecto;
-  else r1 = `La NACL ${nacl.id} de tu subred ya no niega a ${x.redAtacante}: una IP de esa red entra por la regla ${naclPermite(nacl, 'entrada', 'tcp', 80, IP_ATACANTE).regla?.numero}. Agrega (o deja) una regla deny para ${x.redAtacante} con un número menor que el de cualquier allow que la cubra.`;
-
-  const entraCasa = propia && naclPermite(nacl, 'entrada', 'tcp', 80, x.ipCasa);
-  const entraOtro = propia && naclPermite(nacl, 'entrada', 'tcp', 80, '8.8.8.8');
-  const saleCasa = propia && naclPermite(nacl, 'salida', 'tcp', 50000, x.ipCasa);
-  const okHttp = propia && entraCasa.permite && entraOtro.permite && saleCasa.permite;
-  let r2;
-  if (okHttp) r2 = 'La NACL deja entrar el 80 y salir las respuestas por los puertos efímeros. Las reglas se leen de menor a mayor número y gana la primera que coincide.';
-  else if (!propia) r2 = usaDefecto;
-  else if (!entraCasa.permite || !entraOtro.permite) {
-    const regla = !entraCasa.permite ? entraCasa.regla : entraOtro.regla;
-    r2 = `La NACL ${nacl.id} niega el puerto 80 por la regla ${regla === '*' ? '* (ninguna regla lo permite)' : `${regla.numero} (${regla.accion === 'deny' ? 'Deny' : 'Allow'} ${textoProtocolo(regla.protocolo)} ${textoPuertos(regla)} desde ${regla.cidr})`}. Como gana la primera regla que coincide, esa regla tapa a las demás: bórrala o cámbiala a allow (sin tocar el bloqueo a ${x.redAtacante}).`;
-  } else r2 = `La NACL ${nacl.id} deja entrar el 80 pero no deja salir las respuestas: la NACL no recuerda conexiones, así que necesita una regla de salida que permita los puertos efímeros (1024-65535).`;
-  return [check('nacl-bloqueo', t1, 5, bloquea, r1), check('nacl-http', t2, 5, okHttp, r2)];
 }
 
 /* =============================================================== discos */
@@ -352,9 +303,9 @@ function revisarDiscos(estado, x) {
   } else retroSnap = `No hay snapshots. Selecciona tu volumen ${pedido} en EC2 → Volumes → Actions → Create snapshot.`;
 
   return [
-    check('volumen', `Un volumen EBS ${pedido} además del raíz`, 5, okVol, retroVol),
-    check('adjunto', `Un volumen extra conectado a ${x.instancia}`, 5, okAdj, retroAdj),
-    check('snapshot', `Un snapshot del volumen de ${x.volumenTamano} GiB`, 5, okSnap, retroSnap)
+    check('volumen', `Un volumen EBS ${pedido} además del raíz`, 7, okVol, retroVol),
+    check('adjunto', `Un volumen extra conectado a ${x.instancia}`, 7, okAdj, retroAdj),
+    check('snapshot', `Un snapshot del volumen de ${x.volumenTamano} GiB`, 6, okSnap, retroSnap)
   ];
 }
 
@@ -407,11 +358,11 @@ function revisarIam(estado, x) {
   const okU = estaEn(u, x.grupo);
   const okD = u && u.politicas.length === 0;
   return [
-    check('grupo', `El grupo «${x.grupo}» tiene solo ${x.politica} (ninguna otra política)`, 5, okG, retroG),
+    check('grupo', `El grupo «${x.grupo}» tiene solo ${x.politica} (ninguna otra política)`, 7, okG, retroG),
     check(
       'usuario',
       `El usuario «${x.usuario}» está en el grupo «${x.grupo}»`,
-      3,
+      5,
       okU,
       okU
         ? `${x.usuario} está en ${x.grupo} y hereda sus permisos. Cuando llegue otro cajero, basta con meterlo al grupo.`
@@ -422,7 +373,7 @@ function revisarIam(estado, x) {
     check(
       'directo',
       `El usuario «${x.usuario}» no tiene políticas puestas directo`,
-      2,
+      3,
       okD,
       okD
         ? 'Sin políticas directas, todos los permisos de la cajera se ven y se cambian en un solo lugar: el grupo.'
@@ -441,7 +392,6 @@ export function revisar(estadoOriginal, datos) {
   return armar(LAB.tareas(datos), {
     red: revisarRed(estado, x),
     servidor: revisarServidor(estado, x),
-    nacl: revisarNacl(estado, x),
     discos: revisarDiscos(estado, x),
     s3: revisarS3(estado, x),
     iam: revisarIam(estado, x),
@@ -455,7 +405,6 @@ export function solucion(datos) {
   const x = datosLab(datos);
   const estado = LAB.estadoInicial(datos);
   const vpc = estado.vpcs.find((v) => v.cidr === x.vpcCidr);
-  const nacl = estado.nacls.find((n) => n.nombre === x.nacl);
 
   // red (la privada es el bono)
   const pub = crearSubred(estado, { vpcId: vpc.id, nombre: x.publicaNombre, az: x.azPublica, cidr: x.publicaCidr });
@@ -465,15 +414,6 @@ export function solucion(datos) {
   const rt = crearTablaRutas(estado, { vpcId: vpc.id, nombre: 'donbeto-rt-publica' });
   editarRutas(estado, rt.id, [{ destino: '0.0.0.0/0', objetivo: igw.id }]);
   asociarSubredes(estado, rt.id, [pub.id]);
-
-  // nacl: se asocia y se quita la regla 90 (la que negaba el 80 a todos)
-  asociarNacl(estado, nacl.id, [pub.id]);
-  editarReglasNacl(
-    estado,
-    nacl.id,
-    'entrada',
-    nacl.entrada.filter((r) => r.numero !== 90)
-  );
 
   // servidor
   const [inst] = lanzarInstancias(estado, {

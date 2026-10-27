@@ -627,6 +627,12 @@ code { font-family: var(--mono); font-size: .92em; background: var(--marino-suav
 .resultado-tarea__cabeza { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .resultado-tarea__cabeza h3 { margin: 0; font-size: 1.08rem; }
 .resultado-tarea__puntos { flex: none; font-family: var(--mono); font-weight: 700; }
+.resultado-tarea__estado { flex: none; margin-left: auto; font-weight: 700; font-size: .9rem; }
+.resultado-tarea--bien .resultado-tarea__estado { color: var(--verde-texto); }
+.resultado-tarea--mal .resultado-tarea__estado { color: var(--rojo); }
+.check__estado { font-weight: 700; }
+.check--bien .check__estado { color: var(--verde-texto); }
+.check--mal .check__estado { color: var(--rojo); }
 .checks { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
 .check { display: flex; gap: 10px; padding: 9px 12px; border-radius: 9px; }
 .check--bien { background: var(--verde-suave); }
@@ -924,4 +930,12 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* El resultado se imprime (o se guarda en PDF) como comprobante: sin barra ni botones. */
+@media print {
+  .barra, .acciones, .intentos, .aviso-suave { display: none !important; }
+  body { background: #fff; }
+  .resultado-tarea, .check, .comprobante { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

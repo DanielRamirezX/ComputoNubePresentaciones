@@ -57,10 +57,14 @@ export const EVALUACIONES = [
     teoria: null,
     lab: 'bimestral',
     pesos: { practica: 100 },
-    retro: 'calificacion',
-    autorrevision: false,
+    // El docente pidió (27 de octubre) la misma ayuda que en el simulacro 2,
+    // pero con menos preguntas al asistente, y la retro completa al entregar:
+    // el resultado queda como evidencia de qué cumplió y qué no.
+    retro: 'completa',
+    autorrevision: true,
     reintentos: false,
-    asistente: false
+    asistente: true,
+    preguntasAsistente: 5
   }
 ];
 

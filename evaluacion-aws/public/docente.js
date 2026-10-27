@@ -227,7 +227,7 @@ function pintarControl() {
           <button type="button" data-auto="true" data-foco="auto-si" aria-pressed="${ev.autorrevision}">Sí</button>
           <button type="button" data-auto="false" data-foco="auto-no" aria-pressed="${!ev.autorrevision}">No</button>
         </div>
-        <p class="ajuste__ayuda">Con «Sí», el alumno ve qué lleva bien y qué le falta antes de entregar (ideal en simulacros). En el examen, «No».</p>
+        <p class="ajuste__ayuda">Con «Sí», el alumno ve qué lleva bien y qué le falta antes de entregar.</p>
       </div>
       <div class="ajuste">
         <span class="ajuste__nombre" id="et-asistente">Asistente de IA en el laboratorio</span>
@@ -235,7 +235,7 @@ function pintarControl() {
           <button type="button" data-asistente="true" data-foco="asis-si" aria-pressed="${ev.asistente}">Sí</button>
           <button type="button" data-asistente="false" data-foco="asis-no" aria-pressed="${!ev.asistente}">No</button>
         </div>
-        <p class="ajuste__ayuda">Con «Sí», cada alumno puede hacerle hasta ${ev.maxPreguntasAsistente} preguntas a un asistente que ve su cuenta y lo orienta sin darle la respuesta. Lees cada conversación en «Ver». En el examen, «No».${
+        <p class="ajuste__ayuda">Con «Sí», cada alumno puede hacerle hasta ${ev.maxPreguntasAsistente} preguntas a un asistente que ve su cuenta y lo orienta sin darle la respuesta. Lees cada conversación en «Ver».${
           ev.asistenteListo ? '' : ' <strong>Falta la llave ANTHROPIC_API_KEY en el servidor: aunque esté en «Sí», los alumnos no lo ven.</strong>'
         }</p>
       </div>`
@@ -462,6 +462,14 @@ $('btn-csv').addEventListener('click', () => {
   );
 });
 
+// El reporte de evidencia se abre en otra pestaña, listo para imprimir o guardar en PDF.
+$('btn-reporte').addEventListener('click', () => {
+  window.open(
+    `api/docente/reporte?evaluacion=${encodeURIComponent(evId)}&grupo=${encodeURIComponent($('grupo').value)}&clave=${encodeURIComponent(clave)}`,
+    '_blank'
+  );
+});
+
 /* ------------------------------------------------------ detalle del alumno */
 
 let detalleId = null;
@@ -475,6 +483,10 @@ function cerrarConsola() {
 
 $('btn-detalle-cerrar').addEventListener('click', () => $('detalle').close());
 $('btn-detalle-actualizar').addEventListener('click', () => detalleId && abrirDetalle(detalleId));
+$('btn-detalle-reporte').addEventListener('click', () => {
+  if (!detalleId) return;
+  window.open(`api/docente/reporte?evaluacion=${encodeURIComponent(evId)}&alumno=${encodeURIComponent(detalleId)}&clave=${encodeURIComponent(clave)}`, '_blank');
+});
 $('detalle-cuerpo').addEventListener('click', (e) => borrarDesdeDetalle(e));
 $('detalle').addEventListener('close', () => {
   cerrarConsola();

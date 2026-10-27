@@ -1,9 +1,10 @@
-// Examen bimestral (parte práctica) · martes 27 de octubre de 2026 · sin pistas.
-// Ferretería Don Beto: construir sobre lo poco que dejó el técnico anterior,
-// incluida una NACL que hay que diagnosticar. La subred privada es un bono
-// opcional (suma encima de los 100, sin pasar de 100), para que quepa en 60 min.
+// Examen bimestral (parte práctica) · martes 27 de octubre de 2026.
+// Ferretería Don Beto: construir sobre la VPC que dejó el técnico anterior. Sin
+// NACL (en el simulacro 2 fue donde más se atoraron). Lleva pistas generales,
+// como el simulacro 2: dónde buscar y qué recordar, sin la ruta de clics. La
+// subred privada es un bono opcional (suma encima de los 100, sin pasar de 100).
 
-import { anotar, crearNacl, crearVpc, cuentaNueva, editarReglasNacl } from '../consola/modelo.js';
+import { anotar, crearVpc, cuentaNueva } from '../consola/modelo.js';
 import { bloque, c, scriptApache, vinetas } from './util.js';
 
 export function datosLab(d) {
@@ -17,8 +18,6 @@ export function datosLab(d) {
     privadaNombre: 'donbeto-privada',
     azPublica: 'us-east-1a',
     azPrivada: 'us-east-1b',
-    nacl: 'donbeto-nacl',
-    redAtacante: '203.0.113.0/24',
     instancia: 'donbeto-web',
     sg: 'donbeto-web-sg',
     ipCasa: d.ipCasa,
@@ -40,27 +39,19 @@ export const LAB = {
   id: 'bimestral',
   titulo: 'Ferretería Don Beto sube su catálogo a la nube',
   minutos: 60,
-  pistas: false,
+  pistas: true,
   historia: `
-    <p><strong>Don Beto</strong> tiene una ferretería en Puebla y quiere su catálogo en línea. Un técnico empezó el trabajo y se fue: solo alcanzó a crear la VPC <code>donbeto-vpc</code> y una NACL, <code>donbeto-nacl</code>, que bloquea a una red que atacó su página anterior.</p>
+    <p><strong>Don Beto</strong> tiene una ferretería en Puebla y quiere su catálogo en línea. Un técnico empezó el trabajo y se fue: solo alcanzó a crear la VPC <code>donbeto-vpc</code>, todavía sin subredes.</p>
     <p>Te toca terminar: la red con su subred pública, el servidor con la página funcionando, un disco extra con su respaldo, un bucket para las facturas y el acceso de la cajera.</p>
-    <p>Todo va en <strong>N. Virginia (us-east-1)</strong>. Es la parte práctica del examen: <strong>no hay pistas</strong>, pero puedes hacer las tareas en el orden que quieras. Lo que se califica es cómo queda tu cuenta al final.</p>
-    <p>Las seis primeras tareas valen 100 puntos. La última, la subred privada, es un <strong>bono opcional</strong>: si te sobra tiempo, suma puntos extra que compensan errores, pero tu calificación <strong>nunca pasa de 100</strong>. Hazla al final.</p>`,
+    <p>Todo va en <strong>N. Virginia (us-east-1)</strong>. Es la parte práctica del examen y puedes hacer las tareas en el orden que quieras. Cada tarea tiene una pista general y puedes revisar tu avance antes de entregar. Lo que se califica es cómo queda tu cuenta al final.</p>
+    <p>Las cinco primeras tareas valen 100 puntos. La última, la subred privada, es un <strong>bono opcional</strong>: si te sobra tiempo, suma puntos extra que compensan errores, pero tu calificación <strong>nunca pasa de 100</strong>. Hazla al final.</p>`,
 
   estadoInicial(datos) {
     const x = datosLab(datos);
     const e = cuentaNueva(datos);
-    const vpc = crearVpc(e, { nombre: x.vpcNombre, cidr: x.vpcCidr });
-    const nacl = crearNacl(e, { vpcId: vpc.id, nombre: x.nacl });
-    // La trampa: la regla 90 niega el puerto 80 a todo el mundo, antes de la que permite todo.
-    editarReglasNacl(e, nacl.id, 'entrada', [
-      { numero: 50, protocolo: '-1', cidr: x.redAtacante, accion: 'deny' },
-      { numero: 90, protocolo: 'tcp', desde: 80, hasta: 80, cidr: '0.0.0.0/0', accion: 'deny' },
-      { numero: 100, protocolo: '-1', cidr: '0.0.0.0/0', accion: 'allow' }
-    ]);
-    editarReglasNacl(e, nacl.id, 'salida', [{ numero: 100, protocolo: '-1', cidr: '0.0.0.0/0', accion: 'allow' }]);
+    crearVpc(e, { nombre: x.vpcNombre, cidr: x.vpcCidr });
     e.bitacora = [];
-    anotar(e, 'Laboratorio', 'Inicio', 'La cuenta empieza con donbeto-vpc y donbeto-nacl (sin subredes).');
+    anotar(e, 'Laboratorio', 'Inicio', 'La cuenta empieza con donbeto-vpc (sin subredes).');
     return e;
   },
 
@@ -77,7 +68,8 @@ export const LAB = {
             `Un Internet Gateway conectado a ${c(x.vpcNombre)}.`,
             `Una subred <strong>pública</strong> ${c(x.publicaCidr)} en ${c(x.azPublica)} (puedes llamarla ${c(x.publicaNombre)}): su tabla de rutas manda ${c('0.0.0.0/0')} al Internet Gateway.`
           ])}`,
-        pista: ''
+        pista:
+          'Todo está en el servicio VPC (Subnets, Internet gateways y Route tables). Un Internet Gateway recién creado no sirve hasta que lo conectas a la VPC. Lo que hace pública a una subred no es su nombre, sino que su tabla de rutas mande 0.0.0.0/0 al gateway: revisa qué tabla tiene asociada tu subred.'
       },
       {
         id: 'servidor',
@@ -91,31 +83,20 @@ export const LAB = {
           ])}
           ${bloque(x.userData)}
           <p>Al final <strong>la página debe abrir</strong> en ${c('http://')} + la IP pública de la instancia y decir «${x.textoPagina}» y «${x.textoMostrador}».</p>`,
-        pista: ''
-      },
-      {
-        id: 'nacl',
-        titulo: 'La NACL de la ferretería',
-        puntos: 10,
-        html: `
-          ${vinetas([
-            `Tu subred pública debe usar la NACL ${c(x.nacl)} que dejó el técnico.`,
-            `Debe seguir bloqueando la red atacante ${c(x.redAtacante)}.`,
-            'Y la página tiene que abrir para todos los demás. Si con esta NACL no abre, averigua por qué y corrígelo sin quitar el bloqueo a la red atacante.'
-          ])}`,
-        pista: ''
+        pista:
+          'Se lanza desde EC2 → Instances. En la sección de red del asistente de lanzamiento eliges la VPC, la subred y si lleva IP pública; ahí mismo creas el grupo de seguridad. El User data está casi al final, en Advanced details, y solo corre en el primer arranque. Si la página no abre, sigue el camino del paquete: gateway → tabla de rutas → grupo de seguridad → Apache.'
       },
       {
         id: 'discos',
         titulo: 'Un disco para el inventario y su respaldo',
-        puntos: 15,
+        puntos: 20,
         html: `
           ${vinetas([
             `Un volumen EBS ${c(x.volumenTipo)} de ${c(`${x.volumenTamano} GiB`)} (puedes llamarlo ${c(x.volumenNombre)}), además del disco raíz.`,
             `Ese volumen conectado (<em>attached</em>) a ${c(x.instancia)}.`,
             'Un snapshot de ese volumen.'
           ])}`,
-        pista: ''
+        pista: `Todo está en EC2, en la sección Elastic Block Store (Volumes y Snapshots). Un volumen EBS solo se conecta a una instancia de su misma zona de disponibilidad: averigua primero en qué zona está ${x.instancia}. El snapshot se saca del volumen nuevo, no del disco raíz.`
       },
       {
         id: 's3',
@@ -128,12 +109,13 @@ export const LAB = {
             'Versionado activado.',
             `Una regla de ciclo de vida activa, para <strong>todos</strong> los objetos del bucket, que los pase a ${c('Glacier Deep Archive')} a los ${c(String(x.diasArchivo))} días (el SAT puede pedirlas, pero casi nunca).`
           ])}`,
-        pista: ''
+        pista:
+          'Todo está en S3, dentro del bucket: el bloqueo público en Permissions, el versionado en Properties y el ciclo de vida en Management. El nombre del bucket tiene que ser exacto. La regla debe aplicar a todo el bucket, no solo a un prefijo.'
       },
       {
         id: 'iam',
         titulo: 'El acceso de la cajera',
-        puntos: 10,
+        puntos: 15,
         html: `
           <p>María, la cajera, solo necesita <strong>ver</strong> si el servidor está encendido, sin poder apagarlo ni cambiar nada.</p>
           ${vinetas([
@@ -141,7 +123,8 @@ export const LAB = {
             `Un usuario ${c(x.usuario)} dentro del grupo ${c(x.grupo)}.`,
             `El usuario ${c(x.usuario)} <strong>sin</strong> políticas puestas directo: sus permisos le llegan por el grupo.`
           ])}`,
-        pista: ''
+        pista:
+          'Todo está en IAM (User groups y Users). Los permisos se dan al grupo y la persona los hereda al entrar en él. Mínimo privilegio: solo lo que la cajera necesita, que es ver EC2; una política que lee toda la cuenta es demasiado.'
       },
       {
         id: 'privada',
@@ -154,7 +137,8 @@ export const LAB = {
             `Una subred <strong>privada</strong> ${c(x.privadaCidr)} en ${c(x.azPrivada)}, dentro de ${c(x.vpcNombre)} (puedes llamarla ${c(x.privadaNombre)}).`,
             `Su tabla de rutas <strong>no</strong> tiene ninguna ruta ${c('0.0.0.0/0')}.`
           ])}`,
-        pista: ''
+        pista:
+          'Se crea igual que la pública, en VPC → Subnets. Una subred sin tabla propia usa la tabla principal de la VPC: si ahí pusiste la ruta a internet, la privada también saldría a internet.'
       }
     ];
   }

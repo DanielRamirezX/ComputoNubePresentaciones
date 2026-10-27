@@ -58,8 +58,11 @@
     </header>
 
     <div class="aviso-render">
-      <p><strong>Render borra los datos cuando el servidor se reinicia.</strong> Descarga el CSV al terminar cada clase. (Los alumnos conservan un comprobante firmado de cada entrega y lo reponen solos, pero el CSV es tu respaldo.)</p>
-      <button class="boton" type="button" id="btn-csv">Descargar CSV</button>
+      <p><strong>Render borra los datos cuando el servidor se reinicia.</strong> Descarga el CSV y el reporte al terminar cada clase. (Los alumnos conservan un comprobante firmado de cada entrega y lo reponen solos, pero el CSV y el reporte son tu respaldo.) El reporte trae, alumno por alumno, cada punto que revisó la rúbrica: guárdalo en PDF como evidencia.</p>
+      <div class="acciones" style="margin:0">
+        <button class="boton" type="button" id="btn-csv">Descargar CSV</button>
+        <button class="boton boton--oscuro" type="button" id="btn-reporte">Reporte de evidencia (PDF)</button>
+      </div>
     </div>
 
     <p class="sutil">Si proyectas tu laptop en modo duplicado, el grupo verá nombres y calificaciones. Abre este panel en tu celular o usa el modo «Extender».</p>
@@ -89,6 +92,7 @@
       <p id="detalle-sub"></p>
     </div>
     <div class="acciones" style="margin:0">
+      <button class="boton boton--chico" type="button" id="btn-detalle-reporte">Reporte de este alumno</button>
       <button class="boton boton--oscuro boton--chico" type="button" id="btn-detalle-actualizar">Actualizar</button>
       <button class="boton boton--chico" type="button" id="btn-detalle-cerrar">Cerrar (Esc)</button>
     </div>
