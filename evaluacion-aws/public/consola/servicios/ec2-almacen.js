@@ -304,7 +304,7 @@ function adjuntarPagina(cx, { id }) {
           valor: f.instanciaId,
           filtrar: true,
           placeholder: 'Select an instance',
-          vacio: `No instances found in ${v.az}`,
+          vacio: `No instances found in ${v.az}. A volume can only be attached to an instance in its same Availability Zone.`,
           opcionLibre: (t) => (/^i-[0-9a-f]{17}$/.test(t) ? { valor: t, etiqueta: t } : null),
           mostrarLibre: (x) => ({ valor: x, etiqueta: x }),
           alCambiar: (x) => {

@@ -1391,7 +1391,9 @@ function listaTablas(cx) {
 function detalleTabla(cx, { id }) {
   cx.migas([MIGA, { texto: 'Route tables', ruta: 'vpc/tablas' }, { texto: id }]);
   if (!tablaDe(cx, id)) return noExiste(cx, 'Route table', id, 'vpc/tablas');
-  const st = { pestana: 'rutas' };
+  // Al volver de editar, la consola abre la pestaña de lo que se editó.
+  const st = { pestana: cx.memoria.pestanaTabla ?? 'rutas' };
+  cx.memoria.pestanaTabla = null;
   return cx.vivo(() => {
     const t = tablaDe(cx, id);
     if (!t) return noExiste(cx, 'Route table', id, 'vpc/tablas');
@@ -1560,6 +1562,7 @@ function asociacionesTabla(cx, { id }) {
         const r = cx.hacer({ servicio: 'VPC', accion: 'AssociateRouteTable', error: 'Failed to update subnet associations' }, (e) => asociarSubredes(e, id, lista.ids()));
         if (r.ok) {
           cx.flash({ tipo: 'exito', texto: `You have successfully updated subnet associations for ${id} / ${t.nombre || id}.` });
+          cx.memoria.pestanaTabla = 'asociaciones';
           cx.ir(`vpc/tablas/${id}`);
         }
       }

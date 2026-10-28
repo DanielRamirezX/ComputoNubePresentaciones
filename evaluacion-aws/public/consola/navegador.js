@@ -73,7 +73,8 @@ export function abrirNavegador(cx, urlInicial = '') {
       h('span', { class: 'cx-nav__nueva', 'aria-hidden': 'true' }, '+'),
       h('div', { class: 'cx-nav__espacio' }),
       h('span', { class: 'cx-nav__etiqueta' }, 'Navegador de prueba · desde tu casa'),
-      h('button', { type: 'button', class: 'cx-nav__ventana-cerrar', 'aria-label': 'Close browser', title: 'Close', onclick: () => cerrar() }, icono('close'))
+      // Con texto y no solo la X: el alumno debe ver cómo regresar a la consola.
+      h('button', { type: 'button', class: 'cx-nav__ventana-cerrar', title: 'Cerrar el navegador y volver a la consola (Esc)', onclick: () => cerrar() }, icono('close'), h('span', {}, 'Cerrar'))
     ),
     h('div', { class: 'cx-nav__herramientas' }, atras, adelante, recargar, h('div', { class: 'cx-nav__omnibox' }, seguridad, direccion), h('button', { type: 'button', class: 'cx-nav__btn', 'aria-label': 'Info', title: 'Ayuda', onclick: () => cx.ayuda('navegador') }, icono('help'))),
     barraProgreso,

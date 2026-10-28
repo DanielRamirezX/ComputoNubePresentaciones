@@ -463,7 +463,12 @@ function lanzar(cx) {
   const vpcDef = e.vpcs.find((v) => v.porDefecto) ?? e.vpcs[0];
   const n = siguienteLaunchWizard(e);
   const ahora = new Date();
-  const f = {
+  // Si el alumno salió a crear una subred desde aquí («Create new subnet»), se
+  // le devuelve lo que llevaba, como la pestaña del asistente que AWS deja abierta.
+  const borrador = cx.memoria.borradorLanzar;
+  cx.memoria.borradorLanzar = null;
+  if (borrador) cx.flash({ tipo: 'info', texto: 'Your launch settings were restored. Select the new subnet in Network settings.' });
+  const f = borrador ? { ...borrador, red: { ...borrador.red, editar: true }, errores: {} } : {
     nombre: '',
     familia: 'Amazon Linux',
     ami: 'al2023',
@@ -799,7 +804,23 @@ function lanzar(cx) {
           }
         }),
         error: f.errores.subred,
-        restriccion: subredActual() ? null : null
+        restriccion:
+          !esDefecto && !subredes.length
+            ? h(
+                'span',
+                {},
+                'This VPC has no subnets yet. ',
+                ui.enlace(
+                  'Create new subnet',
+                  () => {
+                    cx.memoria.borradorLanzar = f;
+                    cx.ir('vpc/subredes/crear');
+                  },
+                  { externo: true }
+                ),
+                ' — your launch settings are kept for when you come back.'
+              )
+            : null
       }),
       ui.campo({
         etiqueta: 'Auto-assign public IP',

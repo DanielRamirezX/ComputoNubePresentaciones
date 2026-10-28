@@ -206,13 +206,19 @@ export function editorReglasSg(cx, { filas, vpcId, sentido = 'entrada', alCambia
     }
     const columnas = 'minmax(150px,1.3fr) 80px minmax(90px,0.8fr) minmax(130px,1fr) minmax(170px,1.4fr) minmax(130px,1.2fr) auto';
     return [
+      // Si la consola está angosta (con las instrucciones abiertas), las reglas
+      // se desplazan de lado dentro de su caja y no empujan toda la página.
       h(
         'div',
-        { class: 'cx-reglas', style: { gridTemplateColumns: columnas } },
-        ['Type', 'Protocol', 'Port range', `${palabra} type`, palabra, 'Description - optional', ''].map((t, i) =>
-          h('div', { class: 'cx-reglas__cabeza' }, t, i < 6 && t ? ui.info(cx, i === 3 || i === 4 ? 'origen-regla' : 'reglas-sg') : null)
-        ),
-        filas.map((f, i) => filaEditor(f, i))
+        { class: 'cx-reglas-desliza' },
+        h(
+          'div',
+          { class: 'cx-reglas', style: { gridTemplateColumns: columnas } },
+          ['Type', 'Protocol', 'Port range', `${palabra} type`, palabra, 'Description - optional', ''].map((t, i) =>
+            h('div', { class: 'cx-reglas__cabeza' }, t, i < 6 && t ? ui.info(cx, i === 3 || i === 4 ? 'origen-regla' : 'reglas-sg') : null)
+          ),
+          filas.map((f, i) => filaEditor(f, i))
+        )
       ),
       h('div', { style: { marginTop: '12px' } }, ui.boton('Add rule', { alClic: agregar }))
     ];

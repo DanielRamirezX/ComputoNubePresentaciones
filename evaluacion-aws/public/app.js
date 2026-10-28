@@ -1434,7 +1434,9 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   });
 
   reloj($('reloj'), inicio, LAB.minutos || 60, (t) => aviso(t, 'reloj'));
-  textoGuardado(enServidor && rev === (enServidor.rev ?? 0) ? 'Guardado' : '');
+  // Tras recargar, la hora de la última copia que tiene el servidor (si la trae).
+  const alDia = enServidor && rev === (enServidor.rev ?? 0);
+  textoGuardado(alDia ? (enServidor.hora ? `Guardado ${hora(enServidor.hora)}` : 'Guardado') : '');
   if (!intento && rev > (enServidor?.rev ?? -1)) {
     pendiente = true;
     enviarCopia();
@@ -1563,7 +1565,11 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
     }
   });
 
+  // Un doble clic no debe abrir dos confirmaciones encimadas.
+  let confirmando = false;
   $('btn-entregar').addEventListener('click', async () => {
+    if (confirmando) return;
+    confirmando = true;
     const si = await confirmar(
       intento
         ? {
@@ -1581,9 +1587,14 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
             no: 'Seguir trabajando'
           }
     );
+    confirmando = false;
     if (!si) return;
     const boton = $('btn-entregar');
+    const textoBoton = boton.textContent;
+    // Calificar tarda unos segundos: que se vea que algo está pasando.
     boton.disabled = true;
+    boton.setAttribute('aria-busy', 'true');
+    boton.textContent = intento ? 'Calificando…' : 'Entregando…';
     try {
       if (intento) {
         const r = await api('api/practica/intento/calificar', cuerpoCopia());
@@ -1596,6 +1607,8 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
       if (e.estado === 409 && e.datos?.resultado) return terminar(e.datos);
       aviso(e.estado === 423 ? e.message : `${e.message}. Revisa tu conexión e inténtalo otra vez: tu cuenta sigue guardada.`, 'error');
       boton.disabled = false;
+      boton.removeAttribute('aria-busy');
+      boton.textContent = textoBoton;
     }
   });
 

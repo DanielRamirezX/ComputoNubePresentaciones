@@ -351,7 +351,15 @@ export function montarConsola(contenedor, opciones = {}) {
 
   function resultadosBusqueda(texto) {
     const t = texto.trim().toLowerCase();
-    const srv = SERVICIOS.filter((s) => s.id !== 'inicio' && `${s.nombre} ${s.titulo ?? ''} ${s.descripcion ?? ''} ${s.claves ?? ''}`.toLowerCase().includes(t));
+    // Primero el servicio que se llama así («VPC»), luego los que empiezan
+    // así y al final los que solo lo mencionan: Enter abre el primero.
+    const rango = (x) => {
+      const n = String(x.nombre ?? '').toLowerCase();
+      return n === t ? 0 : n.startsWith(t) ? 1 : 2;
+    };
+    const srv = SERVICIOS.filter((s) => s.id !== 'inicio' && `${s.nombre} ${s.titulo ?? ''} ${s.descripcion ?? ''} ${s.claves ?? ''}`.toLowerCase().includes(t)).sort(
+      (a, b) => rango(a) - rango(b)
+    );
     const funciones = SERVICIOS.flatMap((s) => (s.busqueda ?? []).map((b) => ({ ...b, servicio: s }))).filter((b) => `${b.texto} ${b.claves ?? ''}`.toLowerCase().includes(t));
     return { srv, funciones };
   }
@@ -404,6 +412,8 @@ export function montarConsola(contenedor, opciones = {}) {
       e.preventDefault();
       raiz.querySelector('.cx-busqueda__item')?.focus();
     } else if (e.key === 'Enter') {
+      // Si la lista aún no se abrió, se arma en ese momento.
+      if (!abiertoBuscar()) pintarBusqueda();
       raiz.querySelector('.cx-busqueda__item')?.click();
     } else if (e.key === 'Escape') {
       ui.cerrarDesplegable();

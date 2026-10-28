@@ -2410,10 +2410,18 @@ th.cx-tabla__sel {
   gap: 16px;
 }
 
+.cx-reglas-desliza {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
 .cx-reglas {
   display: grid;
   gap: 8px 10px;
   align-items: start;
+  /* La suma de los mínimos de las columnas: más angosto, se desliza. */
+  min-width: 860px;
 }
 
 .cx-reglas__cabeza {
@@ -2848,7 +2856,14 @@ th.cx-tabla__sel {
 
 .cx-nav__ventana-cerrar {
   align-self: center;
-  padding: 6px !important;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 5px 12px 5px 8px !important;
+  border-radius: 16px !important;
+  border: 1px solid #5f6368 !important;
+  color: #e8eaed !important;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .cx-nav__nueva {
