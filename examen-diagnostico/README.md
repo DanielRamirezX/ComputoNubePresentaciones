@@ -6,6 +6,8 @@ memoria, procesador, redes y programación básica.
 
 - `/` — examen del alumno
 - `/docente` — panel con el promedio grupal, descarga de PDF y CSV
+- `/api/docente/tablero` — intentos, entregados y promedio para el tablero docente
+  de la plataforma (solo lectura: no tiene controles)
 
 Requiere **Node 22 o más nuevo**.
 

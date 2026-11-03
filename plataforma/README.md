@@ -52,6 +52,36 @@ que sepas cuándo empezar en lugar de preguntar "¿ya todos?".
 La tecla `F` pone la pantalla de proyección en pantalla completa, igual que en la
 presentación.
 
+## El tablero del docente
+
+`/docente` (en el pie del índice hay un enlace discreto, «Docente») junta en una
+sola página lo que antes estaba repartido en el panel de cada módulo. Se entra
+con la misma clave `CLAVE_DOCENTE`; al entrar, los paneles de los módulos ya no
+la vuelven a pedir en esa pestaña (ni en las que abras desde el tablero). «Salir»
+la borra.
+
+- **Abierto ahora:** todo lo que los alumnos pueden contestar en este momento
+  (simulacros, laboratorios, el examen de una sesión de la Ruta, la práctica
+  final…), con un botón «Cerrar» en cada cosa. Cerrar pide confirmación, como en
+  los paneles.
+- **Módulos:** una tarjeta por módulo con sus números y sus interruptores
+  (abrir la parte teórica o la práctica, el asistente de IA, la sesión de hoy…).
+  Los grupos se pliegan, y «Buscar» encuentra «sesión 6» o «simulacro» sin
+  recorrer todo. «Abrir panel completo» lleva al panel detallado del módulo.
+- **Lo que ven los alumnos:** cada tarjeta del índice con su interruptor
+  «Visible / Oculta», por sección o todo a la vez. Ocultar solo la quita del
+  índice: no borra nada y la dirección directa sigue abriendo (así puedes
+  probar un módulo antes de enseñarlo). Se guarda en `DATA_DIR/plataforma/indice.json`
+  (o en `plataforma/data/` si no hay `DATA_DIR`).
+
+Se actualiza solo cada 20 segundos mientras la pestaña está a la vista.
+
+El tablero no sabe nada de cada módulo: le pide a cada módulo `express` su
+`GET /m/<id>/api/docente/tablero` (indicadores y controles ya armados) y le
+manda los cambios con `PUT` al mismo lugar, que usa la misma lógica que su
+panel. Un módulo que no tenga esa ruta sale como «sin controles», solo con su
+enlace al panel.
+
 ## Cómo se acomoda
 
 ```
@@ -157,7 +187,8 @@ al arrancar y nunca se escribe a mano: proyéctalo cada clase y ya.
 | `PORT` | Puerto del servidor | `3000` |
 | `MATERIA` | Título del índice | El de `curso.js` |
 | `DOCENTE` · `GRUPO` | Salen bajo el título | Los de `curso.js` |
-| `CLAVE_DOCENTE` | La lee el examen para su panel | `cambiame` |
+| `CLAVE_DOCENTE` | La clave del tablero `/docente` y de los paneles de cada módulo | `cambiame` |
+| `DATA_DIR` | Dónde guardan sus datos los módulos y la plataforma | La carpeta `data/` de cada uno |
 
 En PowerShell se definen así antes de arrancar:
 
@@ -187,5 +218,4 @@ Esta es la primera etapa. Falta:
 
 - **Sesión en vivo:** que tú cambies de módulo y las pantallas de los alumnos
   salten solas, sin dictar nada.
-- **Panel docente unificado:** hoy cada módulo trae el suyo.
 - **Entregas y asistencia:** que el alumno suba su captura desde aquí.

@@ -203,6 +203,45 @@ export function crearApp() {
     }
   });
 
+  // ------------------------------------------------ tablero de la plataforma
+
+  // El tablero docente de la plataforma (/docente) junta los módulos en una
+  // página. El diagnóstico solo le da sus números: no tiene nada que abrir ni
+  // cerrar, así que no hay controles y cualquier PUT es un control que no existe.
+  async function tablero() {
+    const filas = await almacen.listarIntentos(null);
+    const terminados = filas.filter((f) => f.fin);
+    const porcentajes = terminados.map((f) => (f.aciertos / (f.total || PREGUNTAS.length)) * 100);
+    const promedio = porcentajes.length ? porcentajes.reduce((a, b) => a + b, 0) / porcentajes.length : null;
+    const cifra = (n) => n.toLocaleString('es-MX');
+    return {
+      modulo: 'diagnostico',
+      titulo: 'Examen diagnóstico',
+      panel: 'docente.html',
+      indicadores: [
+        { etiqueta: 'Intentos', valor: cifra(filas.length) },
+        { etiqueta: 'Entregados', valor: cifra(terminados.length) },
+        {
+          etiqueta: 'Promedio',
+          valor: promedio === null ? '—' : `${promedio.toLocaleString('es-MX', { maximumFractionDigits: 1 })} %`
+        }
+      ],
+      grupos: []
+    };
+  }
+
+  app.get('/api/docente/tablero', soloDocente, async (req, res, next) => {
+    try {
+      res.json(await tablero());
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  app.put('/api/docente/tablero', soloDocente, (req, res) => {
+    res.status(400).json({ error: 'Ese control no existe' });
+  });
+
   // ----------------------------------------------------------------- otros
 
   app.get('/docente', (req, res) => res.sendFile(path.join(__dirname, 'public', 'docente.html')));

@@ -45,7 +45,10 @@ const escribir = (donde, clave, valor) => {
 // La sesión que se mira en el panel: la última elegida en esta pestaña; si
 // no, la de hoy (la que se empezó con «Empezar la clase» o cuyo examen se
 // abrió, ver entrar) y, mientras tanto, la más reciente.
-const elegidaEnPanel = sesionDe(leer(sesion, PREFIJO + 'sesion-panel'));
+// El tablero de la plataforma abre una sesión con docente.html#sesion-<n>:
+// esa gana y se ve su examen (pestaña «Práctica final»).
+const sesionEnLiga = () => sesionDe(/^#sesion-(\d{1,2})$/.exec(location.hash)?.[1]);
+const elegidaEnPanel = sesionEnLiga() ?? sesionDe(leer(sesion, PREFIJO + 'sesion-panel'));
 let S = elegidaEnPanel ?? SESIONES.at(-1);
 let ACTIVIDADES = [];
 const usarSesion = (elegida) => {
@@ -67,7 +70,7 @@ let datos = null;
 // contesta, el panel sigue sin ese dato.
 let enSimulador = null;
 const EN_PLATAFORMA = location.pathname.includes('/m/');
-let pestana = leer(sesion, PREFIJO + 'pestana') || 'plan';
+let pestana = sesionEnLiga() ? 'practica' : leer(sesion, PREFIJO + 'pestana') || 'plan';
 
 /* ------------------------------------------------------------------ entrar */
 
@@ -117,6 +120,25 @@ if (clave) entrar(clave).catch(() => escribir(sesion, 'clave-docente', null));
 // La pantalla del QR es de la plataforma: solo existe si el curso está montado en ella.
 if (!location.pathname.includes('/m/')) $('liga-qr').hidden = true;
 
+// En la plataforma (/m/<módulo>/), la liga de arriba regresa al tablero
+// docente (/docente). Suelto, con `node server.js`, no hay tablero: se esconde.
+const BASE_PLATAFORMA = location.pathname.includes('/m/') ? location.pathname.slice(0, location.pathname.indexOf('/m/')) : null;
+if (BASE_PLATAFORMA !== null) {
+  $('liga-tablero').href = `${BASE_PLATAFORMA}/docente`;
+  $('liga-tablero').hidden = false;
+}
+
+// Con el panel abierto, otra liga del tablero (#sesion-<n>) cambia de sesión.
+window.addEventListener('hashchange', () => {
+  const pedida = sesionEnLiga();
+  if (!pedida) return;
+  if (pedida !== S) {
+    $('sesion-panel').value = String(pedida.numero);
+    $('sesion-panel').dispatchEvent(new Event('change'));
+  }
+  if (clave) mostrarPestana('practica');
+});
+
 /* ---------------------------------------------------------------- pestañas */
 
 function mostrarPestana(nombre) {
@@ -128,9 +150,17 @@ function mostrarPestana(nombre) {
   });
 }
 
+// Ya eligió otra cosa: la liga con la que llegó (#sesion-<n>) no debe volver a
+// mandar al recargar. Igual que en el panel del examen.
+const olvidarLiga = () => {
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+};
+
 document.querySelector('.pestanas').addEventListener('click', (e) => {
   const boton = e.target.closest('[data-pestana]');
-  if (boton) mostrarPestana(boton.dataset.pestana);
+  if (!boton) return;
+  olvidarLiga();
+  mostrarPestana(boton.dataset.pestana);
 });
 
 /* ------------------------------------------------------------------- datos */
@@ -181,6 +211,7 @@ function textoSimulador(lab) {
 
 $('grupo').addEventListener('change', cargar);
 $('sesion-panel').addEventListener('change', () => {
+  olvidarLiga();
   usarSesion(sesionDe($('sesion-panel').value));
   datos = null;
   pintarPlan();

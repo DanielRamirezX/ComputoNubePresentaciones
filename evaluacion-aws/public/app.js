@@ -1148,6 +1148,85 @@ function htmlANodo(html) {
 const claveLab = (evId) => `lab-${perfil.id}-${evId}`;
 const clavePanel = 'panel-plegado';
 
+/* El panel de la derecha (instrucciones o ideas) se oculta para darle todo el
+   ancho a la consola. Oculto, deja un asa angosta en el borde con un botón
+   para desplegarlo y un acceso directo por pestaña. El atajo es Alt+P: la
+   consola ya usa Alt+S para buscar, como la real. */
+const ATAJO_PANEL = 'Alt+P';
+
+const htmlPlegarPanel = () =>
+  `<button type="button" class="lab__plegar" id="btn-plegar" aria-controls="panel" aria-expanded="true" title="Ocultar el panel (${ATAJO_PANEL})">${icono('i-flecha')}<span class="solo-lectores">Ocultar el panel</span></button>`;
+
+/** `pestanas`: lista de [id, texto, oculta] con las pestañas del panel. */
+const htmlAsaPanel = (pestanas) => `
+  <div class="lab__asa" id="asa" role="group" aria-label="Panel oculto">
+    <button type="button" class="lab__asa-abrir" id="btn-desplegar" aria-controls="panel" aria-expanded="false" title="Mostrar el panel (${ATAJO_PANEL})">${icono('i-flecha', 'icono icono--atras')}<span>Mostrar panel</span></button>
+    ${pestanas
+      .map(([id, texto, oculta]) => `<button type="button" class="lab__asa-pestana" data-asa="${id}" aria-controls="panel" aria-expanded="false" title="Mostrar el panel en «${texto}»" ${oculta ? 'hidden' : ''}><span>${texto}</span></button>`)
+      .join('')}
+  </div>`;
+
+/**
+ * Ocultar y mostrar el panel. Lo mueven el botón de la barra de arriba, el
+ * botón de la cabeza del panel, el asa y el atajo. Se recuerda por vista en
+ * este equipo (si el navegador no deja guardar, arranca visible). En pantallas
+ * angostas el panel va debajo de la consola y no se oculta (ver estilos.css).
+ * Devuelve `mostrar(pestana)` para quien necesite abrirlo en una pestaña.
+ */
+function panelPlegable(lab, { clave, nombre, plegado, mostrarPestana }) {
+  const boton = lab.querySelector('#btn-panel');
+  const panel = lab.querySelector('#panel');
+  const angosta = matchMedia('(max-width: 1000px)');
+
+  // La marca de la pestaña abierta en el asa la pone mostrarPestana, así la
+  // sigue aunque la pestaña cambie con el panel oculto.
+  function poner(valor, pestana) {
+    const antes = document.activeElement;
+    plegado = valor;
+    guardar(clave, plegado);
+    lab.classList.toggle('lab--plegado', plegado);
+    boton.setAttribute('aria-expanded', String(!plegado));
+    boton.querySelector('span').textContent = `${plegado ? 'Mostrar' : 'Ocultar'} ${nombre}`;
+    if (pestana) mostrarPestana(pestana);
+    if (!plegado) {
+      // Entra deslizándose un poco (sin movimiento si el sistema lo pide).
+      panel.classList.remove('lab__panel--entra');
+      void panel.offsetWidth;
+      panel.classList.add('lab__panel--entra');
+    }
+    // El foco no se queda en algo que acaba de esconderse: pasa al asa (al
+    // ocultar) o a la pestaña abierta (al mostrar). Si estaba en la consola, ahí sigue.
+    if (antes && antes !== document.body && !antes.getClientRects().length) {
+      (plegado ? lab.querySelector('#btn-desplegar') : lab.querySelector('[data-pestana][aria-selected="true"]'))?.focus();
+    }
+    // La consola cambió de ancho: que se reacomode (su barra, los menús abiertos…).
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+  }
+
+  boton.addEventListener('click', () => poner(!plegado));
+  lab.querySelector('#btn-plegar').addEventListener('click', () => poner(true));
+  lab.querySelector('#asa').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (b) poner(false, b.dataset.asa);
+  });
+  panel.addEventListener('animationend', () => panel.classList.remove('lab__panel--entra'));
+  const tecla = (e) => {
+    if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.repeat || e.code !== 'KeyP') return;
+    if (!lab.isConnected || angosta.matches) return;
+    e.preventDefault();
+    poner(!plegado);
+  };
+  window.addEventListener('keydown', tecla);
+  alSalir.push(() => window.removeEventListener('keydown', tecla));
+
+  return {
+    mostrar(pestana) {
+      if (plegado) poner(false, pestana);
+      else if (pestana) mostrarPestana(pestana);
+    }
+  };
+}
+
 async function vistaPractica(ev) {
   const p = ev.partes.practica;
   if (p.entrega) return ir(`${ev.id}/resultado`);
@@ -1315,7 +1394,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   const totalPuntos = tareas.filter((t) => !t.bono).reduce((s, t) => s + t.puntos, 0);
   const totalBono = tareas.filter((t) => t.bono).reduce((s, t) => s + t.puntos, 0);
   const requeridas = tareas.filter((t) => !t.bono).length;
-  let plegado = leer(clavePanel, false) === true;
+  const plegado = leer(clavePanel, false) === true;
   let pestana = 'tareas';
   let revision = null; // el último «Revisar mi avance»
 
@@ -1329,7 +1408,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
         <span class="lab__guardado" id="guardado" aria-live="polite"></span>
         <span class="reloj reloj--oscuro" id="reloj"></span>
         <div class="lab__acciones">
-          <button class="boton boton--oscuro boton--chico" type="button" id="btn-panel" aria-controls="panel" aria-expanded="${!plegado}">${icono('i-panel')}<span>${plegado ? 'Mostrar' : 'Ocultar'} instrucciones</span></button>
+          <button class="boton boton--oscuro boton--chico" type="button" id="btn-panel" aria-controls="panel" aria-expanded="${!plegado}" title="Atajo: ${ATAJO_PANEL}">${icono('i-panel')}<span>${plegado ? 'Mostrar' : 'Ocultar'} instrucciones</span></button>
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-asistente" ${conAsistente ? '' : 'hidden'}>${icono('i-libro')}<span>Asistente</span></button>
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-revisar" ${autorrevision ? '' : 'hidden'}>${icono('i-lupa')}<span>Revisar mi avance</span></button>
           <button class="boton boton--primario boton--chico" type="button" id="btn-entregar">${intento ? 'Calificar mi intento' : 'Entregar laboratorio'}</button>
@@ -1344,12 +1423,15 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
       <div class="lab__cuerpo">
         <div class="lab__consola" id="consola" role="region" aria-label="Consola de AWS simulada"></div>
         <aside class="lab__panel" id="panel" aria-label="Instrucciones del laboratorio">
-          <div class="pestanas-lab" role="tablist" aria-label="Instrucciones">
-            <button type="button" role="tab" id="tab-caso" data-pestana="caso" aria-controls="tp-caso">Caso</button>
-            <button type="button" role="tab" id="tab-tareas" data-pestana="tareas" aria-controls="tp-tareas">Tareas</button>
-            <button type="button" role="tab" id="tab-datos" data-pestana="datos" aria-controls="tp-datos">Tus datos</button>
-            <button type="button" role="tab" id="tab-avance" data-pestana="avance" aria-controls="tp-avance" ${autorrevision ? '' : 'hidden'}>Mi avance</button>
-            <button type="button" role="tab" id="tab-asistente" data-pestana="asistente" aria-controls="tp-asistente" ${conAsistente ? '' : 'hidden'}>Asistente</button>
+          <div class="lab__panel-cabeza">
+            <div class="pestanas-lab" role="tablist" aria-label="Instrucciones">
+              <button type="button" role="tab" id="tab-caso" data-pestana="caso" aria-controls="tp-caso">Caso</button>
+              <button type="button" role="tab" id="tab-tareas" data-pestana="tareas" aria-controls="tp-tareas">Tareas</button>
+              <button type="button" role="tab" id="tab-datos" data-pestana="datos" aria-controls="tp-datos">Tus datos</button>
+              <button type="button" role="tab" id="tab-avance" data-pestana="avance" aria-controls="tp-avance" ${autorrevision ? '' : 'hidden'}>Mi avance</button>
+              <button type="button" role="tab" id="tab-asistente" data-pestana="asistente" aria-controls="tp-asistente" ${conAsistente ? '' : 'hidden'}>Asistente</button>
+            </div>
+            ${htmlPlegarPanel()}
           </div>
           <div class="lab__contenido">
             <section role="tabpanel" id="tp-caso" aria-labelledby="tab-caso" data-panel="caso" class="lab__caso">${LAB.historia}</section>
@@ -1391,6 +1473,13 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
             <button type="button" class="enlace-peligro" id="btn-reiniciar">Reiniciar mi cuenta</button>
           </footer>
         </aside>
+        ${htmlAsaPanel([
+          ['caso', 'Caso'],
+          ['tareas', 'Tareas'],
+          ['datos', 'Tus datos'],
+          ['avance', 'Mi avance', !autorrevision],
+          ['asistente', 'Asistente', !conAsistente]
+        ])}
       </div>
     </div>`;
 
@@ -1404,6 +1493,8 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
       b.tabIndex = b.dataset.pestana === nombre ? 0 : -1;
     });
     lab.querySelectorAll('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== nombre));
+    // En el asa (panel oculto) queda marcada la pestaña que abre «Mostrar panel».
+    lab.querySelectorAll('[data-asa]').forEach((b) => b.classList.toggle('lab__asa-pestana--actual', b.dataset.asa === nombre));
   }
   lab.querySelector('.pestanas-lab').addEventListener('click', (e) => {
     const b = e.target.closest('[data-pestana]');
@@ -1451,13 +1542,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
     });
   });
 
-  $('btn-panel').addEventListener('click', () => {
-    plegado = !plegado;
-    guardar(clavePanel, plegado);
-    lab.classList.toggle('lab--plegado', plegado);
-    $('btn-panel').setAttribute('aria-expanded', String(!plegado));
-    $('btn-panel').querySelector('span').textContent = `${plegado ? 'Mostrar' : 'Ocultar'} instrucciones`;
-  });
+  const panel = panelPlegable(lab, { clave: clavePanel, nombre: 'instrucciones', plegado, mostrarPestana });
   $('btn-aviso-movil')?.addEventListener('click', () => $('aviso-movil').remove());
 
   /* ----------------------------------------- guardar: equipo y servidor */
@@ -1584,7 +1669,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
     if (typeof valor !== 'boolean' || valor === autorrevision) return;
     autorrevision = valor;
     $('btn-revisar').hidden = !valor;
-    lab.querySelector('[data-pestana="avance"]').hidden = !valor;
+    lab.querySelectorAll('[data-pestana="avance"], [data-asa="avance"]').forEach((b) => (b.hidden = !valor));
     if (!valor && pestana === 'avance') mostrarPestana('tareas');
   }
 
@@ -1626,13 +1711,12 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
     if (!asistente || typeof valor !== 'boolean' || valor === conAsistente) return;
     conAsistente = valor;
     $('btn-asistente').hidden = !valor;
-    lab.querySelector('[data-pestana="asistente"]').hidden = !valor;
+    lab.querySelectorAll('[data-pestana="asistente"], [data-asa="asistente"]').forEach((b) => (b.hidden = !valor));
     if (!valor && pestana === 'asistente') mostrarPestana('tareas');
   }
 
   $('btn-asistente').addEventListener('click', () => {
-    if (plegado) $('btn-panel').click();
-    mostrarPestana('asistente');
+    panel.mostrar('asistente');
     $('asistente-texto').focus();
   });
 
@@ -1681,6 +1765,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   }
   pintarRevision();
 
+  const perdioFoco = (boton) => [null, document.body, boton].includes(document.activeElement);
   $('btn-revisar').addEventListener('click', async () => {
     const boton = $('btn-revisar');
     boton.disabled = true;
@@ -1688,16 +1773,20 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
       const r = await api(intento ? 'api/practica/intento/calificar' : 'api/practica/revisar', cuerpoCopia());
       pendiente = false;
       revision = { ...(intento ? r.resultado : r.revision), hora: new Date().toISOString() };
-      if (plegado) $('btn-panel').click();
       pintarRevision();
-      mostrarPestana('avance');
+      panel.mostrar('avance');
       $('tp-avance').scrollTop = 0;
+      // Al deshabilitarse, el botón soltó el foco (se fue a la página). Pasa a
+      // «Mi avance»: el lector la anuncia y, en pantalla angosta, la página baja
+      // hasta el resultado. Si el alumno ya se fue a otra parte, no se lo movemos.
+      if (perdioFoco(boton)) $('tab-avance').focus();
     } catch (e) {
       if (e.estado === 403) actualizarAutorrevision(false);
       if (e.estado === 409) return pintar();
       aviso(e.message, 'error');
     } finally {
       boton.disabled = false;
+      if (!boton.hidden && boton.isConnected && perdioFoco(boton)) boton.focus();
     }
   });
 
@@ -2621,7 +2710,7 @@ async function vistaConsolaLibre(ideaId = '') {
   let cuenta = cuentaDeArchivo(guardada?.estado) ?? modelo.cuentaNueva(datos);
   let rev = guardada?.rev ?? 0;
   let ideaActiva = IDEAS.some((i) => i.id === ideaId) ? ideaId : '';
-  let plegado = leer(clavePanelLibre, false) === true;
+  const plegado = leer(clavePanelLibre, false) === true;
   let pestana = 'ideas';
 
   document.body.classList.add('modo-lab');
@@ -2633,7 +2722,7 @@ async function vistaConsolaLibre(ideaId = '') {
         <div class="lab__titulo"><span>Simulador AWS · consola libre</span><strong>Tu cuenta para practicar</strong></div>
         <span class="lab__guardado" id="guardado" aria-live="polite"></span>
         <div class="lab__acciones">
-          <button class="boton boton--oscuro boton--chico" type="button" id="btn-panel" aria-controls="panel" aria-expanded="${!plegado}">${icono('i-panel')}<span>${plegado ? 'Mostrar' : 'Ocultar'} ideas</span></button>
+          <button class="boton boton--oscuro boton--chico" type="button" id="btn-panel" aria-controls="panel" aria-expanded="${!plegado}" title="Atajo: ${ATAJO_PANEL}">${icono('i-panel')}<span>${plegado ? 'Mostrar' : 'Ocultar'} panel</span></button>
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-descargar">${icono('i-copiar')}<span>Descargar mi cuenta</span></button>
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-cargar"><span>Cargar una cuenta</span></button>
         </div>
@@ -2643,9 +2732,12 @@ async function vistaConsolaLibre(ideaId = '') {
       <div class="lab__cuerpo">
         <div class="lab__consola" id="consola" role="region" aria-label="Consola de AWS simulada"></div>
         <aside class="lab__panel" id="panel" aria-label="Ideas para practicar">
-          <div class="pestanas-lab" role="tablist" aria-label="Panel">
-            <button type="button" role="tab" id="tab-ideas" data-pestana="ideas" aria-controls="tp-ideas">Ideas</button>
-            <button type="button" role="tab" id="tab-datos" data-pestana="datos" aria-controls="tp-datos">Tus datos</button>
+          <div class="lab__panel-cabeza">
+            <div class="pestanas-lab" role="tablist" aria-label="Panel">
+              <button type="button" role="tab" id="tab-ideas" data-pestana="ideas" aria-controls="tp-ideas">Ideas</button>
+              <button type="button" role="tab" id="tab-datos" data-pestana="datos" aria-controls="tp-datos">Tus datos</button>
+            </div>
+            ${htmlPlegarPanel()}
           </div>
           <div class="lab__contenido">
             <section role="tabpanel" id="tp-ideas" aria-labelledby="tab-ideas" data-panel="ideas"></section>
@@ -2658,6 +2750,10 @@ async function vistaConsolaLibre(ideaId = '') {
             <button type="button" class="enlace-peligro" id="btn-reiniciar">Reiniciar mi cuenta</button>
           </footer>
         </aside>
+        ${htmlAsaPanel([
+          ['ideas', 'Ideas'],
+          ['datos', 'Tus datos']
+        ])}
       </div>
     </div>`;
 
@@ -2671,6 +2767,7 @@ async function vistaConsolaLibre(ideaId = '') {
       b.tabIndex = b.dataset.pestana === nombre ? 0 : -1;
     });
     lab.querySelectorAll('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== nombre));
+    lab.querySelectorAll('[data-asa]').forEach((b) => b.classList.toggle('lab__asa-pestana--actual', b.dataset.asa === nombre));
   }
   lab.querySelector('.pestanas-lab').addEventListener('click', (e) => {
     const b = e.target.closest('[data-pestana]');
@@ -2720,13 +2817,7 @@ async function vistaConsolaLibre(ideaId = '') {
     });
   });
 
-  $('btn-panel').addEventListener('click', () => {
-    plegado = !plegado;
-    guardar(clavePanelLibre, plegado);
-    lab.classList.toggle('lab--plegado', plegado);
-    $('btn-panel').setAttribute('aria-expanded', String(!plegado));
-    $('btn-panel').querySelector('span').textContent = `${plegado ? 'Mostrar' : 'Ocultar'} ideas`;
-  });
+  panelPlegable(lab, { clave: clavePanelLibre, nombre: 'panel', plegado, mostrarPestana });
   $('btn-aviso-movil')?.addEventListener('click', () => $('aviso-movil').remove());
 
   /* --------------------------------------------- guardar en este equipo */

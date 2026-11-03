@@ -345,6 +345,56 @@ export function crearApp() {
     })
   );
 
+  // ------------------------------------------------ tablero de la plataforma
+
+  // El tablero docente de la plataforma (/docente) junta en una página lo que
+  // más se mueve en clase de todos los módulos. Aquí le damos lo nuestro con
+  // su formato común: el interruptor de la práctica final (practica:abierta),
+  // que cambia lo mismo que el botón del panel.
+  const cifra = (n) => n.toLocaleString('es-MX');
+
+  /** Todo el tablero: barato de calcular, el tablero lo pide seguido. */
+  function tablero() {
+    const ahora = Date.now();
+    const alumnos = almacen.alumnos(null);
+    const activos = alumnos.filter((a) => a.ids.some((id) => ahora - (vistos.get(id) ?? 0) < VENTANA_ACTIVO_MS)).length;
+    const entregas = almacen.entregas(null).length;
+    return {
+      modulo: 'comprender-nube',
+      titulo: 'Comprender la nube',
+      panel: 'docente.html',
+      indicadores: [
+        { etiqueta: 'Alumnos', valor: cifra(alumnos.length) },
+        { etiqueta: 'Activos ahora', valor: cifra(activos) },
+        { etiqueta: 'Entregas', valor: cifra(entregas) }
+      ],
+      grupos: [
+        {
+          titulo: 'Práctica final',
+          indicadores: [{ etiqueta: 'Entregas', valor: cifra(entregas) }],
+          enlace: 'docente.html#practica',
+          controles: [{ id: 'practica:abierta', tipo: 'interruptor', etiqueta: 'Práctica final abierta', valor: almacen.practicaAbierta() }]
+        }
+      ]
+    };
+  }
+
+  app.get(
+    '/api/docente/tablero',
+    soloDocente((req, res) => enviarJson(res, 200, tablero()))
+  );
+
+  app.put(
+    '/api/docente/tablero',
+    soloDocente(async (req, res) => {
+      const { control, valor } = (await leerJson(req)) ?? {};
+      if (control !== 'practica:abierta') return enviarJson(res, 400, { error: 'Ese control no existe' });
+      if (typeof valor !== 'boolean') return enviarJson(res, 400, { error: '«Práctica final abierta» solo acepta true o false' });
+      almacen.abrirPractica(valor);
+      enviarJson(res, 200, tablero());
+    })
+  );
+
   app.get('/salud', (req, res) => enviarJson(res, 200, { ok: true, motor: almacen.motor }));
 
   // ----------------------------------------------------------- el manejador

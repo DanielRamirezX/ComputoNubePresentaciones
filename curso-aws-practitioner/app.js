@@ -383,12 +383,19 @@ export function crearApp() {
     soloDocente(async (req, res) => {
       const { abierta, sesion: pedida } = await leerJson(req);
       const sesion = sesionPedida(pedida);
-      almacen.abrirPractica(sesion, abierta === true);
-      // Abrir el examen de una sesión dice cuál se da hoy.
-      if (abierta === true) almacen.fijarHoy(sesion);
+      abrirExamen(sesion, abierta === true);
       enviarJson(res, 200, { practicaAbierta: almacen.practicaAbierta(sesion) });
     })
   );
+
+  /**
+   * Abrir o cerrar el examen de una sesión. Abrirlo dice cuál se da hoy. Lo
+   * usan el panel (PUT /api/docente/practica) y el tablero de la plataforma.
+   */
+  function abrirExamen(sesion, abierta) {
+    almacen.abrirPractica(sesion, abierta);
+    if (abierta) almacen.fijarHoy(sesion);
+  }
 
   // «Empezar la clase» en el plan: la Ruta de cada alumno abre en esta sesión.
   app.put(
@@ -470,6 +477,81 @@ export function crearApp() {
       const nombre = `aws-practitioner-sesion${sesion}-${(grupo || 'todos').replace(/[^\w-]+/g, '-').toLowerCase()}.csv`;
       // El BOM hace que Excel abra los acentos bien.
       enviarDescarga(res, nombre, 'text/csv; charset=utf-8', '﻿' + csv);
+    })
+  );
+
+  // ------------------------------------------------ tablero de la plataforma
+
+  // El tablero docente de la plataforma (/docente) junta en una página lo que
+  // más se mueve en clase de todos los módulos. Aquí le damos lo nuestro con
+  // su formato común: «Sesión de hoy» (ruta:hoy) y, por sesión, el examen
+  // abierto o cerrado (sesion-<n>:examen). Los cambios pasan por fijarHoy y
+  // abrirExamen, igual que desde el panel.
+  const cifra = (n) => n.toLocaleString('es-MX');
+  const OPCIONES_HOY = SESIONES.map((s) => ({ valor: String(s.numero), etiqueta: s.subtitulo }));
+
+  /** Todo el tablero: barato de calcular, el tablero lo pide seguido. */
+  function tablero() {
+    const ahora = Date.now();
+    const alumnos = almacen.alumnos(null);
+    const activos = alumnos.filter((a) => a.ids.some((id) => ahora - (vistos.get(id) ?? 0) < VENTANA_ACTIVO_MS)).length;
+    const hoy = almacen.hoy();
+    const abiertos = NUMEROS.filter((n) => almacen.practicaAbierta(n)).length;
+
+    return {
+      modulo: 'aws-practitioner',
+      titulo: 'Ruta AWS',
+      panel: 'docente.html',
+      indicadores: [
+        { etiqueta: 'Alumnos registrados', valor: cifra(alumnos.length) },
+        { etiqueta: 'Activos ahora', valor: cifra(activos) },
+        { etiqueta: 'Sesión de hoy', valor: hoy ? String(hoy) : 'Sin elegir' },
+        { etiqueta: 'Exámenes abiertos', valor: cifra(abiertos) }
+      ],
+      grupos: [
+        {
+          titulo: 'Clase de hoy',
+          detalle: 'La Ruta de cada alumno abre en esta sesión',
+          enlace: 'docente.html',
+          controles: [
+            // Sin sesión elegida todavía, el valor va vacío: ninguna opción marcada.
+            { id: 'ruta:hoy', tipo: 'seleccion', etiqueta: 'Sesión de hoy', valor: hoy ? String(hoy) : '', opciones: OPCIONES_HOY }
+          ]
+        },
+        ...SESIONES.map((s) => ({
+          titulo: s.subtitulo,
+          ...(s.numero === hoy ? { detalle: 'Se da hoy' } : {}),
+          indicadores: [{ etiqueta: 'Entregas del examen', valor: cifra(almacen.entregas(null, s.numero).length) }],
+          enlace: `docente.html#sesion-${s.numero}`,
+          controles: [
+            { id: `sesion-${s.numero}:examen`, tipo: 'interruptor', etiqueta: 'Examen de la sesión abierto', valor: almacen.practicaAbierta(s.numero) }
+          ]
+        }))
+      ]
+    };
+  }
+
+  app.get(
+    '/api/docente/tablero',
+    soloDocente((req, res) => enviarJson(res, 200, tablero()))
+  );
+
+  app.put(
+    '/api/docente/tablero',
+    soloDocente(async (req, res) => {
+      const cuerpo = await leerJson(req);
+      const { control, valor } = cuerpo ?? {};
+      if (control === 'ruta:hoy') {
+        if (!OPCIONES_HOY.some((o) => o.valor === valor)) return enviarJson(res, 400, { error: 'Esa sesión no existe' });
+        almacen.fijarHoy(sesionValida(valor));
+        return enviarJson(res, 200, tablero());
+      }
+      const examen = typeof control === 'string' ? /^sesion-(\d{1,2}):examen$/.exec(control) : null;
+      const sesion = examen && NUMEROS.includes(Number(examen[1])) ? Number(examen[1]) : null;
+      if (!sesion) return enviarJson(res, 400, { error: 'Ese control no existe' });
+      if (typeof valor !== 'boolean') return enviarJson(res, 400, { error: '«Examen de la sesión abierto» solo acepta true o false' });
+      abrirExamen(sesion, valor);
+      enviarJson(res, 200, tablero());
     })
   );
 

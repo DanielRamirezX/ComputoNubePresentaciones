@@ -876,30 +876,39 @@ export function crearApp() {
     soloDocente(async (req, res) => {
       const cuerpo = await leerJson(req);
       const ev = evaluacionPedida(cuerpo.evaluacion);
-      const cambios = {};
-      for (const parte of ['teoria', 'practica']) {
-        if (cuerpo[parte] === undefined) continue;
-        if (typeof cuerpo[parte] !== 'boolean') throw fallo(400, `«${parte}» debe ser true o false`);
-        exigirParte(ev, parte);
-        cambios[parte] = cuerpo[parte];
-      }
-      if (cuerpo.retro !== undefined) {
-        if (!RETROS.includes(cuerpo.retro)) throw fallo(400, 'La retroalimentación es «completa» o «calificacion»');
-        cambios.retro = cuerpo.retro;
-      }
-      if (cuerpo.autorrevision !== undefined) {
-        if (typeof cuerpo.autorrevision !== 'boolean') throw fallo(400, '«autorrevision» debe ser true o false');
-        cambios.autorrevision = cuerpo.autorrevision;
-      }
-      if (cuerpo.asistente !== undefined) {
-        if (typeof cuerpo.asistente !== 'boolean') throw fallo(400, '«asistente» debe ser true o false');
-        exigirParte(ev, 'practica');
-        cambios.asistente = cuerpo.asistente;
-      }
-      almacen.configurar(ev.id, cambios);
+      configurarEvaluacion(ev, cuerpo);
       enviarJson(res, 200, { evaluacion: configPanel(ev) });
     })
   );
+
+  /**
+   * Lo que cambia el docente en una evaluación, validado. Lo usan el panel
+   * (PUT /api/docente/evaluacion) y el tablero de la plataforma: las mismas
+   * reglas para los dos.
+   */
+  function configurarEvaluacion(ev, cuerpo) {
+    const cambios = {};
+    for (const parte of ['teoria', 'practica']) {
+      if (cuerpo[parte] === undefined) continue;
+      if (typeof cuerpo[parte] !== 'boolean') throw fallo(400, `«${parte}» debe ser true o false`);
+      exigirParte(ev, parte);
+      cambios[parte] = cuerpo[parte];
+    }
+    if (cuerpo.retro !== undefined) {
+      if (!RETROS.includes(cuerpo.retro)) throw fallo(400, 'La retroalimentación es «completa» o «calificacion»');
+      cambios.retro = cuerpo.retro;
+    }
+    if (cuerpo.autorrevision !== undefined) {
+      if (typeof cuerpo.autorrevision !== 'boolean') throw fallo(400, '«autorrevision» debe ser true o false');
+      cambios.autorrevision = cuerpo.autorrevision;
+    }
+    if (cuerpo.asistente !== undefined) {
+      if (typeof cuerpo.asistente !== 'boolean') throw fallo(400, '«asistente» debe ser true o false');
+      exigirParte(ev, 'practica');
+      cambios.asistente = cuerpo.asistente;
+    }
+    return almacen.configurar(ev.id, cambios);
+  }
 
   // Todo lo de un alumno: respuestas con su retro, la rúbrica completa, su
   // cuenta para verla en la consola en solo lectura y la bitácora.
@@ -1094,6 +1103,124 @@ export function crearApp() {
         'Cache-Control': 'no-store'
       });
       res.end(html);
+    })
+  );
+
+  // ------------------------------------------------ tablero de la plataforma
+
+  // El tablero docente de la plataforma (/docente) junta en una página lo que
+  // más se mueve en clase de todos los módulos. Aquí le damos lo nuestro con
+  // su formato común: indicadores ya escritos como texto y, por evaluación,
+  // interruptores y selecciones. Los ids de control son «<evaluación>:<campo>»
+  // y el cambio pasa por configurarEvaluacion, igual que desde el panel.
+  const OPCIONES_RETRO = [
+    { valor: 'completa', etiqueta: 'Completa' },
+    { valor: 'calificacion', etiqueta: 'Solo calificación' }
+  ];
+  const cifra = (n) => n.toLocaleString('es-MX');
+
+  /** Los controles de una evaluación, en el orden en que los ve el docente. */
+  function controlesDe(ev) {
+    const cfg = almacen.config(ev.id);
+    const soloLab = tipoDe(ev) !== 'evaluacion' && !tieneParte(ev, 'teoria');
+    const controles = [];
+    // Una parte en preparación no se ofrece: nadie la abre por accidente.
+    if (tieneParte(ev, 'teoria') && disponible(ev, 'teoria')) {
+      controles.push({ id: `${ev.id}:teoria`, tipo: 'interruptor', etiqueta: 'Parte teórica abierta', valor: cfg.teoria.abierta });
+    }
+    if (tieneParte(ev, 'practica') && disponible(ev, 'practica')) {
+      controles.push({
+        id: `${ev.id}:practica`,
+        tipo: 'interruptor',
+        etiqueta: soloLab ? 'Laboratorio abierto' : 'Parte práctica abierta',
+        valor: cfg.practica.abierta
+      });
+    }
+    if (tieneParte(ev, 'practica')) {
+      controles.push(
+        {
+          id: `${ev.id}:asistente`,
+          tipo: 'interruptor',
+          // Sin ANTHROPIC_API_KEY, prenderlo no hace nada: que se note.
+          etiqueta: hayLlave() ? 'Asistente de IA' : 'Asistente de IA (falta la llave en el servidor)',
+          valor: cfg.asistente
+        },
+        { id: `${ev.id}:autorrevision`, tipo: 'interruptor', etiqueta: 'Revisar mi avance', valor: cfg.autorrevision }
+      );
+    }
+    controles.push({ id: `${ev.id}:retro`, tipo: 'seleccion', etiqueta: 'Retroalimentación', valor: cfg.retro, opciones: OPCIONES_RETRO });
+    return controles;
+  }
+
+  /** Todo el tablero: barato de calcular, el tablero lo pide seguido. */
+  function tablero() {
+    const ahora = Date.now();
+    const alumnos = almacen.alumnos(null);
+    const activo = (a) => a.ids.some((id) => ahora - (vistos.get(id) ?? 0) < VENTANA_ACTIVO_MS);
+    let abiertas = 0;
+
+    const grupos = EVALUACIONES.map((ev) => {
+      const cfg = almacen.config(ev.id);
+      const partes = ['teoria', 'practica'].filter((p) => tieneParte(ev, p));
+      if (partes.some((p) => cfg[p].abierta && disponible(ev, p))) abiertas++;
+      const nombre = { teoria: 'teórica', practica: 'práctica' };
+      const indicadores = partes.map((p) => ({
+        etiqueta: partes.length > 1 ? `Entregas ${nombre[p]}` : 'Entregas',
+        valor: cifra(almacen.entregas(null, ev.id, p).length)
+      }));
+      if (tieneParte(ev, 'practica')) {
+        // Con el laboratorio abierto y sin entregar: su copia llegó hace poco.
+        const trabajando = alumnos.filter((a) => {
+          const c = almacen.copiaDe(a, ev.id);
+          return c && ahora - new Date(c.hora).getTime() < VENTANA_ACTIVO_MS && !almacen.entregaDe(a, ev.id, 'practica');
+        }).length;
+        indicadores.push({ etiqueta: 'Trabajando ahora', valor: cifra(trabajando) });
+      }
+      const preparacion = partes.some((p) => !disponible(ev, p));
+      return {
+        titulo: ev.titulo,
+        detalle: `${ev.fechaTexto}${preparacion ? ' · en preparación' : ''}`,
+        indicadores,
+        enlace: `docente.html#${ev.id}`,
+        controles: controlesDe(ev)
+      };
+    });
+
+    return {
+      modulo: 'evaluacion',
+      titulo: 'Evaluación AWS',
+      panel: 'docente.html',
+      indicadores: [
+        { etiqueta: 'Alumnos con perfil', valor: cifra(alumnos.length) },
+        { etiqueta: 'Activos ahora', valor: cifra(alumnos.filter(activo).length) },
+        { etiqueta: 'Evaluaciones abiertas', valor: cifra(abiertas) }
+      ],
+      grupos
+    };
+  }
+
+  app.get(
+    '/api/docente/tablero',
+    soloDocente((req, res) => enviarJson(res, 200, tablero()))
+  );
+
+  app.put(
+    '/api/docente/tablero',
+    soloDocente(async (req, res) => {
+      const cuerpo = await leerJson(req);
+      const id = typeof cuerpo?.control === 'string' ? cuerpo.control : '';
+      const ev = evaluacionDe(id.slice(0, id.lastIndexOf(':')));
+      const control = ev && controlesDe(ev).find((c) => c.id === id);
+      if (!control) return enviarJson(res, 400, { error: 'Ese control no existe' });
+      const valor = cuerpo.valor;
+      if (control.tipo === 'interruptor' && typeof valor !== 'boolean') {
+        return enviarJson(res, 400, { error: `«${control.etiqueta}» solo acepta true o false` });
+      }
+      if (control.tipo === 'seleccion' && !control.opciones.some((o) => o.valor === valor)) {
+        return enviarJson(res, 400, { error: `Esa opción no existe en «${control.etiqueta}»` });
+      }
+      configurarEvaluacion(ev, { [id.slice(id.lastIndexOf(':') + 1)]: valor });
+      enviarJson(res, 200, tablero());
     })
   );
 

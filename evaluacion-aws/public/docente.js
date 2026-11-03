@@ -61,7 +61,16 @@ const escribir = (clave, valor) => {
 // entrar a los demás sin volver a escribir la clave.
 let clave = leer('clave-docente') || '';
 let evaluaciones = [];
-let evId = leer(PREFIJO + 'evaluacion-panel') || '';
+// El tablero de la plataforma abre una evaluación con docente.html#<id> (o
+// #simulador para el resumen): esa gana sobre la última elegida.
+const pedidaEnLiga = () => {
+  try {
+    return decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return '';
+  }
+};
+let evId = pedidaEnLiga() || leer(PREFIJO + 'evaluacion-panel') || '';
 let datos = null;
 
 /** Confirmación dentro de la página (no `confirm()`). Devuelve true o false. */
@@ -149,6 +158,14 @@ $('clave').addEventListener('keydown', (e) => {
 });
 if (clave) entrar(clave).catch(() => escribir('clave-docente', null));
 
+// En la plataforma (/m/<módulo>/), la liga de arriba regresa al tablero
+// docente (/docente). Suelto, con `node server.js`, no hay tablero: se esconde.
+const BASE_PLATAFORMA = location.pathname.includes('/m/') ? location.pathname.slice(0, location.pathname.indexOf('/m/')) : null;
+if (BASE_PLATAFORMA !== null) {
+  $('liga-tablero').href = `${BASE_PLATAFORMA}/docente`;
+  $('liga-tablero').hidden = false;
+}
+
 /* ------------------------------------------------------------------- datos */
 
 async function llamar(ruta, opciones = {}) {
@@ -177,6 +194,8 @@ async function cargar() {
 $('grupo').addEventListener('change', cargar);
 $('evaluacion').addEventListener('change', () => {
   evId = $('evaluacion').value;
+  // Ya eligió otra: la liga con la que llegó no debe volver a mandar al recargar.
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   escribir(PREFIJO + 'evaluacion-panel', evId);
   datos = null;
   ultimoControl = '';
@@ -184,6 +203,15 @@ $('evaluacion').addEventListener('change', () => {
   $('vista-simulador').innerHTML = '<p class="cargando">Cargando…</p>';
   mostrarVista();
   cargar();
+});
+
+// Con el panel abierto, otra liga del tablero (#<id>) cambia de evaluación.
+window.addEventListener('hashchange', () => {
+  const pedida = pedidaEnLiga();
+  if (!evaluaciones.length || !pedida || pedida === evId) return;
+  if (pedida !== RESUMEN && !evaluaciones.some((e) => e.id === pedida)) return;
+  $('evaluacion').value = pedida;
+  $('evaluacion').dispatchEvent(new Event('change'));
 });
 
 /** El resumen del simulador y una evaluación usan zonas distintas de la página. */

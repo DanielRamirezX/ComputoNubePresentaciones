@@ -395,6 +395,18 @@ tr.debil td {
   min-height: 1.2em;
 }
 
+/* La liga al tablero docente de la plataforma: discreta, arriba del panel. */
+.liga-tablero {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: inherit;
+  font-size: .9rem;
+  font-weight: 600;
+  opacity: .75;
+  text-decoration: none;
+}
+.liga-tablero:hover { opacity: 1; text-decoration: underline; }
+
 .oculto {
   display: none !important;
 }

@@ -35,6 +35,14 @@ $('clave').addEventListener('keydown', (e) => {
 
 if (clave) entrar(clave).catch(() => sessionStorage.removeItem('clave-docente'));
 
+// En la plataforma (/m/<módulo>/), la liga de arriba regresa al tablero
+// docente (/docente). Suelto, con `node server.js`, no hay tablero: se esconde.
+const BASE_PLATAFORMA = location.pathname.includes('/m/') ? location.pathname.slice(0, location.pathname.indexOf('/m/')) : null;
+if (BASE_PLATAFORMA !== null) {
+  $('liga-tablero').href = `${BASE_PLATAFORMA}/docente`;
+  $('liga-tablero').classList.remove('oculto');
+}
+
 /* ----------------------------------------------------------------- datos */
 
 async function cargar() {

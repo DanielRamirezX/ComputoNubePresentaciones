@@ -50,6 +50,10 @@ la nube* (`../curso-comprender-nube`), con piezas nuevas:
 
 Dentro de la plataforma vive en `/m/aws-practitioner/`; el panel del docente, en
 `/m/aws-practitioner/docente` (misma `CLAVE_DOCENTE` que los demás paneles).
+El tablero docente de la plataforma (`/docente`) usa `GET/PUT /api/docente/tablero`
+para elegir la sesión de hoy (`ruta:hoy`) y abrir el examen de cada sesión
+(`sesion-<n>:examen`, que también fija hoy); `docente.html#sesion-<n>` abre el
+panel en esa sesión.
 
 ## Estado de la ruta
 

@@ -198,6 +198,9 @@ code { font-family: var(--mono); font-size: .92em; background: var(--marino-suav
 .barra__marca .icono { width: 26px; height: 26px; padding: 4px; border-radius: 7px; background: var(--naranja); color: var(--marino); stroke-width: 9; }
 .barra__volver { border: 2px solid #4b5b70; }
 .barra__volver:hover { border-color: var(--naranja); }
+/* La liga al tablero docente de la plataforma: discreta, a la derecha. */
+.barra__tablero { color: #fff; font-size: .88rem; }
+.barra__tablero .barra__flecha { display: inline !important; }
 .barra__centro { flex: 1; min-width: 0; }
 .barra__titulo { display: block; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .barra__lado:empty { display: none; }
@@ -756,9 +759,10 @@ a.idea:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--nar
 .check--bono .check__icono { color: var(--marino-3); }
 .etiqueta-bono { display: inline-block; margin: 0 0 6px; padding: 1px 9px; border-radius: 999px; background: var(--marino-3); color: #fff; font-size: .78rem; font-weight: 700; letter-spacing: .02em; }
 .nota-bono { margin: 0 0 12px; padding: 9px 12px; border-left: 4px solid var(--naranja); border-radius: 9px; background: var(--naranja-suave); font-size: .94rem; }
-.resultado-tarea__cabeza { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-.resultado-tarea__cabeza h3 { margin: 0; font-size: 1.08rem; }
-.resultado-tarea__puntos { flex: none; font-family: var(--mono); font-weight: 700; }
+/* Si no cabe en un renglón (panel lateral, celular), estado y puntos bajan al siguiente. */
+.resultado-tarea__cabeza { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-bottom: 8px; }
+.resultado-tarea__cabeza h3 { flex: 1 1 14em; min-width: 0; margin: 0; font-size: 1.08rem; }
+.resultado-tarea__puntos { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; font-family: var(--mono); font-weight: 700; }
 .resultado-tarea__estado { flex: none; margin-left: auto; font-weight: 700; font-size: .9rem; }
 .resultado-tarea--bien .resultado-tarea__estado { color: var(--verde-texto); }
 .resultado-tarea--mal .resultado-tarea__estado { color: var(--rojo); }
@@ -826,8 +830,65 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
 .aviso-movil span { flex: 1; min-width: 200px; }
 
 .lab__cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); min-height: 0; }
-.lab--plegado .lab__cuerpo { grid-template-columns: minmax(0, 1fr); }
+.lab--plegado .lab__cuerpo { grid-template-columns: minmax(0, 1fr) auto; }
 .lab--plegado .lab__panel { display: none; }
+
+/* Panel oculto: queda un asa angosta en el borde para volver a abrirlo,
+   directo en la pestaña que se pulse. Sin el panel no hay asa. */
+.lab__asa { display: none; }
+.lab--plegado .lab__asa {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 48px;
+  min-height: 0;
+  padding: 8px 5px;
+  overflow-y: auto;
+  border-left: 3px solid var(--naranja);
+  background: var(--marino-2);
+}
+.lab__asa button {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #c9d2de;
+  font-size: .86rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.lab__asa button span { writing-mode: vertical-rl; white-space: nowrap; }
+.lab__asa button:hover { border-color: #4b5b70; color: #fff; }
+.lab__asa .lab__asa-abrir { margin-bottom: 6px; background: var(--naranja); color: var(--marino); }
+.lab__asa .lab__asa-abrir:hover { border-color: #fff; background: var(--naranja-hover); color: var(--marino); }
+.lab__asa .lab__asa-pestana--actual { border-color: #4b5b70; color: #fff; box-shadow: inset 3px 0 0 var(--naranja); }
+.lab__asa :focus-visible, .lab__plegar:focus-visible { outline-color: #8db4ff; }
+
+/* Cabeza del panel: las pestañas y, a la derecha, el botón para ocultarlo. */
+.lab__panel-cabeza { display: flex; align-items: flex-start; min-width: 0; background: var(--marino-2); }
+.lab__panel-cabeza .pestanas-lab { flex: 1; min-width: 0; }
+.lab__plegar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: 6px 6px 0 2px;
+  border: 2px solid #4b5b70;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+}
+.lab__plegar:hover { border-color: var(--naranja); }
+.lab__panel--entra { animation: lab-panel-entra .18s ease-out; }
+@keyframes lab-panel-entra {
+  from { opacity: 0; transform: translateX(24px); }
+}
 .lab__consola { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #0f1b2a; }
 .lab__fallo { margin: 40px; color: #fff; }
 
@@ -946,7 +1007,9 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
   .lab__panel { display: block; border-left: 0; border-top: 3px solid var(--naranja); }
   .lab--plegado .lab__panel { display: block; }
   .lab__contenido { overflow: visible; }
-  #btn-panel { display: none; }
+  /* Aquí el panel va debajo de la consola: no hay nada que ocultar. */
+  #btn-panel, .lab__plegar, .lab--plegado .lab__asa { display: none; }
+  .lab__panel--entra { animation: none; }
 }
 
 /* -------------------------------------------------------- panel docente */
@@ -956,9 +1019,10 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
 .panel__clave h1 { font-size: 1.8rem; }
 .panel__cabeza { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px; margin: 0 0 16px; }
 .panel__cabeza h1 { margin: 0; }
-.panel__controles { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; font-size: .94rem; }
-.panel__controles label { display: flex; align-items: center; gap: 8px; font-weight: 700; }
-.panel__controles select { min-height: 42px; padding: 6px 10px; border: 2px solid var(--marino); border-radius: 10px; background: var(--blanco); }
+.panel__controles { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; min-width: 0; max-width: 100%; font-size: .94rem; }
+.panel__controles label { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; font-weight: 700; }
+/* Los nombres de las evaluaciones son largos: en el celular el selector se encoge en vez de empujar la página. */
+.panel__controles select { min-width: 0; max-width: 100%; min-height: 42px; padding: 6px 10px; border: 2px solid var(--marino); border-radius: 10px; background: var(--blanco); }
 .panel__actualizado { color: var(--gris); font-family: var(--mono); font-size: .78rem; }
 
 .aviso { margin: 0 0 14px; padding: 10px 14px; border: 2px solid var(--rojo); border-radius: 10px; background: var(--rojo-suave); color: var(--rojo-texto); font-weight: 700; }

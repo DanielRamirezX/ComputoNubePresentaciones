@@ -70,6 +70,10 @@ abre ese laboratorio con la tabla en vivo de siempre.
 
 1. Abre el **panel docente**: `…/m/evaluacion/docente`. También hay un botón en
    el panel de la Ruta AWS. La clave es la misma `CLAVE_DOCENTE` de los otros paneles.
+   Desde el **tablero docente** de la plataforma (`/docente`) se abren y cierran
+   las partes sin entrar aquí: usa `GET/PUT /api/docente/tablero` (controles
+   `<evaluación>:teoria|practica|asistente|autorrevision|retro`), y
+   `docente.html#<evaluación>` abre el panel en esa evaluación.
 2. Elige la evaluación y activa los interruptores **Parte teórica** y **Parte
    práctica**. Mientras estén cerrados, los alumnos ven la tarjeta con candado.
 3. Opciones de cada evaluación:

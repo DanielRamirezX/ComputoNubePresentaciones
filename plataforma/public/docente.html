@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tablero del docente · Cómputo en la Nube</title>
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbf8ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121419" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="estilos.css">
+<link rel="stylesheet" href="docente.css">
+</head>
+<body class="tablero">
+<a class="saltar" href="#principal">Saltar al contenido</a>
+<main class="envoltura tablero__envoltura" id="principal">
+  <header class="cabecera">
+    <p class="cabecera__etiqueta">Solo para el docente</p>
+    <h1>Tablero del docente</h1>
+    <p class="cabecera__pie">Abre y cierra evaluaciones, sesiones y tarjetas del índice desde un solo lugar.</p>
+  </header>
+
+  <!-- ------------------------------------------------------------ entrar -->
+  <section class="entrada" id="pantalla-clave" aria-labelledby="t-entrada">
+    <h2 id="t-entrada">Entra con tu clave</h2>
+    <form id="form-clave" novalidate>
+      <label for="clave">Clave docente</label>
+      <div class="entrada__fila">
+        <input id="clave" name="clave" type="password" autocomplete="current-password" required>
+        <button class="boton boton--primario" type="submit">Entrar</button>
+      </div>
+      <p class="error" id="error-clave" role="alert"></p>
+    </form>
+    <p class="nota">Es la misma clave de los paneles de cada módulo (la variable <code>CLAVE_DOCENTE</code> del servidor). Al entrar aquí, los paneles de los módulos ya no te la vuelven a pedir en esta pestaña.</p>
+  </section>
+
+  <!-- ----------------------------------------------------------- tablero -->
+  <div id="pantalla-tablero" hidden>
+    <nav class="barra" aria-label="Tablero">
+      <ul class="barra__saltos">
+        <li><a href="#abierto">Abierto ahora</a></li>
+        <li><a href="#modulos">Módulos</a></li>
+        <li><a href="#indice">Lo que ven los alumnos</a></li>
+      </ul>
+      <div class="barra__acciones">
+        <span class="barra__hora" id="hora" aria-live="off"></span>
+        <button class="boton" type="button" id="actualizar">Actualizar</button>
+        <a class="boton" href="/" target="_blank" rel="opener">Ver el índice</a>
+        <a class="boton" href="proyectar" target="_blank" rel="opener">Proyectar QR</a>
+        <button class="boton boton--salir" type="button" id="salir">Salir</button>
+      </div>
+    </nav>
+
+    <p class="aviso" id="aviso-clave" hidden>
+      <strong>Estás usando la clave de fábrica («cambiame»).</strong> Cualquiera que la adivine puede abrir y cerrar exámenes.
+      Antes de clase define otra en la variable <code>CLAVE_DOCENTE</code> del servidor.
+    </p>
+    <p class="aviso aviso--error" id="aviso-red" role="alert" hidden></p>
+
+    <section class="bloque-tablero" id="abierto" aria-labelledby="t-abierto" tabindex="-1">
+      <h2 class="seccion" id="t-abierto">Abierto ahora</h2>
+      <p class="sutil">Lo que los alumnos pueden contestar en este momento. Ciérralo desde aquí sin buscarlo.</p>
+      <div id="lista-abierto"><p class="cargando">Revisando los módulos…</p></div>
+    </section>
+
+    <section class="bloque-tablero" id="modulos" aria-labelledby="t-modulos" tabindex="-1">
+      <h2 class="seccion" id="t-modulos">Módulos</h2>
+      <div class="filtro">
+        <label class="filtro__campo" for="buscar">
+          <span>Buscar</span>
+          <input id="buscar" type="search" placeholder="Simulacro, sesión 6, práctica…" autocomplete="off">
+        </label>
+        <div class="filtro__botones">
+          <button class="boton boton--chico" type="button" id="desplegar-todo">Desplegar todo</button>
+          <button class="boton boton--chico" type="button" id="plegar-todo">Plegar todo</button>
+        </div>
+      </div>
+      <p class="sutil" id="filtro-vacio" hidden>Nada coincide con la búsqueda.</p>
+      <div class="modulos" id="lista-modulos"><p class="cargando">Cargando los módulos…</p></div>
+    </section>
+
+    <section class="bloque-tablero" id="indice" aria-labelledby="t-indice" tabindex="-1">
+      <h2 class="seccion" id="t-indice">Lo que ven los alumnos</h2>
+      <p class="sutil">Ocultar una tarjeta solo la quita del índice de los alumnos: no borra nada y su dirección directa sigue abriendo.</p>
+      <div class="indice__acciones">
+        <button class="boton boton--chico" type="button" id="mostrar-todo">Mostrar todo</button>
+        <span class="sutil" id="conteo-ocultas" aria-live="polite"></span>
+      </div>
+      <div id="lista-indice"><p class="cargando">Cargando el índice…</p></div>
+    </section>
+  </div>
+
+  <p class="mensaje" id="mensaje" role="status" aria-live="polite"></p>
+</main>
+<script src="docente.js"></script>
+</body>
+</html>

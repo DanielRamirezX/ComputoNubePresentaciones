@@ -47,7 +47,11 @@ const ACTIVIDADES = CURSO.capitulos.flatMap((c) => c.actividades.map((a) => ({ .
 // entrar al otro sin volver a escribir la clave.
 let clave = leer(sesion, 'clave-docente') || '';
 let datos = null;
-let pestana = leer(sesion, PREFIJO + 'pestana') || 'plan';
+// El tablero de la plataforma abre una pestaña con docente.html#plan, #vivo
+// o #practica: esa gana sobre la última elegida.
+const PESTANAS = ['plan', 'vivo', 'practica'];
+const pestanaEnLiga = () => (PESTANAS.includes(location.hash.slice(1)) ? location.hash.slice(1) : null);
+let pestana = pestanaEnLiga() || leer(sesion, PREFIJO + 'pestana') || 'plan';
 
 /* ------------------------------------------------------------------ entrar */
 
@@ -98,9 +102,26 @@ function mostrarPestana(nombre) {
   });
 }
 
+// En la plataforma (/m/<módulo>/), la liga de arriba regresa al tablero
+// docente (/docente). Suelto, con `node server.js`, no hay tablero: se esconde.
+const BASE_PLATAFORMA = location.pathname.includes('/m/') ? location.pathname.slice(0, location.pathname.indexOf('/m/')) : null;
+if (BASE_PLATAFORMA !== null) {
+  $('liga-tablero').href = `${BASE_PLATAFORMA}/docente`;
+  $('liga-tablero').hidden = false;
+}
+
+// Con el panel abierto, otra liga del tablero (#plan, #vivo, #practica) cambia de pestaña.
+window.addEventListener('hashchange', () => {
+  if (pestanaEnLiga() && clave) mostrarPestana(pestanaEnLiga());
+});
+
 document.querySelector('.pestanas').addEventListener('click', (e) => {
   const boton = e.target.closest('[data-pestana]');
-  if (boton) mostrarPestana(boton.dataset.pestana);
+  if (!boton) return;
+  // Ya eligió otra: la liga con la que llegó (#plan, #vivo, #practica) no debe
+  // volver a mandar al recargar. Igual que en el panel del examen.
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  mostrarPestana(boton.dataset.pestana);
 });
 
 /* ------------------------------------------------------------------- datos */

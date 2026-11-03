@@ -136,6 +136,9 @@ a.tarjeta:focus-visible { border-color: var(--blue); }
 
 .pie { margin-top: 42px; padding-top: 20px; border-top: 2px dashed var(--line); color: var(--muted); font-size: .88rem; }
 .pie a { color: var(--blue); }
+/* La entrada al tablero del docente: a la vista, pero sin llamar la atención. */
+.pie__docente { margin: 10px 0 0; font-size: .8rem; }
+.pie .pie__docente a { color: var(--muted); }
 
 .cargando { padding: 40px 0; color: var(--muted); font-family: var(--mono); }
 

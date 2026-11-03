@@ -8,7 +8,9 @@ docente ve las calificaciones en un panel.
 
 - `/` — el curso del alumno (registro, 3 capítulos, 30 actividades, práctica final)
 - `/docente` — panel del docente: plan de la clase con cronómetro, avance en vivo
-  y resultados de la práctica
+  y resultados de la práctica (`docente.html#plan`, `#vivo` o `#practica` abre esa pestaña)
+- `/api/docente/tablero` — lo que lee y cambia el tablero docente de la plataforma
+  (GET; PUT `{ control: 'practica:abierta', valor }`)
 - `/?proyectar=1` — el curso para la computadora del salón: no pide registro, no
   guarda avance y muestra las notas del docente con la tecla `N`
 

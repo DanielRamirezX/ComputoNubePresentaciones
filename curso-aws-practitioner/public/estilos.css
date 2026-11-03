@@ -1624,6 +1624,19 @@ button { cursor: pointer; }
 /* ----------------------------------------------------------- panel docente */
 
 .panel { max-width: 1160px; margin: 0 auto; padding: 20px 16px 80px; }
+
+/* La liga al tablero docente de la plataforma: discreta, arriba del panel. */
+.liga-tablero {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: .9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.liga-tablero:hover { color: var(--ink); text-decoration: underline; }
 .panel__clave { max-width: 480px; margin: 40px auto; }
 .panel__clave h1 { margin: 0 0 16px; font-size: 1.8rem; }
 

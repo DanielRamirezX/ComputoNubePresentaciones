@@ -61,12 +61,18 @@ async function montarExpress(app, modulo, carpeta) {
  * distintas de él (por ejemplo, cada evaluación). Sin `accesos`, una tarjeta.
  * Cada acceso puede ir en su propia `seccion` del índice (si no dice, va en la
  * del módulo): así el simulador sale aparte de las evaluaciones.
+ *
+ * `tarjeta` es el nombre fijo con el que el tablero docente oculta o muestra
+ * cada tarjeta: el id del módulo, o «módulo#ruta» para un acceso
+ * (evaluacion#/simulacro-1). No cambia aunque reordenes los accesos.
  */
 function tarjetasDe(modulo, publico, resultado) {
-  if (!modulo.accesos?.length) return [{ ...publico, ...resultado }];
+  if (!modulo.accesos?.length) return [{ ...publico, modulo: modulo.id, tarjeta: modulo.id, ...resultado }];
   return modulo.accesos.map((a, i) => ({
     ...publico,
     id: `${modulo.id}-${i + 1}`,
+    modulo: modulo.id,
+    tarjeta: `${modulo.id}#${String(a.ruta ?? i + 1).replace(/^#/, '')}`,
     titulo: a.titulo,
     resumen: a.resumen ?? '',
     etiqueta: a.etiqueta ?? publico.etiqueta,
@@ -95,7 +101,7 @@ export async function montarModulos(app, curso, raiz) {
     };
 
     if (modulo.tipo === 'enlace') {
-      reporte.push({ ...publico, estado: 'ok', url: modulo.url, externo: true });
+      reporte.push(...tarjetasDe(modulo, publico, { estado: 'ok', url: modulo.url, externo: true }));
       continue;
     }
 
