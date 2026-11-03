@@ -59,6 +59,8 @@ async function montarExpress(app, modulo, carpeta) {
 /**
  * Un módulo con `accesos` se muestra como varias tarjetas que entran a partes
  * distintas de él (por ejemplo, cada evaluación). Sin `accesos`, una tarjeta.
+ * Cada acceso puede ir en su propia `seccion` del índice (si no dice, va en la
+ * del módulo): así el simulador sale aparte de las evaluaciones.
  */
 function tarjetasDe(modulo, publico, resultado) {
   if (!modulo.accesos?.length) return [{ ...publico, ...resultado }];
@@ -68,6 +70,7 @@ function tarjetasDe(modulo, publico, resultado) {
     titulo: a.titulo,
     resumen: a.resumen ?? '',
     etiqueta: a.etiqueta ?? publico.etiqueta,
+    seccion: a.seccion ?? publico.seccion,
     ...resultado,
     url: resultado.url && resultado.url + (a.ruta ?? '')
   }));

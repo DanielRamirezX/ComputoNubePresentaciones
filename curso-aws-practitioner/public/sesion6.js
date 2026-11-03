@@ -13,7 +13,9 @@
 // política de escalado automático falla al crear el grupo: necesita una
 // alarma. El laboratorio se apoya en lo que sí funciona: el grupo reemplaza
 // solo una instancia que se termina y crece cuando se le pide. Todo verificado
-// en el sandbox el 15 de octubre de 2026.
+// en el sandbox el 15 de octubre de 2026. Quien lo prefiera hace el laboratorio
+// en el simulador AWS (lab-s6 de evaluacion-aws), donde sí se crean el
+// balanceador, la alarma con SNS y la política de escalado.
 // ---------------------------------------------------------------------------
 
 import { boton, capturasDe, codigo, icono, lista, nubi, recuadro } from './piezas.js';
@@ -86,7 +88,7 @@ export const SESION_6 = {
                       <tr><th scope="row">Seguimiento de objetivo (target tracking)</th><td>“Mantén la CPU promedio en 50 %”. Agrega o quita instancias para lograrlo, como un termostato.</td></tr>
                       <tr><th scope="row">Por pasos (step)</th><td>“Si la CPU pasa de 70 %, agrega 2; si pasa de 90 %, agrega 4”.</td></tr>
                       <tr><th scope="row">Programada (scheduled)</th><td>“Los lunes a las 8:00 sube a 6 instancias”. Para picos que ya conoces.</td></tr>
-                      <tr><th scope="row">Predictiva</th><td>Aprende de las semanas anteriores y prepara instancias <strong>antes</strong> del pico.</td></tr>
+                      <tr><th scope="row">Predictiva</th><td>Aprende del tráfico de los días y semanas anteriores y prepara instancias <strong>antes</strong> del pico que se repite.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -112,7 +114,7 @@ export const SESION_6 = {
             { texto: 'Pasar de 2 a 10 servidores web iguales', grupo: 'horizontal', retro: 'Más copias: horizontal.' },
             { texto: 'Darle más memoria a la base de datos', grupo: 'vertical', retro: 'Crecer la misma máquina: vertical.' },
             { texto: 'Que un grupo de Auto Scaling agregue instancias en la hora pico', grupo: 'horizontal', retro: 'Auto Scaling agrega o quita instancias: horizontal.' },
-            { texto: 'Repartir las instancias en tres zonas de disponibilidad', grupo: 'horizontal', retro: 'Varias copias en varias zonas: horizontal, y además más disponible.' },
+            { texto: 'Agregar más instancias iguales, repartidas en tres zonas de disponibilidad', grupo: 'horizontal', retro: 'Más copias, y en varias zonas: horizontal, y además más disponible.' },
             { texto: 'Detener el servidor para cambiarle el tipo de instancia', grupo: 'vertical', retro: 'Cambiar el tipo exige detenerla: es la desventaja de escalar vertical.' }
           ],
           cierre: 'Vertical: la misma máquina, más grande, con un límite y casi siempre con una pausa. Horizontal: más máquinas iguales, sin pausa; es lo que hace Auto Scaling.',
@@ -145,7 +147,7 @@ export const SESION_6 = {
                   </table>
                 </div>
                 ${recuadro('examen', '<em>“Repartir el tráfico entre instancias de varias zonas”</em> → <strong>Elastic Load Balancing</strong>. <em>“Enrutar por la ruta de la URL”</em> → <strong>ALB</strong>. <em>“Ultra alto rendimiento, TCP/UDP, IP estática”</em> → <strong>NLB</strong>. <em>“Firewalls de terceros”</em> → <strong>GWLB</strong>.')}`,
-              notas: 'Balanceador + Auto Scaling es la pareja clásica: el grupo pone y quita instancias, y el balanceador las agrega a su reparto solo. En el sandbox los balanceadores están negados; en el laboratorio solo verán la pantalla con los tres tipos.'
+              notas: 'Balanceador + Auto Scaling es la pareja clásica: el grupo pone y quita instancias, y el balanceador las agrega a su reparto solo. En el sandbox los balanceadores están negados; en el laboratorio de DataCamp solo verán la pantalla con los tres tipos. Quien elija el simulador sí crea un ALB y lo ve repartir.'
             }
           ]
         },
@@ -190,8 +192,8 @@ export const SESION_6 = {
                   <div class="carrera__fila"><span class="carrera__quien">Alarma</span><ol><li>“CPU mayor que 70 % por 5 minutos”</li></ol><span class="carrera__tiempo">se enciende</span></div>
                   <div class="carrera__fila carrera__fila--propio"><span class="carrera__quien">Acción</span><ol><li>Auto Scaling agrega una instancia, o SNS manda un correo</li></ol><span class="carrera__tiempo">alguien actúa</span></div>
                 </div>
-                ${recuadro('examen', '<em>“Recibir un aviso cuando la CPU pase de 80 %”</em> → <strong>alarma de CloudWatch</strong>. <em>“Saber quién eliminó un recurso”</em> → <strong>CloudTrail</strong>. <em>“Juntar los registros de una aplicación”</em> → <strong>CloudWatch Logs</strong>.')}`,
-              notas: 'Las métricas básicas de EC2 llegan cada 5 minutos sin costo; el monitoreo detallado (cada minuto) se cobra. En el laboratorio verán las métricas reales de su grupo, pero el sandbox no deja crear alarmas.'
+                ${recuadro('examen', '<em>“Recibir un aviso cuando la CPU pase de 80 %”</em> → <strong>alarma de CloudWatch</strong>. <em>“Saber quién eliminó un recurso”</em> → <strong>CloudTrail</strong>. <em>“Juntar los registros de una aplicación”</em> → <strong>CloudWatch Logs</strong>. <em>“Medir la memoria RAM de una instancia”</em> → instalar el <strong>agente de CloudWatch</strong>: EC2 no la manda solo.')}`,
+              notas: 'Las métricas básicas de EC2 llegan cada 5 minutos sin costo; el monitoreo detallado (cada minuto) se cobra. La memoria RAM usada no viene entre ellas: hay que instalar el agente de CloudWatch (pregunta clásica). En el laboratorio verán las métricas reales de su grupo, pero el sandbox no deja crear alarmas; en el simulador sí.'
             }
           ]
         },
@@ -258,7 +260,7 @@ export const SESION_6 = {
       numero: 2,
       titulo: 'Laboratorio guiado en AWS',
       descripcion:
-        'Enciendes el sandbox, haces una plantilla de servidor web, armas con ella un grupo de Auto Scaling en dos zonas, terminas una instancia a propósito para ver cómo se reemplaza sola, lo haces crecer, miras sus métricas en CloudWatch y limpias todo.',
+        'Enciendes el sandbox, haces una plantilla de servidor web, armas con ella un grupo de Auto Scaling en dos zonas, terminas una instancia a propósito para ver cómo se reemplaza sola, lo haces crecer, miras sus métricas en CloudWatch y limpias todo. Si lo prefieres, haces el laboratorio en el simulador AWS, donde sí te deja crear el balanceador, la alarma con aviso por correo y la política que hace crecer el grupo sola.',
       actividades: [
         {
           id: 's6-lab-escalar',
@@ -266,6 +268,22 @@ export const SESION_6 = {
           titulo: 'Laboratorio: un grupo de servidores que se cura solo',
           xp: 300,
           minutos: 46,
+          simulador: {
+            lab: 'lab-s6',
+            objetivo:
+              'Montar en el simulador una página detrás de un balanceador (ALB) con un grupo de Auto Scaling en dos zonas, que crezca sola con una política, te avise por correo con una alarma y se cure sola si una instancia falla. Al final no borras nada: el simulador revisa lo que dejaste.',
+            minutos: 50,
+            nota: 'Aquí sí puedes crear el balanceador, la alarma que te avisa por correo y la política que hace crecer el grupo sola, que en DataCamp salen negados, y verlo crecer en una hora pico simulada.',
+            tareas: [
+              'Crear una plantilla de lanzamiento con Amazon Linux 2023, t2.micro, un grupo de seguridad con HTTP y el script de Apache en user data.',
+              'Crear un grupo de destino y un Application Load Balancer en dos zonas, con su propio grupo de seguridad y un listener HTTP:80.',
+              'Crear el grupo de Auto Scaling en dos zonas, conectado al grupo de destino y con revisiones de salud de ELB, y abrir la página por el DNS del balanceador.',
+              'Agregar una política de seguimiento de objetivo sobre la CPU promedio del grupo.',
+              'Crear un tema de SNS con tu correo confirmado y una alarma de CloudWatch de CPU alta que le avise.',
+              'Ponerlo a prueba: simular la hora pico para verlo crecer y terminar una instancia para verlo curarse solo.',
+              'Bono opcional: una cola SQS suscrita al tema, que guarde cada aviso.'
+            ]
+          },
           objetivo:
             'Crear una plantilla de lanzamiento y un grupo de Auto Scaling con dos instancias en dos zonas, comprobar que reemplaza sola una instancia terminada, hacerlo crecer a tres, revisar sus métricas en CloudWatch y borrar todo.',
           necesitas: [
@@ -606,7 +624,7 @@ export const SESION_6 = {
                   [95.2, 22.9, 'El dato más reciente: la CPU promedio'],
                   [95.2, 96.5, '<strong>Select metric</strong>']
                 ])}
-                ${recuadro('recuerda', 'CloudWatch mide sin que instales nada: CPU, red y discos de cada instancia llegan solos cada 5 minutos.')}`,
+                ${recuadro('recuerda', 'CloudWatch mide sin que instales nada: la CPU y el tráfico de red de cada instancia llegan solos cada 5 minutos. Lo que pasa dentro del sistema operativo, como la memoria RAM usada, necesita el <strong>agente de CloudWatch</strong>.')}`,
               ver: 'La gráfica de CPUUtilization de tu grupo y el tablero automático de EC2.',
               problemas: [['No aparece mi grupo en By Auto Scaling Group', 'Las métricas tardan unos minutos en llegar después de crear el grupo. Mientras, revisa el tablero automático de EC2.']],
               sandbox: true
@@ -882,6 +900,7 @@ export const SESION_6 = {
       capitulo: 2,
       pasos: [
         'Proyecta el laboratorio y avanza paso a paso; que cada quien marque “Ya lo hice”.',
+        'Quien elija el simulador hace allá sus tareas, que se califican solas: no enciende el sandbox ni toma capturas. Su calificación sale en el panel de Evaluación.',
         'En el paso 10 avisa que el aviso rojo de la política es esperado: el sandbox no deja crear alarmas.',
         'En el paso 12 pide que esperen juntos el reemplazo y que alguien lea en voz alta la causa en Activity.',
         'Antes de terminar, revisa que todos borraron grupo, plantilla y grupo de seguridad, y que su tarjeta de AWS diga “Open Sandbox”.'

@@ -36,7 +36,7 @@ export const REPASO = {
 export const CASO = `
   <p>Este examen se parece al de la certificación <strong>AWS Certified Cloud Practitioner (CLF-C02)</strong>: preguntas cortas con un escenario y cuatro opciones.</p>
   <ul>
-    <li>En el examen real son <strong>65 preguntas en 90 minutos</strong> y se aprueba con <strong>700 de 1000</strong>.</li>
+    <li>En el examen real son <strong>65 preguntas en 90 minutos</strong> y se aprueba con <strong>700 de 1000</strong>. Ahí también hay preguntas de respuesta múltiple («Elige DOS»).</li>
     <li>Busca la <strong>palabra clave</strong> del escenario: “alta disponibilidad”, “puede interrumpirse”, “24/7 por tres años”, “la ley exige”…</li>
     <li>Si dudas, descarta primero las opciones imposibles. No dejes ninguna en blanco: adivinar no resta.</li>
   </ul>`;
@@ -83,7 +83,7 @@ export const PREGUNTAS = [
       'Para que siga disponible si falla un centro de datos'
     ],
     correcta: 3,
-    explicacion: 'Las zonas están aisladas entre sí: si una falla, la aplicación sigue atendiendo desde la otra. Eso es alta disponibilidad.'
+    explicacion: 'Las zonas están aisladas entre sí y no comparten puntos únicos de falla: si una falla, la aplicación sigue atendiendo desde la otra. Eso es alta disponibilidad. Varias regiones son para otra cosa: recuperarte si cae una región entera, acercarte a usuarios de otros continentes o cumplir leyes de datos.'
   },
   {
     id: 'p04',

@@ -1,0 +1,524 @@
+/* ---------------------------------------------------------------------------
+   Estilos de Billing and Cost Management, Trusted Advisor y Support
+   (ver evaluacion-aws/SIMULADOR.md). Todo bajo .cx con clases cx-costos-…,
+   cx-ta-… y cx-soporte-…; los cortes de ancho son @container cx.
+   --------------------------------------------------------------------------- */
+
+/* ------------------------------------------------------------- cifras */
+
+.cx .cx-costos-cifras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px 24px;
+}
+
+.cx .cx-costos-cifra {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-left: 14px;
+  border-left: 1px solid var(--cx-borde-suave);
+}
+
+.cx .cx-costos-cifras > .cx-costos-cifra:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.cx .cx-costos-cifra__valor {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 300;
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-costos-cifra__nota {
+  font-size: 12px;
+  color: var(--cx-sec);
+}
+
+.cx .cx-costos-sube {
+  color: var(--cx-error);
+  font-size: 12px;
+}
+
+.cx .cx-costos-baja {
+  color: var(--cx-exito);
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------------- gráfica */
+
+.cx .cx-costos-grafica-caja {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cx .cx-costos-grafica__titulo {
+  font-size: 12px;
+  color: var(--cx-sec);
+}
+
+.cx .cx-costos-grafica {
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+  display: block;
+}
+
+.cx .cx-costos-grafica__rejilla {
+  stroke: var(--cx-borde-suave);
+  stroke-width: 1;
+}
+
+.cx .cx-costos-grafica__base {
+  stroke: var(--cx-borde);
+  stroke-width: 1;
+}
+
+.cx .cx-costos-grafica__eje {
+  fill: var(--cx-sec);
+  font-size: 11px;
+  font-family: var(--cx-fuente);
+}
+
+.cx .cx-costos-grafica rect:hover {
+  opacity: 0.85;
+}
+
+.cx .cx-costos-muestra {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  flex: none;
+}
+
+.cx .cx-costos-muestra--pronostico {
+  background: repeating-linear-gradient(45deg, #3b4655 0 3px, #9ba7b6 3px 5px);
+  outline: 1px dashed #9ba7b6;
+}
+
+/* ------------------------------------------------------- piezas de Home */
+
+.cx .cx-costos-rejilla {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.cx .cx-costos-monitor {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.cx .cx-costos-monitor > div > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.cx .cx-costos-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px 24px;
+}
+
+.cx .cx-costos-lista__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--cx-borde-suave);
+  border-radius: 8px;
+}
+
+.cx .cx-costos-lista__dato {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--cx-sec);
+}
+
+.cx .cx-costos-progreso {
+  display: inline-block;
+  width: 120px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--cx-borde);
+  overflow: hidden;
+  vertical-align: middle;
+  flex: none;
+}
+
+.cx .cx-costos-progreso > span {
+  display: block;
+  height: 100%;
+  background: var(--cx-enlace);
+}
+
+.cx .cx-costos-progreso--peligro > span {
+  background: var(--cx-error);
+}
+
+.cx .cx-costos-celda-progreso {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.cx .cx-costos-ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+
+.cx .cx-costos-subtitulo {
+  margin: 12px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-costos-selector-mes {
+  min-width: 200px;
+}
+
+.cx .cx-costos-relleno {
+  padding: 12px 20px;
+}
+
+/* ---------------------------------------------------------------- Bills */
+
+.cx .cx-costos-factura {
+  display: flex;
+  flex-direction: column;
+}
+
+.cx .cx-costos-factura > .cx-expandible {
+  border-bottom: 1px solid var(--cx-borde-suave);
+  padding: 6px 0;
+}
+
+.cx .cx-costos-factura__region {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 8px 22px;
+}
+
+.cx .cx-costos-factura__fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px 110px;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--cx-borde-suave);
+  font-size: 13px;
+}
+
+.cx .cx-costos-factura__fila > span:last-child,
+.cx .cx-costos-factura__fila > b:last-child {
+  text-align: right;
+}
+
+.cx .cx-costos-factura__fila--region {
+  grid-template-columns: minmax(0, 1fr) 110px;
+  border-top: 0;
+}
+
+.cx .cx-costos-factura__fila--total {
+  border-top: 2px solid var(--cx-borde);
+  margin-top: 4px;
+  padding-top: 10px;
+  font-size: 14px;
+}
+
+/* -------------------------------------------------------- Cost Explorer */
+
+.cx .cx-costos-ce {
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+
+.cx .cx-costos-tabla td,
+.cx .cx-costos-tabla th {
+  white-space: nowrap;
+}
+
+.cx .cx-costos-tabla td:first-child,
+.cx .cx-costos-tabla th:first-child {
+  padding-left: 20px;
+}
+
+.cx .cx-costos-tabla__total td {
+  font-weight: 700;
+  color: var(--cx-fuerte);
+}
+
+/* ---------------------------------------------------- Pricing Calculator */
+
+.cx .cx-costos-servicios {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.cx .cx-costos-servicio {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--cx-borde-suave);
+  border-radius: 12px;
+}
+
+.cx .cx-costos-servicio p {
+  margin: 0;
+  flex: 1;
+  font-size: 13px;
+}
+
+.cx .cx-costos-resumen-config {
+  display: inline-block;
+  min-width: 300px;
+  max-width: 420px;
+  white-space: normal;
+  font-size: 12px;
+  color: var(--cx-sec);
+}
+
+.cx .cx-costos-calculo {
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------- Trusted Advisor */
+
+.cx .cx-ta-contadores {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cx .cx-ta-contador {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 14px;
+  border-left: 1px solid var(--cx-borde-suave);
+}
+
+.cx .cx-ta-contadores > .cx-ta-contador:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.cx .cx-ta-contador__n {
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 300;
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-ta-contador__n--error {
+  color: var(--cx-error);
+}
+
+.cx .cx-ta-contador__n--aviso {
+  color: var(--cx-aviso);
+}
+
+.cx .cx-ta-contador__n--exito {
+  color: var(--cx-exito);
+}
+
+.cx .cx-ta-categorias {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.cx .cx-ta-categoria {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--cx-contenedor);
+  border: 1px solid var(--cx-borde-suave);
+  border-radius: var(--cx-radio);
+}
+
+.cx .cx-ta-categoria__cabeza {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cx .cx-ta-categoria__cabeza .cx-enlace {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.cx .cx-ta-categoria__cuentas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+/* --------------------------------------------------------------- Support */
+
+.cx .cx-soporte-planes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.cx .cx-soporte-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+  background: var(--cx-contenedor);
+  border: 1px solid var(--cx-borde-suave);
+  border-radius: var(--cx-radio);
+}
+
+.cx .cx-soporte-plan--actual {
+  border-color: var(--cx-enlace);
+  box-shadow: 0 0 0 1px var(--cx-enlace);
+}
+
+.cx .cx-soporte-plan__cabeza {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cx .cx-soporte-plan__precio {
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-soporte-plan p {
+  margin: 0;
+}
+
+.cx .cx-soporte-plan__pie {
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.cx .cx-soporte-tiempos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cx .cx-soporte-tiempos td {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--cx-borde-suave);
+}
+
+.cx .cx-soporte-tiempos td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cx .cx-soporte-mensajes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cx .cx-soporte-mensaje {
+  border: 1px solid var(--cx-borde-suave);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.cx .cx-soporte-mensaje--aws {
+  border-left: 3px solid var(--cx-primario);
+}
+
+.cx .cx-soporte-mensaje__cabeza {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.cx .cx-soporte-mensaje__texto {
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+
+/* -------------------------------------------------------------- anchos */
+
+@container cx (max-width: 1240px) {
+  .cx .cx-soporte-planes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container cx (max-width: 1060px) {
+  .cx .cx-costos-rejilla {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cx .cx-costos-ce {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cx .cx-ta-contadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container cx (max-width: 700px) {
+  .cx .cx-soporte-planes,
+  .cx .cx-costos-monitor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cx .cx-costos-factura__fila {
+    grid-template-columns: minmax(0, 1fr) 90px;
+  }
+  .cx .cx-costos-factura__fila > span:nth-child(2) {
+    display: none;
+  }
+}
+
+/* El panel de parámetros de Cost Explorer es largo: no se queda pegado. */
+.cx .cx-costos-ce > .cx-lado {
+  position: static;
+}
+
+/* Recommended actions de Home: el título arriba y la explicación abajo. */
+.cx .cx-inicio__atajo.cx-costos-accion {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+/* Trusted Advisor: el aviso del candado puede ocupar dos renglones. */
+.cx .cx-ta-categoria .cx-st {
+  white-space: normal;
+  align-items: flex-start;
+}
+.cx .cx-ta-categoria .cx-st > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Filas de radios con distinto número de opciones: alineadas arriba. */
+.cx .cx-costos-fila-arriba {
+  align-items: start;
+}

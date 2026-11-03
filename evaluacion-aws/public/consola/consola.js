@@ -8,7 +8,9 @@
 // Arma el marco (barra superior con buscador, región y cuenta; barra de
 // favoritos; menú lateral del servicio; migas; alertas «flashbar»; panel de
 // ayuda a la derecha) y un enrutador interno que NO toca location.hash: la
-// ruta vive en memoria ('vpc/subredes/subnet-0abc…').
+// ruta vive en memoria ('vpc/subredes/subnet-0abc…') y se copia a
+// sessionStorage para volver a ella tras recargar (opción recordarRuta: una
+// clave propia, o false para no guardarla).
 //
 // Cada servicio (servicios/*.js) declara su menú y sus rutas; cada ruta es una
 // función (cx, params) → nodo. `cx` es el contexto que reciben todas las
@@ -36,6 +38,44 @@ function cargarEstilos() {
 }
 
 const formatoCuenta = (id) => String(id ?? '').replace(/^(\d{4})(\d{4})(\d{4})$/, '$1-$2-$3');
+
+/* ======================================================= la ruta guardada */
+
+// Al recargar la página (F5) la consola vuelve a la pantalla donde estaba, como
+// la consola real con su URL. La ruta se guarda en sessionStorage (solo esta
+// pestaña) con una clave por página: '#/lab-s7/practica' y '#/practica-1/…' no
+// se mezclan. Se recupera una sola vez por carga: si la página vuelve a montar
+// la consola (por ejemplo al reiniciar la cuenta), empieza en Console Home.
+const rutasRecuperadas = new Set();
+
+function claveRuta(opciones) {
+  if (opciones.recordarRuta === false || opciones.soloLectura) return null;
+  if (typeof opciones.recordarRuta === 'string') return opciones.recordarRuta;
+  try {
+    return `consola:ruta:${location.pathname}${location.hash}`;
+  } catch {
+    return null;
+  }
+}
+
+function leerRuta(clave) {
+  if (!clave || rutasRecuperadas.has(clave)) return null;
+  rutasRecuperadas.add(clave);
+  try {
+    return sessionStorage.getItem(clave);
+  } catch {
+    return null;
+  }
+}
+
+function guardarRuta(clave, ruta) {
+  if (!clave) return;
+  try {
+    sessionStorage.setItem(clave, ruta);
+  } catch {
+    /* sin almacenamiento (ventana privada, bloqueado): no pasa nada */
+  }
+}
 
 /* =================================================================== rutas */
 
@@ -109,6 +149,7 @@ export function montarConsola(contenedor, opciones = {}) {
   const alumno = opciones.alumno ?? {};
   const soloLectura = Boolean(opciones.soloLectura);
   const alCambiar = typeof opciones.alCambiar === 'function' ? opciones.alCambiar : () => {};
+  const clave = claveRuta(opciones);
 
   const servicios = new Map(SERVICIOS.map((s) => [s.id, s]));
   const ayudas = { ...AYUDAS_BASE };
@@ -127,7 +168,8 @@ export function montarConsola(contenedor, opciones = {}) {
 
   /* ---------------------------------------------------------- esqueleto */
 
-  const raiz = h('div', { class: ['cx', soloLectura && 'cx-solo'], 'data-consola': '' });
+  // min-width 0: dentro de un flex o grid, la consola se encoge en vez de ensanchar la página.
+  const raiz = h('div', { class: ['cx', soloLectura && 'cx-solo'], 'data-consola': '', style: { minWidth: '0' } });
   const barra = h('header', { class: 'cx-barra' });
   const favoritos = h('nav', { class: 'cx-favoritos', 'aria-label': 'Favorites' });
   const lateral = h('nav', { class: 'cx-lateral', 'aria-label': 'Service navigation' });
@@ -306,6 +348,7 @@ export function montarConsola(contenedor, opciones = {}) {
     const servicio = servicios.get(id || 'inicio') ?? servicios.get('inicio');
     const restoRuta = servicios.has(id) ? resto.join('/') : '';
     memoria.ruta = servicios.has(id) ? limpia : 'inicio';
+    guardarRuta(clave, memoria.ruta);
     cx.servicio = servicio.id;
     if (servicio.id !== 'inicio') memoria.recientes = [servicio.id, ...memoria.recientes.filter((x) => x !== servicio.id)].slice(0, 8);
 
@@ -330,6 +373,15 @@ export function montarConsola(contenedor, opciones = {}) {
     pintarFavoritos();
     principal.scrollTop = 0;
     raiz.classList.toggle('cx--inicio', servicio.id === 'inicio');
+  }
+
+  /**
+   * Navegación desde el marco (buscador, menú Services, favoritos, logo): en AWS
+   * es otra página, así que las alertas verdes de la pantalla anterior se van.
+   */
+  function irDesdeBarra(ruta) {
+    memoria.flashes = [];
+    ir(ruta);
   }
 
   function refrescar() {
@@ -375,7 +427,7 @@ export function montarConsola(contenedor, opciones = {}) {
       ui.cerrarDesplegable();
       inputBuscar.value = '';
       inputBuscar.blur();
-      ir(ruta);
+      irDesdeBarra(ruta);
     };
     const contenido = h(
       'div',
@@ -426,7 +478,7 @@ export function montarConsola(contenedor, opciones = {}) {
     for (const s of SERVICIOS) if (s.id !== 'inicio') (porCategoria[s.categoria] ??= []).push(s);
     const ir2 = (s) => {
       ui.cerrarDesplegable();
-      ir(s.inicio ?? s.id);
+      irDesdeBarra(s.inicio ?? s.id);
     };
     const contenido = h(
       'div',
@@ -503,7 +555,7 @@ export function montarConsola(contenedor, opciones = {}) {
   }
 
   function botonBarra(contenido, op) {
-    const b = h('button', { type: 'button', class: ['cx-barra__boton', op.clase], title: op.titulo, 'aria-label': op.titulo, disabled: op.desactivado }, contenido);
+    const b = h('button', { type: 'button', class: ['cx-barra__boton', op.clase], title: op.titulo, 'aria-label': op.titulo, disabled: op.desactivado, 'data-ocultable': op.ocultable, style: op.encoge ? undefined : { flexShrink: '0' } }, contenido);
     b.addEventListener('click', () => (b.getAttribute('aria-expanded') === 'true' ? ui.cerrarDesplegable() : op.alClic?.(b)));
     return b;
   }
@@ -520,27 +572,46 @@ export function montarConsola(contenedor, opciones = {}) {
           title: 'Console Home',
           onclick: (e) => {
             e.preventDefault();
-            ir('inicio');
+            irDesdeBarra('inicio');
           }
         },
         h('span', { class: 'cx-marca__logo' }, '☁︎ Consola'),
-        h('span', { class: 'cx-marca__simulador' }, 'Simulador')
+        h('span', { class: 'cx-marca__simulador', 'data-ocultable': '6' }, 'Simulador')
       ),
       botonBarra(icono('grid'), { titulo: 'Services', alClic: menuServicios }),
       h('div', { class: 'cx-barra__buscar' }, buscador),
       h('div', { class: 'cx-barra__espacio' }),
-      botonBarra([icono('browser'), h('span', { class: 'cx-barra__texto' }, 'Navegador')], { titulo: 'Navegador de prueba (abre direcciones desde tu casa)', alClic: () => cx.navegador(''), clase: 'cx-barra__boton--texto' }),
-      botonBarra(icono('terminal'), { titulo: 'CloudShell (not available in this simulator)', desactivado: true }),
+      // data-ocultable: en anchos de teléfono se esconden en ese orden (ver ajustarBarra).
+      botonBarra([icono('browser'), h('span', { class: 'cx-barra__texto' }, 'Navegador')], { titulo: 'Navegador de prueba (abre direcciones desde tu casa)', alClic: () => cx.navegador(''), clase: 'cx-barra__boton--texto', ocultable: '7' }),
+      botonBarra(icono('terminal'), { titulo: 'CloudShell (not available in this simulator)', desactivado: true, ocultable: '1' }),
       botonBarra(icono('notification'), { titulo: 'Notifications', alClic: (b) => {
         const d = ui.abrirDesplegable(b, h('div', { class: 'cx-menu-cuenta' }, h('div', { class: 'cx-busqueda__titulo' }, 'Notifications'), h('p', { class: 'cx-texto-sec', style: { padding: '8px 16px 16px' } }, 'No new notifications.')), { ancho: 280, alinear: 'derecha', clase: 'cx-desplegable--panel' });
         if (d) d.ancla = b;
-      } }),
-      botonBarra(icono('help'), { titulo: 'Help', alClic: () => cx.ayuda('simulador') }),
-      botonBarra(icono('settings'), { titulo: 'Settings', desactivado: true }),
+      }, ocultable: '3' }),
+      botonBarra(icono('help'), { titulo: 'Help', alClic: () => cx.ayuda('simulador'), ocultable: '4' }),
+      botonBarra(icono('settings'), { titulo: 'Settings', desactivado: true, ocultable: '2' }),
       // Región y cuenta tienen versión larga y corta: en anchos medianos se compactan (como en AWS).
-      botonBarra([h('span', { class: 'cx-barra__largo' }, `United States (${REGION.corto})`), h('span', { class: 'cx-barra__corto' }, REGION.corto), icono('caret-down')], { titulo: `Region: ${REGION.nombre}`, alClic: menuRegion, clase: 'cx-barra__boton--texto cx-barra__region' }),
-      botonBarra([h('span', { class: 'cx-barra__cuenta' }, h('span', { class: 'cx-barra__usuario' }, nombre), h('span', { class: 'cx-barra__largo' }, ` @ ${formatoCuenta(estado.cuenta?.id)}`)), icono('caret-down')], { titulo: `Account: ${nombre} @ ${formatoCuenta(estado.cuenta?.id)}`, alClic: menuCuenta, clase: 'cx-barra__boton--texto cx-barra__boton--cuenta' })
+      botonBarra([h('span', { class: 'cx-barra__largo' }, `United States (${REGION.corto})`), h('span', { class: 'cx-barra__corto' }, REGION.corto), icono('caret-down')], { titulo: `Region: ${REGION.nombre}`, alClic: menuRegion, clase: 'cx-barra__boton--texto cx-barra__region', ocultable: '5' }),
+      botonBarra([h('span', { class: 'cx-barra__cuenta' }, h('span', { class: 'cx-barra__usuario' }, nombre), h('span', { class: 'cx-barra__largo' }, ` @ ${formatoCuenta(estado.cuenta?.id)}`)), icono('caret-down')], { titulo: `Account: ${nombre} @ ${formatoCuenta(estado.cuenta?.id)}`, alClic: menuCuenta, clase: 'cx-barra__boton--texto cx-barra__boton--cuenta', encoge: true })
     );
+    ajustarBarra();
+  }
+
+  /**
+   * En anchos de teléfono la barra no cabe: se esconden, en orden
+   * (data-ocultable 1, 2, 3…), los botones menos necesarios hasta que quepa.
+   * Así la barra nunca se sale ni empuja la página de lado.
+   */
+  function ajustarBarra() {
+    const ocultables = [...barra.querySelectorAll('[data-ocultable]')].sort((a, b) => Number(a.dataset.ocultable) - Number(b.dataset.ocultable));
+    for (const el of ocultables) el.hidden = false;
+    if (!barra.clientWidth) return;
+    // Los botones no se encogen (solo el buscador y el nombre de la cuenta): si no cabe, se desborda.
+    const apretada = () => barra.scrollWidth > barra.clientWidth + 1;
+    for (const el of ocultables) {
+      if (!apretada()) break;
+      el.hidden = true;
+    }
   }
 
   function pintarFavoritos() {
@@ -555,7 +626,7 @@ export function montarConsola(contenedor, opciones = {}) {
             class: ['cx-favorito', cx.servicio === s.id && 'cx-favorito--activo'],
             onclick: (e) => {
               e.preventDefault();
-              ir(s.inicio ?? s.id);
+              irDesdeBarra(s.inicio ?? s.id);
             }
           },
           iconoServicio(s, 16),
@@ -752,7 +823,11 @@ export function montarConsola(contenedor, opciones = {}) {
   if ((contenedor.clientWidth || window.innerWidth) < 900) memoria.lateralAbierto = false;
 
   pintarBarra();
-  ir(opciones.ruta ?? 'inicio');
+  // La barra se reacomoda cuando cambia el ancho (instrucciones abiertas, teléfono girado…).
+  const observador = typeof ResizeObserver === 'function' ? new ResizeObserver(() => ajustarBarra()) : null;
+  observador?.observe(barra);
+  const guardada = leerRuta(clave);
+  ir(opciones.ruta ?? guardada ?? 'inicio');
 
   return {
     irA: (ruta) => ir(ruta),
@@ -762,6 +837,7 @@ export function montarConsola(contenedor, opciones = {}) {
     refrescar,
     destruir() {
       clearInterval(reloj);
+      observador?.disconnect();
       window.removeEventListener('keydown', teclas);
       ui.cerrarDesplegable();
       contenedor.replaceChildren();

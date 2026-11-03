@@ -34,14 +34,18 @@
 //   instancias: [{ id, nombre, ami, tipo, estado, hasta?, siguiente?, desde, subredId, vpcId, az,
 //                  ipPrivada, ipPublica | null, autoIpPublica, eipId | null, gruposSeguridad: [sgId],
 //                  llave | null, userData, userDataArranque | null, arranques, rolIam | null,
-//                  volumenes: [volId], lanzada }],
+//                  volumenes: [volId], lanzada, etiquetas: [{ llave, valor }] }],   // etiquetas: sin Name (es `nombre`)
 //   volumenes: [{ id, nombre, tipo, tamano, iops, az, estado, hasta?, siguiente?, instanciaId | null,
-//                 dispositivo | null, raiz, eliminarAlTerminar, cifrado, snapshotId | null, creado }],
-//   snapshots: [{ id, nombre, volumenId, tamano, descripcion, estado, hasta?, siguiente?, creado, cifrado }],
+//                 dispositivo | null, raiz, eliminarAlTerminar, cifrado, llaveKms | null, snapshotId | null, creado }],
+//                 // llaveKms (si va cifrado): 'aws/ebs' (AWS managed key) o el id de una llave propia
+//   snapshots: [{ id, nombre, volumenId, tamano, descripcion, estado, hasta?, siguiente?, creado, cifrado,
+//                 llaveKms | null, publico }],   // publico: «Modify permissions» → Public (cualquier cuenta lo puede copiar)
 //   llaves:    [{ id, nombre, tipo: 'rsa'|'ed25519', formato: 'pem'|'ppk', huella, creado }],
 //   buckets:   [{ nombre, region, creado, propiedadObjetos, bloqueoPublico: { aclsNuevas, aclsCualquiera,
 //                 politicasNuevas, politicasCualquiera }, versionado: 'Disabled'|'Enabled'|'Suspended',
-//                 cifrado: { tipo: 'SSE-S3'|'SSE-KMS'|'DSSE-KMS', bucketKey }, sitioWeb: null | { indice, error },
+//                 cifrado: { tipo: 'SSE-S3'|'SSE-KMS'|'DSSE-KMS', bucketKey, llaveKms: null | id },
+//                 // llaveKms: null = la AWS managed key aws/s3 (o SSE-S3); si no, el id de una llave propia de estado.kms
+//                 sitioWeb: null | { indice, error },
 //                 politica: null | texto, ciclo: [reglaCiclo], objetos: [objeto], etiquetas: [{ llave, valor }] }],
 //               // reglaCiclo: { nombre, estado: 'Enabled'|'Disabled', prefijo: null | 'logs/',
 //               //   transiciones: [{ dias, clase }], transicionesNoActuales: [{ dias, clase }],
@@ -57,6 +61,8 @@
 //   bitacora: [{ t, servicio, accion, detalle }]   // lo último que hizo el alumno (máximo 500)
 // }
 // ---------------------------------------------------------------------------
+
+import { iniciarExtensiones, avanzarExtensiones, revisarDependencias, llamar } from './modelo/registro.js';
 
 /* ================================================================ errores */
 
@@ -313,7 +319,10 @@ export const POLITICAS_IAM = [
   { nombre: 'AmazonDynamoDBFullAccess', tipo: 'AWS managed', descripcion: 'Provides full access to Amazon DynamoDB via the AWS Management Console.', servicio: 'dynamodb', acceso: 'escritura' },
   { nombre: 'CloudWatchReadOnlyAccess', tipo: 'AWS managed', descripcion: 'Provides read only access to CloudWatch.', servicio: 'cloudwatch', acceso: 'lectura' },
   { nombre: 'AWSCloudTrail_ReadOnlyAccess', tipo: 'AWS managed', descripcion: 'Provides read only access to AWS CloudTrail.', servicio: 'cloudtrail', acceso: 'lectura' },
-  { nombre: 'AmazonSSMManagedInstanceCore', tipo: 'AWS managed', descripcion: 'The policy for Amazon EC2 Role to enable AWS Systems Manager service core functionality.', servicio: 'ssm', acceso: 'escritura' }
+  { nombre: 'AmazonSSMManagedInstanceCore', tipo: 'AWS managed', descripcion: 'The policy for Amazon EC2 Role to enable AWS Systems Manager service core functionality.', servicio: 'ssm', acceso: 'escritura' },
+  { nombre: 'AWSLambdaBasicExecutionRole', tipo: 'AWS managed', descripcion: 'Provides write permissions to CloudWatch Logs.', servicio: 'logs', acceso: 'escritura' },
+  { nombre: 'AWSLambdaSQSQueueExecutionRole', tipo: 'AWS managed', descripcion: 'Provides receive message, delete message, and read attribute access to SQS queues, and write permissions to CloudWatch logs.', servicio: 'sqs', acceso: 'escritura' },
+  { nombre: 'AmazonSQSFullAccess', tipo: 'AWS managed', descripcion: 'Provides full access to Amazon SQS via the AWS Management Console.', servicio: 'sqs', acceso: 'escritura' }
 ];
 export const politicaIam = (nombre) => POLITICAS_IAM.find((p) => p.nombre === nombre) ?? null;
 
@@ -505,6 +514,7 @@ export function cuentaNueva(datos = {}) {
     estado.subredes.push(subred);
     nacl.subredes.push(subred.id);
   });
+  iniciarExtensiones(estado);
   return estado;
 }
 
@@ -606,6 +616,7 @@ export function editarVpc(estado, vpcId, { nombre, dnsHostnames, dnsResolution }
  */
 export function eliminarVpc(estado, vpcId) {
   const vpc = buscar(estado.vpcs, vpcId, 'vpc', 'InvalidVpcID.NotFound');
+  revisarDependencias('vpc', estado, vpcId);
   if (vivas(estado).some((i) => i.vpcId === vpcId)) {
     throw error('DependencyViolation', `The vpc '${vpcId}' has dependencies and cannot be deleted. Terminate its instances first.`);
   }
@@ -652,6 +663,7 @@ export function editarSubred(estado, subredId, { nombre, ipPublicaAuto } = {}) {
 
 export function eliminarSubred(estado, subredId) {
   const subred = buscar(estado.subredes, subredId, 'subnet', 'InvalidSubnetID.NotFound');
+  revisarDependencias('subred', estado, subredId);
   if (vivas(estado).some((i) => i.subredId === subredId) || estado.nats.some((n) => n.subredId === subredId && n.estado !== 'deleted')) {
     throw error('DependencyViolation', `The subnet '${subredId}' has dependencies and cannot be deleted.`);
   }
@@ -884,6 +896,8 @@ function normalizarPuertos({ protocolo, desde, hasta }) {
   if (!['-1', 'tcp', 'udp', 'icmp'].includes(protocolo)) throw error('InvalidParameterValue', `Invalid protocol: ${protocolo}`);
   if (protocolo === '-1') return { protocolo, desde: null, hasta: null };
   if (protocolo === 'icmp') return { protocolo, desde: -1, hasta: -1 };
+  // Un puerto vacío no es el 0 (Number('') daría 0): AWS lo rechaza.
+  if (String(desde ?? '').trim() === '') throw error('InvalidParameterValue', 'Invalid port range: . Port must be a number between 0 and 65535.');
   const d = Number(desde);
   const h = hasta === undefined || hasta === null || hasta === '' ? d : Number(hasta);
   if (!Number.isInteger(d) || !Number.isInteger(h) || d < 0 || h > 65535 || d > h) {
@@ -1012,6 +1026,7 @@ export function editarReglasSg(estado, grupoId, sentido, reglas = []) {
 export function eliminarGrupoSeguridad(estado, grupoId) {
   const grupo = buscar(estado.gruposSeguridad, grupoId, 'security group', 'InvalidGroup.NotFound');
   if (grupo.porDefecto) throw error('CannotDelete', `the specified group: "${grupoId}" name: "default" cannot be deleted by a user`);
+  revisarDependencias('grupo', estado, grupoId);
   if (vivas(estado).some((i) => i.gruposSeguridad.includes(grupoId))) {
     throw error('DependencyViolation', `resource ${grupoId} has a dependent object`);
   }
@@ -1059,16 +1074,51 @@ function validarTamano(tipo, tamano) {
   return n;
 }
 
-export function crearVolumen(estado, { nombre, tipo = 'gp3', tamano, az, snapshotId = null, cifrado = false, iops } = {}) {
+const ES_AWS_EBS = /^(?:arn:aws:kms:[^:]*:\d*:)?(?:alias\/)?aws\/ebs$/;
+
+/**
+ * La llave de KMS de un volumen cifrado → lo que se guarda en vol.llaveKms:
+ * 'aws/ebs' (la AWS managed key, la de omisión) o el id de una llave propia
+ * (acepta id, ARN, alias/x o el ARN del alias). Como EBS: la llave tiene que
+ * existir, estar habilitada y ser simétrica de cifrado.
+ */
+function llaveKmsEbs(estado, ref) {
+  const r = String(ref ?? '').trim();
+  if (!r || ES_AWS_EBS.test(r)) return 'aws/ebs';
+  const k = llamar('llaveKmsDe', estado, r);
+  if (!k) throw error('InvalidParameterValue', `Invalid KMS key '${r}'. The AWS KMS key doesn't exist or you don't have access to it.`);
+  if (k.administradaPorAws) {
+    if ((k.aliases ?? []).includes('aws/ebs')) return 'aws/ebs';
+    throw error('InvalidParameterValue', `The AWS managed key ${k.alias ?? k.id} belongs to another service. Choose aws/ebs or a customer managed key.`);
+  }
+  if (k.estado === 'PendingDeletion') throw error('IncorrectState', `${k.arn} is pending deletion.`);
+  if (k.estado !== 'Enabled') throw error('IncorrectState', `${k.arn} is disabled.`);
+  if (k.spec !== 'SYMMETRIC_DEFAULT' || k.uso !== 'ENCRYPT_DECRYPT') throw error('InvalidParameterValue', 'Amazon EBS supports only symmetric encryption KMS keys.');
+  return k.id;
+}
+
+/**
+ * «Create volume». `cifrado` + `llaveKms` (null = aws/ebs). Desde un snapshot
+ * cifrado, el volumen sale cifrado sí o sí y, si no se dice otra llave, con la
+ * misma del snapshot (como la consola).
+ */
+export function crearVolumen(estado, { nombre, tipo = 'gp3', tamano, az, snapshotId = null, cifrado = false, llaveKms = null, iops } = {}) {
   if (!ZONAS.includes(az)) throw error('InvalidParameterValue', 'Availability Zone is required.');
   let n = Number(tamano);
+  let cifrar = Boolean(cifrado);
+  let llave = llaveKms;
   if (snapshotId) {
     const snap = buscar(estado.snapshots, snapshotId, 'snapshot', 'InvalidSnapshot.NotFound');
     if (snap.estado !== 'completed') throw error('IncorrectState', `Snapshot '${snapshotId}' is not 'completed'.`);
     if (!tamano) n = snap.tamano;
     if (n < snap.tamano) throw error('InvalidParameterValue', `Volume of ${n}GiB is smaller than snapshot '${snapshotId}', expect size >= ${snap.tamano}GiB`);
+    if (snap.cifrado) {
+      cifrar = true;
+      llave ??= snap.llaveKms ?? null;
+    }
   }
   n = validarTamano(tipo, n);
+  const llaveFinal = cifrar ? llaveKmsEbs(estado, llave) : null;
   const ahora = reloj.ahora();
   const vol = {
     id: nuevoId('vol'),
@@ -1084,12 +1134,13 @@ export function crearVolumen(estado, { nombre, tipo = 'gp3', tamano, az, snapsho
     dispositivo: null,
     raiz: false,
     eliminarAlTerminar: false,
-    cifrado: Boolean(cifrado),
+    cifrado: cifrar,
+    llaveKms: llaveFinal,
     snapshotId: snapshotId || null,
     creado: iso(ahora)
   };
   estado.volumenes.push(vol);
-  anotar(estado, 'EC2', 'CreateVolume', `${vol.id} ${vol.tipo} ${vol.tamano} GiB ${vol.az}`);
+  anotar(estado, 'EC2', 'CreateVolume', `${vol.id} ${vol.tipo} ${vol.tamano} GiB ${vol.az}${vol.cifrado ? ` · cifrado con ${llamar('llaveKmsDe', estado, vol.llaveKms)?.alias ?? vol.llaveKms}` : ''}`);
   return vol;
 }
 
@@ -1152,7 +1203,9 @@ export function crearSnapshot(estado, { volumenId, descripcion = '', nombre } = 
     hasta: ahora + DURACION.snapshotSeCompleta,
     siguiente: 'completed',
     creado: iso(ahora),
-    cifrado: vol.cifrado
+    cifrado: vol.cifrado,
+    llaveKms: vol.cifrado ? vol.llaveKms ?? 'aws/ebs' : null,
+    publico: false
   };
   estado.snapshots.push(snap);
   anotar(estado, 'EC2', 'CreateSnapshot', `${snap.id} de ${volumenId}${d ? ` «${d}»` : ''}`);
@@ -1162,6 +1215,19 @@ export function crearSnapshot(estado, { volumenId, descripcion = '', nombre } = 
 export function editarSnapshot(estado, snapId, { nombre } = {}) {
   const snap = buscar(estado.snapshots, snapId, 'snapshot', 'InvalidSnapshot.NotFound');
   if (nombre !== undefined) snap.nombre = nombreLimpio(nombre);
+  return snap;
+}
+
+/**
+ * «Modify permissions» de un snapshot de EBS: Public lo puede copiar cualquier
+ * cuenta de AWS (Trusted Advisor lo marca en rojo); Private, solo tú.
+ */
+export function cambiarPermisosSnapshot(estado, snapId, { publico } = {}) {
+  const snap = buscar(estado.snapshots, snapId, 'snapshot', 'InvalidSnapshot.NotFound');
+  if (publico && snap.estado !== 'completed') throw error('IncorrectState', `Snapshot '${snapId}' is not in a valid state for this operation. The snapshot must be completed.`);
+  if (publico && snap.cifrado) throw error('OperationNotPermitted', 'Encrypted snapshots cannot be shared publicly.');
+  snap.publico = Boolean(publico);
+  anotar(estado, 'EC2', 'ModifySnapshotAttribute', `${snap.id} createVolumePermission: ${snap.publico ? 'add group=all (público)' : 'remove group=all (privado)'}`);
   return snap;
 }
 
@@ -1254,7 +1320,8 @@ export function lanzarInstancias(estado, p = {}) {
       arranques: 0,
       rolIam: p.perfilIam || null,
       volumenes: [],
-      lanzada: iso(ahora)
+      lanzada: iso(ahora),
+      etiquetas: etiquetasInstancia(p.etiquetas)
     };
     if (ipPublica) inst.ipPublica = ipPublicaNueva(estado);
     estado.instancias.push(inst);
@@ -1272,6 +1339,7 @@ export function lanzarInstancias(estado, p = {}) {
         raiz: i === 0,
         eliminarAlTerminar: v.eliminarAlTerminar ?? i === 0,
         cifrado: Boolean(v.cifrado),
+        llaveKms: v.cifrado ? 'aws/ebs' : null,
         snapshotId: i === 0 ? imagen.id.replace('ami', 'snap') : null,
         creado: iso(ahora)
       };
@@ -1327,10 +1395,31 @@ function requiereDetenida(inst) {
   if (inst.estado !== 'stopped') throw error('IncorrectInstanceState', `The instance '${inst.id}' is not in the 'stopped' state.`);
 }
 
-export function editarInstancia(estado, id, { nombre } = {}) {
+/** Las etiquetas de una instancia, sin Name (esa vive en inst.nombre). */
+const etiquetasInstancia = (lista) =>
+  (Array.isArray(lista) ? lista : []).filter((e) => e?.llave && e.llave !== 'Name').map((e) => ({ llave: String(e.llave), valor: String(e.valor ?? '') }));
+
+/**
+ * «Manage tags» de una instancia. `nombre` es la etiqueta Name; `etiquetas`
+ * (si viene) reemplaza todas las demás: [{ llave, valor }].
+ */
+export function editarInstancia(estado, id, { nombre, etiquetas } = {}) {
   const inst = buscar(estado.instancias, id, 'instance', 'InvalidInstanceID.NotFound');
+  if (etiquetas !== undefined) {
+    const vistas = new Set();
+    for (const e of etiquetasInstancia(etiquetas)) {
+      const llave = e.llave.trim();
+      if (llave.length > 128) throw error('InvalidParameterValue', `Tag key exceeds the maximum length of 128 characters.`);
+      if (/^aws:/i.test(llave)) throw error('InvalidParameterValue', `Tag keys starting with 'aws:' are reserved for internal use`);
+      if (vistas.has(llave)) throw error('InvalidParameterValue', `Duplicate tag key '${llave}' specified.`);
+      vistas.add(llave);
+    }
+    if (vistas.size > 49) throw error('TagLimitExceeded', 'The maximum number of tags (50) has been reached for this resource.');
+  }
   if (nombre !== undefined) inst.nombre = nombreLimpio(nombre);
-  anotar(estado, 'EC2', 'CreateTags', `${id} Name=${inst.nombre}`);
+  if (etiquetas !== undefined) inst.etiquetas = etiquetasInstancia(etiquetas).map((e) => ({ llave: e.llave.trim(), valor: e.valor.slice(0, 256) }));
+  const extra = (inst.etiquetas ?? []).map((e) => `${e.llave}=${e.valor}`);
+  anotar(estado, 'EC2', 'CreateTags', `${id} Name=${inst.nombre}${extra.length ? `, ${extra.join(', ')}` : ''}`);
   return inst;
 }
 
@@ -1399,12 +1488,60 @@ export function validarNombreBucket(estado, nombre) {
 
 const bloqueoTotal = () => ({ aclsNuevas: true, aclsCualquiera: true, politicasNuevas: true, politicasCualquiera: true });
 
+const TIPOS_CIFRADO_S3 = ['SSE-S3', 'SSE-KMS', 'DSSE-KMS'];
+const ES_AWS_S3 = /^(?:arn:aws:kms:[^:]*:\d*:)?(?:alias\/)?aws\/s3$/;
+
+/**
+ * La llave de KMS del cifrado por omisión de un bucket → lo que se guarda en
+ * cifrado.llaveKms: null = la AWS managed key aws/s3; si no, el id de una
+ * llave propia (acepta id, ARN, alias/x o el ARN del alias). Como S3: la llave
+ * tiene que existir, estar habilitada y ser simétrica de cifrado.
+ */
+function llaveKmsS3(estado, tipo, ref) {
+  if (tipo === 'SSE-S3') return null;
+  const r = String(ref ?? '').trim();
+  if (!r || ES_AWS_S3.test(r)) return null;
+  const k = llamar('llaveKmsDe', estado, r);
+  if (!k) throw error('KMS.NotFoundException', `Invalid keyId '${r}'. The AWS KMS key doesn't exist or you don't have access to it.`);
+  if (k.administradaPorAws) {
+    if ((k.aliases ?? []).includes('aws/s3')) return null;
+    throw error('InvalidArgument', `The AWS managed key ${k.alias ?? k.id} belongs to another service. Choose aws/s3 or a customer managed key.`);
+  }
+  if (k.estado === 'PendingDeletion') throw error('KMS.KMSInvalidStateException', `${k.arn} is pending deletion.`);
+  if (k.estado !== 'Enabled') throw error('KMS.DisabledException', `${k.arn} is disabled.`);
+  if (k.spec !== 'SYMMETRIC_DEFAULT' || k.uso !== 'ENCRYPT_DECRYPT') throw error('InvalidArgument', 'Amazon S3 supports only symmetric encryption KMS keys.');
+  return k.id;
+}
+
+function cifradoS3(estado, tipo, bucketKey, llaveKms) {
+  const t = TIPOS_CIFRADO_S3.includes(tipo) ? tipo : 'SSE-S3';
+  return { tipo: t, bucketKey: Boolean(bucketKey), llaveKms: llaveKmsS3(estado, t, llaveKms) };
+}
+
+/** Las etiquetas de un bucket ya revisadas como PutBucketTagging: [{ llave, valor }]. */
+function etiquetasBucket(etiquetas) {
+  const limpias = (Array.isArray(etiquetas) ? etiquetas : []).filter((e) => String(e?.llave ?? '').trim()).map((e) => ({ llave: String(e.llave).trim(), valor: String(e.valor ?? '') }));
+  if (limpias.length > 50) throw error('InvalidTag', 'Object tags cannot be greater than 50');
+  const vistas = new Set();
+  for (const e of limpias) {
+    if (e.llave.length > 128) throw error('InvalidTag', 'The TagKey you have provided is too long, max 128');
+    if (e.valor.length > 256) throw error('InvalidTag', 'The TagValue you have provided is too long, max 256');
+    if (/^aws:/i.test(e.llave)) throw error('InvalidTag', 'System tags cannot be added/updated by requester');
+    if (vistas.has(e.llave)) throw error('InvalidTag', 'Cannot provide multiple Tags with the same key');
+    vistas.add(e.llave);
+  }
+  return limpias;
+}
+
 /**
  * «Create bucket». `bloqueoPublico` por omisión: todo bloqueado; `versionado`:
- * true/false; `cifrado`: 'SSE-S3' | 'SSE-KMS' | 'DSSE-KMS'.
+ * true/false; `cifrado`: 'SSE-S3' | 'SSE-KMS' | 'DSSE-KMS'; `llaveKms` (con
+ * KMS): null/'aws/s3' o una llave propia (id, ARN o alias).
  */
-export function crearBucket(estado, { nombre, propiedadObjetos = 'BucketOwnerEnforced', bloqueoPublico, versionado = false, cifrado = 'SSE-S3', bucketKey = true, etiquetas = [] } = {}) {
+export function crearBucket(estado, { nombre, propiedadObjetos = 'BucketOwnerEnforced', bloqueoPublico, versionado = false, cifrado = 'SSE-S3', bucketKey = true, llaveKms = null, etiquetas = [] } = {}) {
   const n = validarNombreBucket(estado, nombre);
+  const cifradoListo = cifradoS3(estado, cifrado, bucketKey, llaveKms);
+  const etiquetasListas = etiquetasBucket(etiquetas);
   const bucket = {
     nombre: n,
     region: REGION.codigo,
@@ -1412,18 +1549,25 @@ export function crearBucket(estado, { nombre, propiedadObjetos = 'BucketOwnerEnf
     propiedadObjetos: propiedadObjetos === 'ObjectWriter' || propiedadObjetos === 'BucketOwnerPreferred' ? propiedadObjetos : 'BucketOwnerEnforced',
     bloqueoPublico: { ...bloqueoTotal(), ...(bloqueoPublico ?? {}) },
     versionado: versionado ? 'Enabled' : 'Disabled',
-    cifrado: { tipo: ['SSE-S3', 'SSE-KMS', 'DSSE-KMS'].includes(cifrado) ? cifrado : 'SSE-S3', bucketKey: Boolean(bucketKey) },
+    cifrado: cifradoListo,
     sitioWeb: null,
     politica: null,
     ciclo: [],
     objetos: [],
-    etiquetas: etiquetas.filter((e) => e?.llave).map((e) => ({ llave: String(e.llave), valor: String(e.valor ?? '') }))
+    etiquetas: etiquetasListas
   };
   estado.buckets.push(bucket);
   const b = bucket.bloqueoPublico;
   const todo = b.aclsNuevas && b.aclsCualquiera && b.politicasNuevas && b.politicasCualquiera;
-  anotar(estado, 'S3', 'CreateBucket', `${n} · acceso público bloqueado: ${todo ? 'todo' : 'NO'} · versionado: ${bucket.versionado} · cifrado: ${bucket.cifrado.tipo}`);
+  anotar(estado, 'S3', 'CreateBucket', `${n} · acceso público bloqueado: ${todo ? 'todo' : 'NO'} · versionado: ${bucket.versionado} · cifrado: ${textoCifradoS3(estado, bucket.cifrado)}`);
   return bucket;
+}
+
+/** «SSE-KMS (llave clinica-expedientes)» para la bitácora. */
+function textoCifradoS3(estado, c) {
+  if (c.tipo === 'SSE-S3') return c.tipo;
+  const k = c.llaveKms ? llamar('llaveKmsDe', estado, c.llaveKms) : null;
+  return `${c.tipo} (llave ${c.llaveKms ? k?.arn ?? c.llaveKms : 'aws/s3'})`;
 }
 
 const bucketOError = (estado, nombre) => {
@@ -1440,10 +1584,19 @@ export function editarVersionado(estado, nombre, activo) {
   return b;
 }
 
-export function editarCifrado(estado, nombre, { tipo = 'SSE-S3', bucketKey = true } = {}) {
+/** «Edit default encryption». `llaveKms` como en crearBucket (null/'aws/s3' = la de AWS). */
+export function editarCifrado(estado, nombre, { tipo = 'SSE-S3', bucketKey = true, llaveKms = null } = {}) {
   const b = bucketOError(estado, nombre);
-  b.cifrado = { tipo: ['SSE-S3', 'SSE-KMS', 'DSSE-KMS'].includes(tipo) ? tipo : 'SSE-S3', bucketKey: Boolean(bucketKey) };
-  anotar(estado, 'S3', 'PutBucketEncryption', `${nombre}: ${b.cifrado.tipo}`);
+  b.cifrado = cifradoS3(estado, tipo, bucketKey, llaveKms);
+  anotar(estado, 'S3', 'PutBucketEncryption', `${nombre}: ${textoCifradoS3(estado, b.cifrado)}`);
+  return b;
+}
+
+/** Properties → Tags → Edit: reemplaza todas las etiquetas del bucket ([{ llave, valor }]). */
+export function editarEtiquetasBucket(estado, nombre, etiquetas = []) {
+  const b = bucketOError(estado, nombre);
+  b.etiquetas = etiquetasBucket(etiquetas);
+  anotar(estado, 'S3', b.etiquetas.length ? 'PutBucketTagging' : 'DeleteBucketTagging', `${nombre}${b.etiquetas.length ? `: ${b.etiquetas.map((e) => `${e.llave}=${e.valor}`).join(', ')}` : ''}`);
   return b;
 }
 
@@ -1590,6 +1743,10 @@ export const describirReglaCiclo = (r) =>
 export function subirObjetos(estado, nombre, archivos = [], { clase = 'STANDARD', prefijo = '' } = {}) {
   const b = bucketOError(estado, nombre);
   if (!claseS3(clase)) throw error('InvalidStorageClass', 'The storage class you specified is not valid');
+  // Con una llave propia de KMS deshabilitada o por borrarse, S3 ya no puede cifrar.
+  if (b.cifrado?.llaveKms && llamar('usoLlaveKms', estado, b.cifrado.llaveKms)?.ok === false) {
+    throw error('KMS.DisabledException', llamar('problemaLlaveKms', estado, b.cifrado.llaveKms));
+  }
   const ahora = iso();
   const subidos = [];
   for (const a of archivos) {
@@ -1607,6 +1764,8 @@ export function subirObjetos(estado, nombre, archivos = [], { clase = 'STANDARD'
     subidos.push(objeto);
   }
   anotar(estado, 'S3', 'PutObject', `${nombre}: ${subidos.map((o) => o.llave).join(', ')} (${claseS3(clase).nombre})`);
+  // Los disparadores de S3 (Lambda) se enteran de cada objeto nuevo.
+  for (const o of subidos) llamar('notificarEventoS3', estado, nombre, { llave: o.llave, tamano: o.tamano, evento: 'ObjectCreated:Put' });
   return subidos;
 }
 
@@ -1628,6 +1787,8 @@ export function eliminarObjetos(estado, nombre, llaves = []) {
     b.objetos.push({ llave, tamano: 0, tipo: '', clase: 'STANDARD', versionId: hexAzar(32), actual: true, marcadorBorrado: true, modificado: iso() });
   }
   anotar(estado, 'S3', 'DeleteObjects', `${nombre}: ${llaves.join(', ')}`);
+  // Los disparadores de S3 (Lambda) se enteran del borrado.
+  for (const llave of llaves) llamar('notificarEventoS3', estado, nombre, { llave, evento: b.versionado === 'Disabled' ? 'ObjectRemoved:Delete' : 'ObjectRemoved:DeleteMarkerCreated' });
 }
 
 /** «Empty bucket»: borra para siempre todos los objetos y todas sus versiones. */
@@ -1881,6 +2042,8 @@ export function quitarPoliticaRol(estado, nombre, politica) {
  */
 export function avanzar(estado, ahora = reloj.ahora()) {
   let cambio = false;
+  // Las cuentas guardadas antes de un servicio nuevo no traen su colección.
+  iniciarExtensiones(estado);
 
   for (const inst of estado.instancias) {
     if (inst.hasta === undefined || inst.hasta === null || inst.hasta > ahora) continue;
@@ -1951,8 +2114,36 @@ export function avanzar(estado, ahora = reloj.ahora()) {
     cambio = true;
   }
 
+  // Los servicios de modelo/ (Auto Scaling, ELB, CloudWatch, RDS…), en su orden.
+  if (avanzarExtensiones(estado, ahora)) cambio = true;
+
   return cambio;
 }
 
 /** Copia profunda: el estado es JSON puro. */
 export const clonar = (estado) => JSON.parse(JSON.stringify(estado));
+
+/* ===================================================== para las extensiones */
+
+// Las ayudas internas que necesitan los servicios de modelo/. Se exportan con
+// estos nombres para no chocar con las acciones.
+export { error as errorAws, iso, nombreLimpio, buscar, ipPublicaNueva, ipPrivadaNueva, aleatorio, hexAzar };
+
+// Los servicios que viven en modelo/<servicio>.js. Cada uno se registra solo
+// en modelo/registro.js al cargarse y sus acciones salen también desde aquí,
+// así el servidor y las rúbricas solo importan modelo.js. Regla de esos
+// archivos: no usar nada de modelo.js en el nivel superior (solo dentro de
+// funciones), porque se cargan en ciclo con este archivo.
+export * from './modelo/elb.js';
+export * from './modelo/autoscaling.js';
+export * from './modelo/cloudwatch.js';
+export * from './modelo/mensajeria.js';
+export * from './modelo/lambda.js';
+export * from './modelo/rds.js';
+export * from './modelo/dynamodb.js';
+export * from './modelo/costos.js';
+export * from './modelo/gobierno.js';
+export * from './modelo/borde.js';
+export * from './modelo/secretos.js';
+export * from './modelo/efs.js';
+export { llamar, existeFuncion, EXTENSIONES } from './modelo/registro.js';

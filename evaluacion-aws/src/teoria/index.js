@@ -3,8 +3,10 @@
 
 import * as simulacro1 from './simulacro-1.js';
 import * as simulacro2 from './simulacro-2.js';
+import * as final from './final.js';
 
 export const TEORIA = new Map([
   ['simulacro-1', simulacro1],
-  ['simulacro-2', simulacro2]
+  ['simulacro-2', simulacro2],
+  ...(final.PREGUNTAS ? [['final', final]] : []) // el marcador todavía no cuenta
 ]);

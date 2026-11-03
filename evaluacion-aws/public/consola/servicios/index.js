@@ -7,35 +7,56 @@
 // ponlo en SERVICIOS en lugar de su marcador «próximamente».
 // ---------------------------------------------------------------------------
 
-import { h } from '../ui.js';
-import * as ui from '../ui.js';
 import inicio from './inicio.js';
 import ec2 from './ec2.js';
 import vpc from './vpc.js';
 import s3 from './s3.js';
 import iam from './iam.js';
+import cloudwatch from './cloudwatch.js';
+import cloudtrail from './cloudtrail.js';
+import sns from './sns.js';
+import sqs from './sqs.js';
+import lambda from './lambda.js';
+import eventbridge from './eventbridge.js';
+import rds from './rds.js';
+import elasticache from './elasticache.js';
+import dynamodb from './dynamodb.js';
+import billing from './billing.js';
+import trustedadvisor from './trustedadvisor.js';
+import support from './support.js';
+import organizations from './organizations.js';
+import wellarchitected from './wellarchitected.js';
+import cloudfront from './cloudfront.js';
+import route53 from './route53.js';
+import secretsmanager from './secretsmanager.js';
+import kms from './kms.js';
+import efs from './efs.js';
 
-/**
- * Un servicio que todavía no existe en el simulador: aparece en el buscador,
- * en favoritos y en el menú de servicios, y todas sus rutas muestran el aviso.
- */
-function proximamente({ id, nombre, titulo, descripcion, categoria, busqueda = [] }) {
-  const vista = (cx) => {
-    cx.migas([{ texto: titulo ?? nombre, ruta: id }]);
-    return h(
-      'div',
-      { class: 'cx-no-disponible' },
-      h('h1', { class: 'cx-h1' }, titulo ?? nombre),
-      ui.alerta({ tipo: 'info', titulo: 'Próximamente', contenido: `${nombre} todavía no está listo en este simulador.` })
-    );
-  };
-  return { id, nombre, titulo, descripcion, categoria, proximamente: true, busqueda, menu: [], rutas: { '': vista, ':a': vista, ':a/:b': vista, ':a/:b/:c': vista } };
-}
+export { proximamente } from './proximamente.js';
 
 export const SERVICIOS = [
   inicio,
   ec2,
   vpc,
   s3,
-  iam
+  iam,
+  rds,
+  dynamodb,
+  elasticache,
+  lambda,
+  cloudwatch,
+  cloudtrail,
+  sns,
+  sqs,
+  eventbridge,
+  cloudfront,
+  route53,
+  efs,
+  secretsmanager,
+  kms,
+  billing,
+  trustedadvisor,
+  support,
+  organizations,
+  wellarchitected
 ];

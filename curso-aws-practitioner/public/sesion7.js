@@ -12,7 +12,12 @@
 // presupuestos (budgets:ModifyBudget), ni entrar a Organizations, ni pasar del
 // primer paso de la Well-Architected Tool (wellarchitected:ListLenses). La
 // página Free Tier no carga. Todo verificado en el sandbox el 15 de octubre
-// de 2026.
+// de 2026. Quien lo prefiera hace el laboratorio en el simulador AWS
+// (lab-s7 de evaluacion-aws), donde todo eso sí se puede crear.
+//
+// Planes de soporte verificados en aws.amazon.com/premiumsupport el 2 de
+// noviembre de 2026: Developer, Business y Enterprise On-Ramp se retiran el
+// 1 de enero de 2027; Business Support+ (desde 29 USD) no trae TAM.
 // ---------------------------------------------------------------------------
 
 import { boton, capturasDe, icono, lista, nubi, recuadro } from './piezas.js';
@@ -58,7 +63,7 @@ export const SESION_7 = {
                 <div class="rejilla rejilla--3 roles">
                   <article class="rol">${icono('cpu')}<h3>Cómputo</h3><p>Por segundo u hora que una instancia está encendida, según su tamaño.</p></article>
                   <article class="rol">${icono('disco')}<h3>Almacenamiento</h3><p>Por gigabyte al mes que guardas: discos EBS, buckets de S3, snapshots.</p></article>
-                  <article class="rol">${icono('red')}<h3>Datos que salen</h3><p>Los datos que <strong>entran</strong> a AWS no se cobran; los que <strong>salen</strong> a internet sí.</p></article>
+                  <article class="rol">${icono('red')}<h3>Datos que salen</h3><p>Los datos que <strong>entran</strong> a AWS no se cobran; los que <strong>salen</strong> a internet sí, y también los que viajan entre regiones o entre zonas.</p></article>
                 </div>
                 ${recuadro('recuerda', 'Las formas de pagar una instancia ya las viste en la sesión 1: <strong>On-Demand</strong> (sin compromiso), <strong>Savings Plans</strong> e <strong>instancias reservadas</strong> (compromiso de 1 o 3 años), <strong>Spot</strong> (capacidad sobrante, se puede interrumpir) y <strong>Dedicated Hosts</strong> (un servidor físico para ti).')}`,
               notas: 'Pregunta al grupo: ¿por qué AWS no cobra la entrada de datos y sí la salida? (Quiere que lleves tus datos; sacarlos cuesta.)'
@@ -145,7 +150,7 @@ export const SESION_7 = {
                 <div class="rejilla rejilla--3 roles">
                   <article class="rol">${icono('edificio')}<h3>Unidades organizativas</h3><p>Agrupa las cuentas en carpetas (OU), como <em>Producción</em> o <em>Pruebas</em>.</p></article>
                   <article class="rol">${icono('escudo')}<h3>Políticas SCP</h3><p>Ponen el límite de lo que pueden hacer las cuentas. Las viste en la sesión 2… y en los “explicit deny” del sandbox.</p></article>
-                  <article class="rol">${icono('dinero')}<h3>Facturación consolidada</h3><p>Una sola factura para todas las cuentas, y el uso se suma para alcanzar <strong>descuentos por volumen</strong>.</p></article>
+                  <article class="rol">${icono('dinero')}<h3>Facturación consolidada</h3><p>Una sola factura para todas las cuentas, y el uso se suma para alcanzar <strong>descuentos por volumen</strong>. Los descuentos de reservas y Savings Plans también se comparten entre cuentas.</p></article>
                 </div>
                 ${recuadro('sabias', '<strong>AWS Control Tower</strong> prepara en unos clics un entorno de varias cuentas con buenas prácticas ya aplicadas (una <em>landing zone</em>). Organizations no tiene costo extra.')}`,
               notas: 'El sandbox de DataCamp es justo una cuenta dentro de una organización: por eso hay SCP que niegan RDS o el Internet Gateway.'
@@ -191,8 +196,8 @@ export const SESION_7 = {
                     </tbody>
                   </table>
                 </div>
-                ${recuadro('examen', 'Muchos bancos de preguntas usan los nombres anteriores: <em>Developer, Business, Enterprise On-Ramp y Enterprise</em>. Lo que no cambia: <strong>Basic es gratis</strong> y trae Trusted Advisor limitado; mientras más alto el plan, más rápida la respuesta; el <strong>TAM</strong> es de <strong>Enterprise</strong>.')}`,
-              notas: 'En el laboratorio verán esta misma tabla en la consola del sandbox, con los precios. El sandbox tiene el plan Basic.'
+                ${recuadro('examen', 'Muchos bancos de preguntas usan los nombres anteriores: <em>Developer, Business, Enterprise On-Ramp y Enterprise</em> (AWS los retira el 1 de enero de 2027). Lo que no cambia: <strong>Basic es gratis</strong> y trae Trusted Advisor limitado; mientras más alto el plan, más rápida la respuesta; el <strong>TAM</strong> designado es de <strong>Enterprise</strong>. Con los nombres viejos, Enterprise On-Ramp daba acceso a un <em>grupo</em> de TAM.')}`,
+              notas: 'En el laboratorio verán esta misma tabla en la consola del sandbox, con los precios. El sandbox tiene el plan Basic. Si preguntan por los tiempos de los planes viejos (todavía salen en el examen): Developer, menos de 12 horas hábiles si el sistema falla; Business, menos de 1 hora si producción cae; Enterprise On-Ramp, 30 minutos; Enterprise, 15 minutos si cae un sistema crítico.'
             },
             {
               titulo: 'Asesores automáticos y ayuda de fuera',
@@ -305,7 +310,7 @@ export const SESION_7 = {
       numero: 2,
       titulo: 'Laboratorio guiado en AWS',
       descripcion:
-        'Primero, sin sandbox, estimas en la calculadora de precios cuánto cuestan dos servidores y comparas formas de pago. Luego enciendes el sandbox y recorres la facturación real: Cost Explorer, un presupuesto, Trusted Advisor, los planes de soporte y Well-Architected.',
+        'Primero, sin sandbox, estimas en la calculadora de precios cuánto cuestan dos servidores y comparas formas de pago. Luego enciendes el sandbox y recorres la facturación real: Cost Explorer, un presupuesto, Trusted Advisor, los planes de soporte y Well-Architected. Si lo prefieres, haces el laboratorio en el simulador AWS, donde sí te deja crear el presupuesto, la organización y la revisión Well-Architected.',
       actividades: [
         {
           id: 's7-lab-costos',
@@ -313,6 +318,22 @@ export const SESION_7 = {
           titulo: 'Laboratorio: estima, vigila y revisa',
           xp: 300,
           minutos: 42,
+          simulador: {
+            lab: 'lab-s7',
+            objetivo:
+              'Estimar en la calculadora de precios, vigilar el gasto con un presupuesto y sus alertas, corregir lo que marca Trusted Advisor, separar Producción de Pruebas con una organización y su SCP, y hacer una revisión Well-Architected. Al final no borras nada: el simulador revisa lo que dejaste.',
+            minutos: 50,
+            nota: 'Aquí sí puedes crear el presupuesto con sus alertas, la organización con su SCP y la revisión Well-Architected, que en DataCamp salen negados, y corregir de verdad lo que marca Trusted Advisor.',
+            tareas: [
+              'Estimar en Pricing Calculator los servidores de temporada: una línea On-Demand y otra con Compute Savings Plans a 3 años.',
+              'Crear un presupuesto mensual de costo con una alerta real al 85 % y otra pronosticada al 100 %.',
+              'Crear un bucket con la etiqueta Proyecto y activarla como etiqueta de asignación de costos.',
+              'Atender a Trusted Advisor: borrar el snapshot público, liberar la IP elástica sin usar y poner MFA al usuario raíz.',
+              'Crear una organización con las OU Produccion y Pruebas, una cuenta de pruebas y una SCP que niegue RDS solo en Pruebas.',
+              'Hacer una revisión Well-Architected del pilar de fiabilidad y guardar un milestone.',
+              'Bono opcional: abrir un caso de cuenta y facturación con el plan Basic.'
+            ]
+          },
           objetivo:
             'Estimar en AWS Pricing Calculator el costo de dos servidores con distintas formas de pago, y revisar en la consola el gasto real con Cost Explorer, los límites de un presupuesto, las recomendaciones de Trusted Advisor y los planes de soporte.',
           necesitas: [
@@ -402,7 +423,7 @@ export const SESION_7 = {
                   [58.1, 10.7, '<strong>Bajo demanda</strong>'],
                   [6.9, 95.3, 'Sin compromiso: <strong>16.94 USD</strong> al mes']
                 ])}
-                ${recuadro('examen', 'El mismo par de servidores cuesta <strong>casi la mitad</strong> si te comprometes 3 años. A cambio, pierdes flexibilidad. Spot sería aún más barato, pero la tienda no puede apagarse en pleno Buen Fin.')}`,
+                ${recuadro('examen', 'El mismo par de servidores cuesta <strong>la mitad</strong> si te comprometes 3 años. A cambio, pierdes flexibilidad. Spot sería aún más barato, pero la tienda no puede apagarse en pleno Buen Fin.')}`,
               ver: 'Con Bajo demanda, el costo total mensual dice 16.94 USD; con el Savings Plan decía 8.47 USD.',
               sandbox: false
             },
@@ -525,7 +546,7 @@ export const SESION_7 = {
                   [15.3, 64.9, 'Permisos de buckets de S3'],
                   [13.4, 81.4, 'MFA en la cuenta raíz']
                 ])}
-                ${recuadro('examen', 'Con el plan <strong>Basic</strong>, Trusted Advisor revisa solo algunos chequeos (de seguridad y límites). Para verlos todos hace falta Business Support+ o superior.')}`,
+                ${recuadro('examen', 'Con el plan <strong>Basic</strong>, Trusted Advisor revisa solo algunos chequeos (de seguridad y límites). Para verlos todos hace falta un plan de pago: Business Support+ o superior (con los nombres viejos, Business o superior).')}`,
               ver: 'La categoría Security con los chequeos de snapshots públicos, buckets de S3 y MFA en la raíz. Tómale captura: es tu tercera evidencia.',
               evidencia: {
                 id: 'trusted-advisor',
@@ -620,7 +641,7 @@ export const SESION_7 = {
             }
           ],
           cierre:
-            'Estimaste dos servidores en la calculadora y viste que un Savings Plan casi parte el costo a la mitad; revisaste el gasto real en Cost Explorer, comprobaste que crear un presupuesto exige su propio permiso, leíste los chequeos de Trusted Advisor y comparaste los planes de soporte.'
+            'Estimaste dos servidores en la calculadora y viste que un Savings Plan a 3 años parte el costo a la mitad; revisaste el gasto real en Cost Explorer, comprobaste que crear un presupuesto exige su propio permiso, leíste los chequeos de Trusted Advisor y comparaste los planes de soporte.'
         },
         {
           id: 's7-ex-cual-herramienta',
@@ -726,7 +747,7 @@ export const SESION_7 = {
             { texto: 'Los datos que entran a AWS desde internet no se cobran.', grupo: 'v', retro: 'Verdadero: se cobra la salida de datos, no la entrada.' },
             { texto: 'Trusted Advisor avisa cuando un servicio de AWS falla en una región.', grupo: 'f', retro: 'Falso: eso es AWS Health Dashboard. Trusted Advisor revisa tu cuenta.' },
             { texto: 'Sostenibilidad es uno de los seis pilares de Well-Architected.', grupo: 'v', retro: 'Verdadero: es el pilar más reciente.' },
-            { texto: 'Crear una cuenta en AWS Organizations cuesta una cuota mensual.', grupo: 'f', retro: 'Falso: Organizations no tiene costo extra.' }
+            { texto: 'AWS Organizations cobra una cuota mensual por administrar tus cuentas.', grupo: 'f', retro: 'Falso: Organizations no tiene costo extra; cada cuenta paga solo lo que usa.' }
           ],
           cierre: 'Cuatro verdaderas y cuatro falsas. Si fallaste alguna, repasa esa lámina antes del examen.',
           pista: 'Hay cuatro verdaderas y cuatro falsas.'
@@ -767,6 +788,7 @@ export const SESION_7 = {
       titulo: 'Capítulo 2 · Laboratorio guiado',
       capitulo: 2,
       pasos: [
+        'Quien elija el simulador hace allá sus tareas, que se califican solas: no enciende el sandbox ni toma capturas. Su calificación sale en el panel de Evaluación.',
         'Los pasos 1 a 5 son en la calculadora pública: que nadie encienda el sandbox hasta el paso 6.',
         'En el paso 4 pide que comparen en voz alta: ¿cuánto ahorra el Savings Plan contra Bajo demanda?',
         'En el paso 8 avisa que el aviso rojo del presupuesto es esperado.',

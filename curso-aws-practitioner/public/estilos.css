@@ -2332,3 +2332,152 @@ kbd {
 
 .sesion--lista:not(.sesion--actual) .sesion__numero { background: var(--ink); }
 .sesion h3 a { color: inherit; }
+
+/* ------------------------------------------------------------ simulador AWS */
+
+/* «¿Dónde harás este laboratorio?»: dos tarjetas grandes, fáciles de tocar. */
+.eleccion {
+  margin-bottom: 16px;
+  padding: 14px 18px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--white);
+}
+
+.eleccion__titulo { margin: 0 0 10px; font-size: 1.15rem; }
+.eleccion__botones { display: grid; gap: 10px; }
+
+@media (min-width: 620px) {
+  .eleccion__botones { grid-template-columns: 1fr 1fr; }
+}
+
+.eleccion__boton {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  cursor: pointer;
+  text-align: left;
+}
+
+.eleccion__boton strong { font-family: var(--display); font-size: 1.1rem; }
+.eleccion__boton span { color: var(--muted); font-size: .92rem; line-height: 1.35; }
+.eleccion__boton:hover { border-color: var(--ink); }
+.eleccion__boton:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.eleccion__boton[aria-pressed="true"] { border-color: var(--ink); background: var(--yellow-soft); box-shadow: 3px 3px 0 var(--ink); }
+.eleccion__boton[aria-pressed="true"] strong::before { content: "✓ "; color: var(--green-text); }
+.eleccion__nota { margin: 10px 0 0; color: var(--muted); font-size: .9rem; }
+
+/* La caja que lleva al simulador, con el avance real que reporta. */
+.simulador-caja {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--blue-soft);
+  box-shadow: var(--shadow);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.simulador-caja p { margin: 0; }
+.simulador-caja__etiqueta { color: var(--blue-text); font-family: var(--mono); font-size: .75rem; font-weight: 700; text-transform: uppercase; }
+.simulador-caja__titulo { margin: 0; font-size: 1.2rem; }
+.simulador-caja__tareas { margin: 0; padding-left: 1.2em; }
+.simulador-caja__tareas li + li { margin-top: 4px; }
+
+.simulador-caja__avance {
+  padding: 6px 12px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--white);
+  font-family: var(--mono);
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.simulador-caja__avance[data-tono="hecho"] { border-color: var(--green); background: var(--green-soft); color: var(--green-text); }
+.simulador-caja__avance[data-tono="curso"] { border-color: var(--blue); color: var(--blue-text); }
+.simulador-caja__avance[data-tono="espera"] { color: var(--muted); }
+
+.lab-referencia { justify-self: start; }
+
+.simulador-subtitulo { margin: 0 0 10px; font-size: 1.15em; }
+.simulador-caso p { margin: 0 0 10px; }
+.simulador-tareas { counter-reset: tarea; display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+
+.simulador-tareas li {
+  counter-increment: tarea;
+  display: grid;
+  grid-template-columns: 2em 1fr;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--white);
+}
+
+.simulador-tareas li::before {
+  content: counter(tarea);
+  display: grid;
+  place-items: center;
+  width: 1.8em;
+  height: 1.8em;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--yellow);
+  font-family: var(--mono);
+  font-size: .8em;
+  font-weight: 700;
+}
+
+.lamina__cuerpo .simulador-tareas li + li { margin-top: 0; }
+
+/* El examen con reloj y respuesta múltiple (simulacro y prácticas). */
+.reloj-practica {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 4px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--white);
+  font-family: var(--mono);
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.reloj-practica--poco { background: var(--yellow); }
+.reloj-practica--fin { border-color: var(--red); background: var(--red-soft); color: #7f1d2b; }
+
+.pregunta__elige {
+  margin: -8px 0 14px;
+  padding: 6px 12px;
+  border-left: 4px solid var(--blue);
+  background: var(--blue-soft);
+  font-weight: 700;
+}
+
+.opciones--multiples .opcion__letra { border-radius: 6px; }
+.aviso-flotante--reloj { background: var(--coral-soft); }
+
+.escala { display: grid; gap: 6px; margin: 0 0 22px; border-width: 2px; }
+.escala p { margin: 0; }
+.escala__cifra { font-family: var(--display); font-size: 2.4rem; font-weight: 800; line-height: 1; }
+.escala__cifra span { color: var(--muted); font-family: var(--sans); font-size: 1rem; font-weight: 700; }
+.escala--aprueba { border-color: var(--green); background: var(--green-soft); }
+.escala--no { border-color: var(--red); background: var(--red-soft); }
+
+/* Panel: dónde hacen el laboratorio y las preguntas de respuesta múltiple. */
+.lugares-lab { margin: -4px 0 10px; color: var(--muted); font-size: .92rem; }
+.lugares-lab strong { color: var(--ink); font-family: var(--mono); }
+.opcion-panel__nota { margin: 0 0 8px; color: var(--muted); font-size: .88rem; }
+.repaso-proyectado .opcion-panel__nota { font-size: clamp(.9rem, .75rem + .4vw, 1.1rem); }
+.lamina__cuerpo .simulador-tareas { padding-left: 0; }

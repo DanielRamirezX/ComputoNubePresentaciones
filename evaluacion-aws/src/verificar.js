@@ -12,18 +12,25 @@
 //    `bono: true` no cuentan en esos 100: la solución también gana sus puntos
 //    y la calificación nunca pasa de 100.
 //  - Repaso: cada pregunta y cada check dicen en qué lección de la Ruta AWS se
-//    repasa (src/repaso.js), y el catálogo sigue igual que la Ruta.
+//    repasa (src/repaso.js). El catálogo sale de la Ruta; aquí se revisa que
+//    las láminas que usan las referencias de octubre sigan existiendo.
+//  - Los topes de minutos y de tareas dependen del tipo de la evaluación que
+//    usa el laboratorio (TIPOS en src/evaluaciones.js): un laboratorio de
+//    sesión dura hasta 55 min, una práctica integradora hasta 100…
+//  - Servidor: una prueba de humo de app.js con un almacén temporal (todas
+//    las rutas del alumno y del panel, en todas las evaluaciones).
 // Si todavía no hay bancos o rúbricas, avisa y no falla: esa evaluación sale
 // como «en preparación».
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { LABS } from '../public/labs/index.js';
 import { calificarCuenta } from './calificar.js';
-import { LECCIONES, resolverRepaso, repasosDe } from './repaso.js';
-import { EVALUACIONES } from './evaluaciones.js';
+import { ANCLAS, LECCIONES, ORIGEN_CATALOGO, catalogoDe, resolverRepaso } from './repaso.js';
+import { EVALUACIONES, TIPOS, tipoDe } from './evaluaciones.js';
 import { RUBRICAS } from './rubricas/index.js';
 import { TEORIA } from './teoria/index.js';
 import { datosAlumno } from '../public/labs/comun.js';
@@ -135,11 +142,18 @@ function revisarChecks(id, cuando, resultado) {
   }
 }
 
+/** El tipo de la evaluación que usa ese laboratorio (o el de octubre si ninguna lo usa). */
+const tipoDeLab = (labId) => tipoDe(EVALUACIONES.find((ev) => ev.lab === labId));
+
 function revisarLab(id) {
   const LAB = LABS.get(id);
   if (!LAB) return falla(`${id}: hay rúbrica pero no hay laboratorio en public/labs/index.js`);
   if (!LAB.titulo || !LAB.historia) falla(`${id}: al laboratorio le falta título o historia`);
-  if (!(LAB.minutos > 0 && LAB.minutos <= 60)) falla(`${id}: dura ${LAB.minutos} min (máximo 60)`);
+  const tipo = tipoDeLab(id);
+  const { minutos: maximo } = TIPOS[tipo];
+  if (!(LAB.minutos > 0 && LAB.minutos <= maximo)) falla(`${id}: dura ${LAB.minutos} min (máximo ${maximo} en un ${TIPOS[tipo].nombre.toLowerCase()})`);
+  if (tipo === 'final' && LAB.pistas) avisa(`${id}: es el examen final y trae pistas «¿Dónde se hace?» (se esperaba sin pistas)`);
+  if (!EVALUACIONES.some((ev) => ev.lab === id)) avisa(`${id}: ninguna evaluación de src/evaluaciones.js usa este laboratorio`);
 
   for (const ejemplo of EJEMPLOS) {
     const quien = ejemplo.matricula || ejemplo.nombre;
@@ -208,36 +222,169 @@ for (const id of LABS.keys()) if (!RUBRICAS.has(id)) avisa(`${id}: hay laborator
 console.log('\n=========== REPASO (Ruta AWS)');
 await (async () => {
   const ruta = path.join(AQUI, '..', '..', 'curso-aws-practitioner', 'public', 'contenido.js');
-  if (!fs.existsSync(ruta)) return avisa('No encontré la Ruta AWS junto a este módulo: no puedo comparar el catálogo de repaso');
-  const { SESIONES } = await import(pathToFileURL(ruta).href);
-  const limpio = (t) => String(t ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  let distintos = 0;
-  for (const s of SESIONES) for (const c of s.capitulos ?? []) for (const a of c.actividades ?? []) {
-    const l = LECCIONES[a.id];
-    if (!l) continue;
-    const partes = (a.laminas ?? a.pasos ?? []).map((x) => limpio(x.titulo));
-    if (l.sesion !== s.numero || l.titulo !== limpio(a.titulo) || JSON.stringify(l.partes) !== JSON.stringify(partes)) {
-      falla(`repaso: la lección ${a.id} cambió en la Ruta; actualiza src/repaso.js para que los enlaces apunten a la lámina correcta`);
-      distintos++;
+  if (!fs.existsSync(ruta)) return avisa('No encontré la Ruta AWS junto a este módulo: el repaso usa solo las anclas de octubre (sesiones 1 a 4)');
+  let SESIONES;
+  try {
+    ({ SESIONES } = await import(pathToFileURL(ruta).href));
+  } catch (e) {
+    return falla(`repaso: no pude leer la Ruta (${e.message}); el servidor usaría solo las anclas de octubre`);
+  }
+  if (ORIGEN_CATALOGO !== 'ruta') falla('repaso: src/repaso.js no pudo armar el catálogo desde la Ruta y usa solo las anclas de octubre');
+  const deRuta = catalogoDe(SESIONES);
+
+  // Las referencias con número que de verdad se usan (rúbricas y bancos).
+  const usadas = new Set();
+  const anotar = (refs) => (Array.isArray(refs) ? refs : refs ? [refs] : []).forEach((r) => String(r).includes('/') && usadas.add(String(r)));
+  for (const r of RUBRICAS.values()) Object.values(r.repaso ?? {}).forEach(anotar);
+  for (const banco of TEORIA.values()) (banco.PREGUNTAS ?? []).forEach((p) => anotar(p.repaso));
+
+  // Las anclas: las láminas de octubre deben seguir en la Ruta (aunque cambien
+  // de lugar: resolverRepaso las busca por título).
+  let movidas = 0;
+  for (const [id, ancla] of Object.entries(ANCLAS)) {
+    const l = deRuta[id];
+    const usada = [...usadas].some((r) => r.startsWith(`${id}/`));
+    if (!l) {
+      (usada ? falla : avisa)(`repaso: la lección ${id} ya no existe en la Ruta${usada ? ' y hay referencias que apuntan a ella' : ''}`);
+      continue;
+    }
+    if (JSON.stringify(l.partes) === JSON.stringify(ancla.partes)) continue;
+    movidas++;
+    ancla.partes.forEach((titulo, i) => {
+      if (l.partes.includes(titulo)) return;
+      const ref = `${id}/${i + 1}`;
+      if (usadas.has(ref)) falla(`repaso: la lámina «${titulo}» (${ref}) ya no está en la Ruta; esa referencia ahora lleva a la lección completa. Corrige la referencia o el título`);
+      else avisa(`repaso: la lámina «${titulo}» (${ref}) ya no está en la Ruta (ninguna referencia la usa)`);
+    });
+  }
+  // Cada referencia de octubre lleva a la lámina con la que se escribió.
+  for (const ref of usadas) {
+    const [id, n] = ref.split('/');
+    const esperada = ANCLAS[id]?.partes[Number(n) - 1];
+    if (!esperada || !deRuta[id]?.partes.includes(esperada)) continue;
+    const r = resolverRepaso(ref);
+    if (r?.parte !== esperada) falla(`repaso: ${ref} debía llevar a «${esperada}» y lleva a «${r?.parte ?? 'nada'}»`);
+  }
+  // Lo que usa el servidor es lo mismo que dice la Ruta.
+  const distintos = Object.keys(deRuta).filter((id) => JSON.stringify(deRuta[id]) !== JSON.stringify(LECCIONES[id]));
+  if (distintos.length) falla(`repaso: el catálogo del servidor no coincide con la Ruta en ${distintos.join(', ')}`);
+  const sesiones = [...new Set(Object.values(deRuta).map((l) => l.sesion))].sort((a, b) => a - b);
+  bien(
+    `El catálogo de repaso sale de la Ruta: ${Object.keys(deRuta).length} lecciones y laboratorios de las sesiones ${sesiones.join(', ')}${
+      movidas ? ` (${movidas} lección(es) de octubre cambiaron de láminas; sus referencias se siguen por título)` : ''
+    }`
+  );
+})();
+
+console.log('\n=========== CONSOLA: PRUEBAS DEL MODELO');
+{
+  const carpeta = path.join(AQUI, 'pruebas');
+  const archivos = fs.existsSync(carpeta) ? fs.readdirSync(carpeta).filter((a) => a.endsWith('.js')).sort() : [];
+  for (const archivo of archivos) {
+    try {
+      const prueba = await import(pathToFileURL(path.join(carpeta, archivo)).href);
+      const fallas = (await prueba.probar()) ?? [];
+      if (fallas.length) for (const x of fallas) falla(`${prueba.titulo ?? archivo}: ${x}`);
+      else bien(`${prueba.titulo ?? archivo}: sin problemas`);
+    } catch (e) {
+      falla(`${archivo}: la prueba tronó: ${e.stack ?? e}`);
     }
   }
-  const enRuta = new Set(SESIONES.flatMap((s) => (s.capitulos ?? []).flatMap((c) => (c.actividades ?? []).map((a) => a.id))));
-  for (const id of Object.keys(LECCIONES)) {
-    if (!enRuta.has(id)) {
-      falla(`repaso: la lección ${id} ya no existe en la Ruta`);
-      distintos++;
+  if (!archivos.length) avisa('Todavía no hay pruebas del modelo en src/pruebas/');
+}
+
+console.log('\n=========== SERVIDOR (prueba de humo)');
+// El servidor de verdad (app.js) con un almacén de usar y tirar: que ninguna
+// evaluación, ni las que siguen «en preparación», truene al alumno o al panel.
+await (async () => {
+  const carpeta = fs.mkdtempSync(path.join(os.tmpdir(), 'evaluacion-aws-verificar-'));
+  process.env.DATA_DIR = carpeta;
+  process.env.CLAVE_DOCENTE ||= 'verificar';
+  const clave = process.env.CLAVE_DOCENTE;
+  try {
+    const { crearApp } = await import(pathToFileURL(path.join(AQUI, '..', 'app.js')).href);
+    const manejar = crearApp();
+    // Una solicitud sin red: el manejador escribe en un `res` de mentiras.
+    const pedir = (metodo, url, cuerpo, headers = {}) =>
+      new Promise((resolve, reject) => {
+        const res = {
+          headersSent: false,
+          writeHead(estado) {
+            this.estado = estado;
+            this.headersSent = true;
+          },
+          setHeader() {},
+          end(texto) {
+            const crudo = String(texto ?? '');
+            let json = null;
+            try {
+              json = JSON.parse(crudo);
+            } catch {
+              json = null;
+            }
+            resolve({ estado: this.estado, json, crudo });
+          }
+        };
+        Promise.resolve(manejar({ method: metodo, url, headers, body: cuerpo }, res, () => resolve({ estado: 404, json: null, crudo: '' }))).catch(reject);
+      });
+    const docente = { 'x-clave-docente': clave };
+    const alumno = { id: 'abcdef0123456789abcdef01', nombre: 'Prueba Verificar', matricula: 'V0001', grupo: 'PRUEBA' };
+    let fallos = 0;
+    const exigir = (ok, texto) => {
+      if (!ok) {
+        fallos++;
+        falla(`servidor: ${texto}`);
+      }
+    };
+
+    let r = await pedir('GET', `/api/estado?a=${alumno.id}`);
+    exigir(r.estado === 200 && r.json?.evaluaciones?.length === EVALUACIONES.length, `api/estado respondió ${r.estado}`);
+    exigir((r.json?.evaluaciones ?? []).every((e) => Object.hasOwn(TIPOS, e.tipo)), 'api/estado no trae el tipo de cada evaluación');
+
+    for (const ev of EVALUACIONES) {
+      for (const parte of ['teoria', 'practica']) {
+        if (!(parte === 'teoria' ? ev.teoria : ev.lab)) continue;
+        r = await pedir('POST', `/api/${parte}`, { alumno, evaluacion: ev.id });
+        exigir(r.estado === 200 && ['abierta', 'cerrada', 'preparacion'].includes(r.json?.estado), `api/${parte} de ${ev.id} respondió ${r.estado} ${r.json?.estado ?? r.json?.error ?? ''}`);
+      }
+      r = await pedir('GET', `/api/resultado?a=${alumno.id}&evaluacion=${ev.id}`);
+      exigir(r.estado === 200, `api/resultado de ${ev.id} respondió ${r.estado}`);
     }
+    r = await pedir('GET', `/api/estado?a=${alumno.id}`);
+    exigir(r.estado === 200 && r.json?.registrado === true, 'api/estado no reconoce al alumno ya registrado');
+
+    r = await pedir('POST', '/api/docente/entrar', { clave });
+    exigir(r.estado === 200 && r.json?.evaluaciones?.every((e) => e.tipo), `api/docente/entrar respondió ${r.estado}`);
+    for (const ev of EVALUACIONES) {
+      for (const ruta of [`/api/docente/resumen?evaluacion=${ev.id}`, `/api/docente/datos.csv?evaluacion=${ev.id}`, `/api/docente/reporte?evaluacion=${ev.id}`, `/api/docente/detalle?evaluacion=${ev.id}&alumno=${alumno.id}`]) {
+        r = await pedir('GET', ruta, undefined, docente);
+        exigir(r.estado === 200, `${ruta.split('?')[0]} de ${ev.id} respondió ${r.estado} ${r.json?.error ?? ''}`);
+      }
+    }
+    r = await pedir('GET', '/api/docente/simulador', undefined, docente);
+    exigir(r.estado === 200 && r.json?.evaluaciones?.length === EVALUACIONES.filter((e) => tipoDe(e) !== 'evaluacion').length, `api/docente/simulador respondió ${r.estado}`);
+    if (!fallos) bien(`El servidor atiende al alumno y al panel en las ${EVALUACIONES.length} evaluaciones (también las que siguen en preparación)`);
+  } catch (e) {
+    falla(`servidor: la prueba de humo tronó: ${e.stack ?? e}`);
+  } finally {
+    fs.rmSync(carpeta, { recursive: true, force: true });
   }
-  if (!distintos) bien(`El catálogo de repaso coincide con la Ruta (${Object.keys(LECCIONES).length} lecciones y laboratorios)`);
 })();
 
 console.log('\n=========== EVALUACIONES');
+{
+  const ids = EVALUACIONES.map((ev) => ev.id);
+  for (const id of new Set(ids)) if (ids.filter((x) => x === id).length > 1) falla(`la evaluación ${id} está repetida en src/evaluaciones.js`);
+  const labs = EVALUACIONES.map((ev) => ev.lab).filter(Boolean);
+  for (const lab of new Set(labs)) if (labs.filter((x) => x === lab).length > 1) falla(`el laboratorio ${lab} lo usan dos evaluaciones (el avance se mezclaría)`);
+}
 for (const ev of EVALUACIONES) {
+  if (!Object.hasOwn(TIPOS, ev.tipo ?? '')) falla(`${ev.id}: su tipo «${ev.tipo}» no existe (${Object.keys(TIPOS).join(', ')})`);
   const partes = [];
   if (ev.teoria) partes.push(`teórica ${TEORIA.has(ev.teoria) ? 'lista' : 'EN PREPARACIÓN'}`);
   if (ev.lab) partes.push(`práctica ${RUBRICAS.has(ev.lab) && LABS.has(ev.lab) ? 'lista' : 'EN PREPARACIÓN'}`);
   const lista = (!ev.teoria || TEORIA.has(ev.teoria)) && (!ev.lab || (RUBRICAS.has(ev.lab) && LABS.has(ev.lab)));
-  (lista ? bien : avisa)(`${ev.titulo} (${ev.fechaTexto}): ${partes.join(' · ')}`);
+  (lista ? bien : avisa)(`${ev.titulo} (${TIPOS[tipoDe(ev)].nombre.toLowerCase()} · ${ev.fechaTexto}): ${partes.join(' · ')}`);
   const pesos = Object.values(ev.pesos).reduce((a, b) => a + b, 0);
   if (pesos !== 100) falla(`${ev.id}: los pesos suman ${pesos}, no 100`);
 }

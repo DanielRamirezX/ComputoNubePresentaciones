@@ -8,6 +8,7 @@
 
 import * as ui from '../ui.js';
 import { SERVICIOS } from './index.js';
+import { costoMensual, dinero, pronosticoMes, reloj } from '../modelo.js';
 
 const { h, icono, CATEGORIAS } = ui;
 
@@ -83,9 +84,20 @@ function inicio(cx) {
     )
   );
 
+  // Las mismas cifras que Billing and Cost Management (Month-to-date y forecast).
   const costo = tarjeta(
     'Cost and usage',
-    h('div', { class: 'cx-inicio__salud' }, h('div', {}, h('div', { class: 'cx-texto-sec' }, 'Current month costs'), h('div', { class: 'cx-inicio__numero' }, '$0.00')), h('p', { class: 'cx-texto-sec' }, 'Simulador: aquí nada cuesta dinero.'))
+    cx.vivo(() => {
+      const t = reloj.ahora();
+      return h(
+        'div',
+        { class: 'cx-inicio__salud' },
+        h('div', {}, h('div', { class: 'cx-texto-sec' }, 'Current month costs'), h('div', { class: 'cx-inicio__numero' }, dinero(costoMensual(cx.estado, {}, t)))),
+        h('div', {}, h('div', { class: 'cx-texto-sec' }, 'Forecasted month end costs'), h('div', { class: 'cx-inicio__numero' }, dinero(pronosticoMes(cx.estado, {}, t)))),
+        h('p', { class: 'cx-texto-sec' }, 'Simulador: costos simulados, no se cobra dinero real (1 min real = 1 h de uso).')
+      );
+    }),
+    { acciones: ui.boton('Go to Billing and Cost Management', { alClic: () => cx.ir('billing') }) }
   );
 
   return h(

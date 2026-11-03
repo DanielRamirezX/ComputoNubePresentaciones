@@ -4,7 +4,7 @@
 //
 // Solo servidor: el navegador nunca recibe este archivo.
 
-import { avanzar, claseS3, clonar, igwDeVpc, naclDeSubred, politicaIam, subredDe, tablaDeSubred, tipoDeRegla, textoPuertos, vpcDe } from '../../public/consola/modelo.js';
+import { avanzar, cidrContiene, claseS3, clonar, igwDeVpc, naclDeSubred, politicaIam, subredDe, tablaDeSubred, tipoDeRegla, textoPuertos, vpcDe } from '../../public/consola/modelo.js';
 import { esSubredPublica, gruposPermiten, naclPermite, probarPagina, salePorNat, analizarUserData } from '../../public/consola/red.js';
 
 /* ================================================================ armar */
@@ -160,6 +160,54 @@ export const sshDesdeCasa = (estado, grupoIds, ipCasa) => reglasEntrada(estado, 
 
 const IPS_INTERNET = ['8.8.8.8', '201.141.33.10', '45.230.17.4'];
 
+/** Los bloques privados (RFC 1918): internet no llega a ellos, solo las redes propias. */
+const BLOQUES_PRIVADOS = ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'];
+export const cidrPrivado = (cidr) => BLOQUES_PRIVADOS.some((b) => cidrContiene(b, cidr));
+
+/**
+ * El puerto 22 de servidores que viven en subredes privadas. Falla si una regla
+ * lo abre a un bloque de internet (0.0.0.0/0, ::/0 o cualquier bloque público
+ * más grande que una IP). Una sola IP (/32) o un bloque privado no fallan, pero
+ * la retro dice lo que hay. `reglas`: [{ g, r }] que cubren el 22.
+ */
+export function sshServidoresPrivados(reglas, describir) {
+  const cidrs = reglas.filter(({ r }) => !String(r.origen).startsWith('sg-'));
+  const abiertas = cidrs.filter(({ r }) => !cidrPrivado(r.origen) && !String(r.origen).endsWith('/32'));
+  if (abiertas.length) {
+    const mundo = abiertas.some(({ r }) => ['0.0.0.0/0', '::/0'].includes(r.origen));
+    return {
+      ok: false,
+      retro: `${describir(abiertas)}: ${mundo ? 'cualquier computadora del mundo' : 'todo un bloque de direcciones de internet'} puede intentar entrar por SSH. Bórrala en Edit inbound rules. Para administrar servidores privados, AWS ofrece Session Manager (Systems Manager), sin abrir el 22.`
+    };
+  }
+  const unaIp = cidrs.filter(({ r }) => !cidrPrivado(r.origen));
+  if (unaIp.length) {
+    return {
+      ok: true,
+      retro: `Solo dejas el 22 a una IP (${[...new Set(unaIp.map(({ r }) => r.origen))].join(', ')}). Así no está abierto a todo internet y, como los servidores viven en subredes privadas, ni desde ahí se alcanzan. Lo recomendado es no abrir el 22 y entrar con Session Manager (Systems Manager): bórrala en Edit inbound rules.`
+    };
+  }
+  if (cidrs.length) {
+    return {
+      ok: true,
+      retro: `El 22 solo se abre a ${[...new Set(cidrs.map(({ r }) => r.origen))].join(', ')}, un bloque privado: internet no llega ahí, solo máquinas de tu propia red (por ejemplo, un bastión). Aun así, lo recomendado es no abrir el 22 y entrar con Session Manager (Systems Manager).`
+    };
+  }
+  return { ok: true, retro: 'Ninguna regla abre el 22 a internet. Los servidores están en subredes privadas y, si hace falta entrar, se usa Session Manager: menos puertas abiertas, menos ataques.' };
+}
+
+/**
+ * Por qué está mal abrir el 80 de los servidores a un bloque de IP en lugar de
+ * al grupo del balanceador. Un bloque privado no deja entrar a internet, pero
+ * sí a cualquier recurso de la red. `porIp`: [{ r }] con origen CIDR.
+ */
+export function retroWebPorIp(nombres, porIp, fuente) {
+  const origenes = [...new Set(porIp.map(({ r }) => r.origen))];
+  const publicos = origenes.filter((o) => !cidrPrivado(o));
+  if (publicos.length) return `El grupo de tus servidores (${nombres}) deja entrar el 80 desde ${origenes.join(', ')}. Así cualquiera puede saltarse el balanceador y pegarle directo a un servidor. Cambia esa regla: Source = ${fuente}.`;
+  return `El grupo de tus servidores (${nombres}) deja entrar el 80 desde ${origenes.join(', ')}. Internet no llega por ahí, pero cualquier recurso de ese bloque de la red (no solo el balanceador) puede pegarle directo a un servidor, y si cambian las subredes o las IP la regla queda mal. Cambia esa regla: Source = ${fuente}, que sigue funcionando aunque cambien las IP.`;
+}
+
 /** ¿Los grupos dejan entrar el puerto 80 desde cualquier lugar? */
 export const httpAbierto = (estado, grupoIds, ipCasa) =>
   [ipCasa, ...IPS_INTERNET].every((ip) => gruposPermiten(estado, grupoIds, 'tcp', 80, ip).permite);
@@ -184,20 +232,24 @@ export function checkHttp(estado, inst, ipCasa, id = 'http', puntos = 5) {
  * SSH «solo desde tu IP». `exigirCasa`: además debe existir la regla desde
  * tu IP (si es false, basta con que nadie más pueda entrar).
  */
-export function checkSsh(estado, inst, ipCasa, { id = 'ssh', puntos = 6, exigirCasa = true, texto } = {}) {
+export function checkSsh(estado, inst, ipCasa, { id = 'ssh', puntos = 6, exigirCasa = true, texto, redPropia = null } = {}) {
   const t = texto ?? `SSH (puerto 22) solo desde tu IP ${ipCasa}/32, nunca desde 0.0.0.0/0`;
   if (!inst) return check(id, t, puntos, false, sinInstanciaRetro);
-  const malas = sshDemasiado(estado, inst.gruposSeguridad, ipCasa);
+  // Con `redPropia` (el CIDR de la VPC), el SSH desde dentro de la propia red (un bastión) no cuenta como internet.
+  const todas = sshDemasiado(estado, inst.gruposSeguridad, ipCasa);
+  const internas = redPropia ? todas.filter(({ regla }) => cidrContiene(redPropia, regla.origen)) : [];
+  const malas = todas.filter((m) => !internas.includes(m));
   const casa = sshDesdeCasa(estado, inst.gruposSeguridad, ipCasa);
   if (!malas.length && (casa || !exigirCasa)) {
+    const interna = internas.length ? ` La regla desde ${internas[0].regla.origen} solo deja intentarlo a máquinas de tu propia VPC (por ejemplo, un bastión), no a internet.` : '';
     return check(
       id,
       t,
       puntos,
       true,
-      casa
+      (casa
         ? `SSH solo entra desde ${ipCasa}/32. Es mínimo privilegio en la red: aunque alguien adivine o robe tu llave, no puede ni intentar conectarse si no está en tu casa.`
-        : 'Ya nadie en internet puede intentar entrar por SSH a tu servidor. Si algún día lo necesitas, ábrelo solo para tu IP (My IP) y por el tiempo justo.'
+        : 'Ya nadie en internet puede intentar entrar por SSH a tu servidor. Si algún día lo necesitas, ábrelo solo para tu IP (My IP) y por el tiempo justo.') + interna
     );
   }
   if (malas.length) {

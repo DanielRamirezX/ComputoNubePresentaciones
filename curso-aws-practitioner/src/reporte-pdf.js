@@ -4,6 +4,7 @@
 // Con RETROALIMENTACION=completo incluye además la respuesta correcta de lo
 // que falló; en modo `resumen` dice qué concepto falló, pero no la respuesta.
 
+import { textoCorrecta } from './banco.js';
 import { ANCHO, anchoTexto, crearPdf, partir } from './pdf.js';
 
 const MARGEN = 50;
@@ -17,14 +18,17 @@ const PISTA = [231, 224, 207];
 const AMARILLO = [255, 210, 63];
 const PAPEL = [251, 248, 239];
 
-// Mismo corte que el resto del curso: 60 % es el mínimo aprobatorio.
-const NIVELES = [
-  { minimo: 80, nombre: 'Dominado', color: [14, 159, 110] },
-  { minimo: 60, nombre: 'En desarrollo', color: [196, 132, 0] },
-  { minimo: 0, nombre: 'Por reforzar', color: [215, 38, 61] }
+// Mismo corte que el resto del curso: 60 % es el mínimo aprobatorio. En un
+// banco con ESCALA (el simulacro CLF-C02) el corte es el del examen real: 70 %.
+const VERDE = [14, 159, 110];
+const NARANJA = [196, 132, 0];
+const ROJO = [215, 38, 61];
+const nivelesCon = (aprueba) => [
+  { minimo: 80, nombre: 'Dominado', color: VERDE, leyenda: 'Dominado: 80 % o más' },
+  { minimo: aprueba, nombre: 'En desarrollo', color: NARANJA, leyenda: `En desarrollo: ${aprueba} a 79 %` },
+  { minimo: 0, nombre: 'Por reforzar', color: ROJO, leyenda: `Por reforzar: menos de ${aprueba} %` }
 ];
 
-const nivelDe = (pct) => NIVELES.find((n) => pct >= n.minimo);
 const pct = (parte, total) => (total ? Math.round((parte / total) * 100) : 0);
 
 /**
@@ -36,9 +40,27 @@ const pct = (parte, total) => (total ? Math.round((parte / total) * 100) : 0);
  * @param {object} datos.grupo         { entregas, porPregunta: {id: %}, porTema: {tema: %} }
  * @param {object} datos.repaso        { tema: ['Título de lección', …] }
  * @param {boolean} datos.conRespuestas incluir la respuesta correcta de lo fallado
+ * @param {Array}  [datos.porSesion]   [{ sesion, titulo, aciertos, total, grupo: % }] si el banco usa `sesion`
+ * @param {object} [datos.escala]      { puntaje, maximo, aprueba, aprobado } si el banco tiene ESCALA
  */
-export function reporteDominio({ entrega, preguntas, temas, detalle, grupo, repaso, conRespuestas, materia, etiqueta = 'Práctica final', curso, fecha }) {
+export function reporteDominio({
+  entrega,
+  preguntas,
+  temas,
+  detalle,
+  grupo,
+  repaso,
+  conRespuestas,
+  materia,
+  etiqueta = 'Práctica final',
+  curso,
+  fecha,
+  porSesion = [],
+  escala = null
+}) {
   const pdf = crearPdf({ titulo: `Reporte de ${entrega.nombre} · ${curso}` });
+  const NIVELES = nivelesCon(escala ? Math.round((escala.aprueba / escala.maximo) * 100) : 60);
+  const nivelDe = (valor) => NIVELES.find((n) => valor >= n.minimo);
   let y = 0;
 
   const asegurar = (alto) => {
@@ -94,20 +116,44 @@ export function reporteDominio({ entrega, preguntas, temas, detalle, grupo, repa
   pdf.texto(MARGEN + ANCHO_UTIL - 18 - 45, y + 30, nivelGeneral.nombre, { tamano: 9.5, negrita: true, color: [255, 255, 255], alinear: 'centro' });
   y += 86;
 
-  // ------------------------------------------------------- dominio por tema
-  seccion('Dominio por tema');
+  // El puntaje escalado, como lo reporta AWS (de 100 a 1000). Es una estimación:
+  // AWS no publica cómo convierte los aciertos en puntaje.
+  if (escala) {
+    const color = escala.aprobado ? VERDE : ROJO;
+    pdf.rect(MARGEN, y, ANCHO_UTIL, 46, { relleno: escala.aprobado ? [240, 250, 245] : [253, 236, 239], borde: color, grosor: 1.2 });
+    pdf.texto(MARGEN + 18, y + 20, `Puntaje escalado estimado: ${escala.puntaje} de ${escala.maximo}`, { tamano: 12, negrita: true });
+    pdf.texto(MARGEN + ANCHO_UTIL - 18, y + 20, escala.aprobado ? 'Aprobarías' : 'Todavía no aprobarías', {
+      tamano: 11,
+      negrita: true,
+      color,
+      alinear: 'derecha'
+    });
+    pdf.texto(MARGEN + 18, y + 36, `El examen real se aprueba con ${escala.aprueba}. AWS no publica la conversión exacta: aquí ${Math.round((escala.aprueba / escala.maximo) * 100)} % de aciertos equivale a ${escala.aprueba}.`, {
+      tamano: 8.5,
+      color: GRIS
+    });
+    y += 56;
+  }
+
+  // Una fila con barra: lo suyo, su nivel y la marca del promedio del grupo.
   const xBarra = MARGEN + 190;
   const anchoBarra = 220;
-  for (const tema of temas) {
-    asegurar(40);
-    const delTema = detalle.filter((d) => d.tema === tema);
-    const bien = delTema.filter((d) => d.correcta).length;
-    const suyo = pct(bien, delTema.length);
+  const filaDominio = (titulo, bien, total, delGrupo) => {
+    asegurar(52);
+    const suyo = pct(bien, total);
     const nivel = nivelDe(suyo);
-    const delGrupo = grupo.porTema[tema] ?? 0;
-
-    pdf.texto(MARGEN, y + 12, tema, { tamano: 11, negrita: true });
-    pdf.texto(MARGEN, y + 27, `${bien} de ${delTema.length} · ${suyo} %`, { tamano: 9.5, color: GRIS });
+    // Un título largo («Sesión 13 · Práctica 5 · La universidad migra…») va en
+    // dos renglones más chicos para no pisar la barra.
+    const anchoTitulo = xBarra - MARGEN - 10;
+    let extra = 0;
+    if (anchoTexto(titulo, 11, true) <= anchoTitulo) {
+      pdf.texto(MARGEN, y + 12, titulo, { tamano: 11, negrita: true });
+    } else {
+      const renglones = partir(titulo, anchoTitulo, 9, true);
+      renglones.slice(0, 2).forEach((r, k) => pdf.texto(MARGEN, y + 10 + k * 11, k === 1 && renglones.length > 2 ? `${r}…` : r, { tamano: 9, negrita: true }));
+      extra = 10;
+    }
+    pdf.texto(MARGEN, y + 27 + extra, `${bien} de ${total} · ${suyo} %`, { tamano: 9.5, color: GRIS });
     pdf.rect(xBarra, y + 4, anchoBarra, 14, { relleno: PISTA });
     if (suyo > 0) pdf.rect(xBarra, y + 4, (anchoBarra * suyo) / 100, 14, { relleno: nivel.color });
     // La marca del promedio del grupo
@@ -115,7 +161,14 @@ export function reporteDominio({ entrega, preguntas, temas, detalle, grupo, repa
     pdf.linea(xGrupo, y, xGrupo, y + 22, { grosor: 2 });
     pdf.texto(xBarra, y + 32, `Tu grupo: ${delGrupo} %`, { tamano: 8.5, color: GRIS });
     pdf.texto(MARGEN + ANCHO_UTIL, y + 15, nivel.nombre, { tamano: 10, negrita: true, color: nivel.color, alinear: 'derecha' });
-    y += 42;
+    y += 42 + extra;
+  };
+
+  // ------------------------------------------------------- dominio por tema
+  seccion('Dominio por tema');
+  for (const tema of temas) {
+    const delTema = detalle.filter((d) => d.tema === tema);
+    filaDominio(tema, delTema.filter((d) => d.correcta).length, delTema.length, grupo.porTema[tema] ?? 0);
   }
 
   // Leyenda
@@ -123,13 +176,29 @@ export function reporteDominio({ entrega, preguntas, temas, detalle, grupo, repa
   let x = MARGEN;
   for (const n of NIVELES) {
     pdf.rect(x, y, 10, 10, { relleno: n.color });
-    const texto = n.minimo === 80 ? 'Dominado: 80 % o más' : n.minimo === 60 ? 'En desarrollo: 60 a 79 %' : 'Por reforzar: menos de 60 %';
-    pdf.texto(x + 15, y + 9, texto, { tamano: 8.5, color: GRIS });
-    x += 15 + anchoTexto(texto, 8.5) + 22;
+    pdf.texto(x + 15, y + 9, n.leyenda, { tamano: 8.5, color: GRIS });
+    x += 15 + anchoTexto(n.leyenda, 8.5) + 22;
   }
   pdf.linea(x + 4, y - 1, x + 4, y + 11, { grosor: 2 });
   pdf.texto(x + 10, y + 9, 'promedio del grupo', { tamano: 8.5, color: GRIS });
   y += 22;
+
+  // ------------------------------------------------ por sesión de la Ruta
+  // Solo en los exámenes que mezclan sesiones (el simulacro y las prácticas):
+  // dice qué sesión del curso volver a abrir.
+  if (porSesion.length) {
+    seccion('Por sesión de la Ruta');
+    for (const s of porSesion) filaDominio(s.titulo, s.aciertos, s.total, s.grupo ?? 0);
+    const flojas = porSesion.filter((s) => pct(s.aciertos, s.total) < 80 && s.sesion > 0);
+    const texto = flojas.length
+      ? `Vuelve a abrir en el curso: ${flojas.map((s) => `la sesión ${s.sesion}`).join(', ')}. Sus lecciones y ejercicios siguen abiertos.`
+      : 'Ninguna sesión de la Ruta quedó por debajo de 80 %.';
+    for (const renglon of partir(texto, ANCHO_UTIL, 9.5)) {
+      asegurar(14);
+      pdf.texto(MARGEN, y + 11, renglon, { tamano: 9.5, color: GRIS });
+      y += 14;
+    }
+  }
 
   // --------------------------------------------------- qué conviene repasar
   seccion('Qué te conviene repasar');
@@ -177,7 +246,7 @@ export function reporteDominio({ entrega, preguntas, temas, detalle, grupo, repa
     const pregunta = preguntas.find((p) => p.id === d.id);
     const extra =
       conRespuestas && !d.correcta
-        ? partir(`Respuesta correcta: ${pregunta.opciones[pregunta.correcta]}`, ANCHO_UTIL - 200, 8.5)
+        ? partir(`Respuesta correcta: ${textoCorrecta(pregunta)}`, ANCHO_UTIL - 200, 8.5)
         : [];
     const alto = 20 + extra.length * 11 + (d.tema !== temaActual ? 20 : 0);
     if (y + alto > LIMITE) {
@@ -193,7 +262,7 @@ export function reporteDominio({ entrega, preguntas, temas, detalle, grupo, repa
     }
     const alto2 = 20 + extra.length * 11;
     pdf.rect(MARGEN, y, ANCHO_UTIL, alto2, { relleno: d.correcta ? [240, 250, 245] : [253, 236, 239] });
-    pdf.texto(MARGEN + 8, y + 13.5, pregunta.concepto, { tamano: 10 });
+    pdf.texto(MARGEN + 8, y + 13.5, Array.isArray(pregunta.correcta) ? `${pregunta.concepto} (elige ${pregunta.elige})` : pregunta.concepto, { tamano: 10 });
     extra.forEach((renglon, i) => pdf.texto(MARGEN + 8, y + 26 + i * 11, renglon, { tamano: 8.5, color: GRIS }));
     const marca = d.correcta ? 'Bien' : d.elegida === null ? 'Sin contestar' : 'Repasar';
     pdf.texto(xTu, y + 13.5, marca, { tamano: 9.5, negrita: true, color: d.correcta ? NIVELES[0].color : NIVELES[2].color, alinear: 'centro' });

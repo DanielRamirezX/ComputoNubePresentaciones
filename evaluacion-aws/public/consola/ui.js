@@ -144,6 +144,10 @@ export const CATEGORIAS = {
   redes: { nombre: 'Networking & Content Delivery', color: '#8c4fff', glifo: '<rect x="3" y="3" width="18" height="18" rx="2.5" stroke-dasharray="3.2 2.2"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3v5.8M12 15.2V21"/>' },
   almacenamiento: { nombre: 'Storage', color: '#7aa116', glifo: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6l1.8 12.5c.3 1.6 2.9 2.5 6.2 2.5s5.9-.9 6.2-2.5L20 6"/>' },
   seguridad: { nombre: 'Security, Identity, & Compliance', color: '#dd344c', glifo: '<path d="M12 2.5 19.5 5.5v6c0 4.6-3.2 8.3-7.5 10-4.3-1.7-7.5-5.4-7.5-10v-6z" stroke-linejoin="round"/><circle cx="12" cy="10.5" r="2"/><path d="M12 12.5v3.5"/>' },
+  bases: { nombre: 'Database', color: '#c925d1', glifo: '<ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-13M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/>' },
+  integracion: { nombre: 'Application Integration', color: '#e7157b', glifo: '<rect x="2.5" y="8" width="6" height="8" rx="1"/><rect x="15.5" y="8" width="6" height="8" rx="1"/><path d="M8.5 12h7M12.5 9.5 15 12l-2.5 2.5"/>' },
+  gestion: { nombre: 'Management & Governance', color: '#e7157b', glifo: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>' },
+  costos: { nombre: 'Cloud Financial Management', color: '#3f8624', glifo: '<circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.2c-.5-1-1.6-1.6-2.8-1.6-1.6 0-2.8.9-2.8 2.1 0 2.9 5.8 1.4 5.8 4.4 0 1.2-1.3 2.2-3 2.2-1.3 0-2.5-.6-3-1.7M12 6v1.6M12 16.3V18"/>' },
   general: { nombre: 'General', color: '#5f6b7a', glifo: '<path d="M4 12h16M12 4v16"/>' }
 };
 
@@ -283,6 +287,11 @@ export function abrirDesplegable(ancla, contenido, { ancho, minAncho, alinear = 
       ancla.focus?.();
     }
   };
+  // Si el foco quedó en ningún lado (un repintado quitó el elemento enfocado),
+  // Escape también cierra, como en la consola real.
+  const teclaSinFoco = (e) => {
+    if (e.target === document.body || e.target === document.documentElement) tecla(e);
+  };
   const desplazar = (e) => {
     if (!panel.contains(e.target)) cerrar();
   };
@@ -292,9 +301,11 @@ export function abrirDesplegable(ancla, contenido, { ancho, minAncho, alinear = 
   });
   panel.addEventListener('keydown', tecla);
   ancla.addEventListener('keydown', tecla);
+  document.addEventListener('keydown', teclaSinFoco);
   window.addEventListener('resize', cerrarDesplegable);
 
   function cerrar() {
+    document.removeEventListener('keydown', teclaSinFoco);
     document.removeEventListener('mousedown', fuera, true);
     raiz.removeEventListener('scroll', desplazar, true);
     ancla.removeEventListener('keydown', tecla);
@@ -765,11 +776,17 @@ export function selector(op) {
               tabindex: o.desactivado ? undefined : '-1',
               'aria-selected': sel ? 'true' : 'false',
               'aria-disabled': o.desactivado ? 'true' : undefined,
-              onclick: () => {
+              onclick: (e) => {
                 if (o.desactivado) return;
                 if (multiple) {
+                  // Al repintar, el <li> enfocado se va; el foco pasa al nuevo de la misma
+                  // posición para que Escape y las flechas sigan funcionando.
+                  const li = e.currentTarget;
+                  const conFoco = document.activeElement === li;
+                  const indice = [...listaEl.querySelectorAll('.cx-opcion')].indexOf(li);
                   cambiar(valor.includes(o.valor) ? valor.filter((x) => x !== o.valor) : [...valor, o.valor]);
                   pintarLista();
+                  if (conFoco) listaEl.querySelectorAll('.cx-opcion')[indice]?.focus();
                 } else {
                   cerrarDesplegable();
                   cambiar(o.valor);
@@ -1098,6 +1115,8 @@ export function modal(raiz, op) {
 /**
  * Confirmación de la consola. Si `palabra` viene (por ejemplo 'delete'), el botón
  * solo se habilita al escribirla: «To confirm deletion, type delete in the field».
+ * Si la acción no borra nada, `etiquetaPalabra` cambia ese texto (por ejemplo
+ * «To confirm the settings, enter confirm in the field.» en S3).
  * aceptar() devuelve false para dejar el modal abierto (por ejemplo si hubo error).
  */
 export function confirmar(raiz, op) {
@@ -1117,7 +1136,7 @@ export function confirmar(raiz, op) {
           'div',
           { class: 'cx-confirmar' },
           campo({
-            etiqueta: h('span', {}, 'To confirm deletion, type ', h('i', {}, op.palabra), ' in the field:'),
+            etiqueta: op.etiquetaPalabra ?? h('span', {}, 'To confirm deletion, type ', h('i', {}, op.palabra), ' in the field:'),
             control: entrada({
               placeholder: op.palabra,
               alCambiar: (v) => {
@@ -1214,7 +1233,7 @@ export function tabla(cx, op) {
           }
         });
 
-  function pintarCabeza() {
+  function pintarCabeza(acciones) {
     const total = filasTodas().length;
     const n = elegidas().length;
     const contador = op.contador === false ? null : h('span', { class: 'cx-contador' }, ` (${n && op.seleccion ? `${n}/${total}` : total})`);
@@ -1233,7 +1252,7 @@ export function tabla(cx, op) {
         { class: 'cx-tabla__acciones' },
         op.ultimaActualizacion ? h('span', { class: 'cx-tabla__actualizado' }, 'Last updated', h('br'), 'less than a minute ago') : null,
         op.refrescar !== false && variante !== 'simple' ? botonRefrescar(() => actualizar(true)) : null,
-        op.acciones ? op.acciones(elegidas()) : null
+        acciones
       )
     );
   }
@@ -1304,7 +1323,7 @@ export function tabla(cx, op) {
           'td',
           { class: 'cx-tabla__vacia', colspan: String(op.columnas.length + (op.seleccion ? 1 : 0)) },
           sinNada
-            ? [h('b', {}, op.vacio?.titulo ?? 'No resources'), op.vacio?.texto ? h('div', {}, op.vacio.texto) : null, op.vacio?.accion ?? null]
+            ? [h('b', {}, op.vacio?.titulo ?? 'No resources'), op.vacio?.texto ? h('div', {}, op.vacio.texto) : null, (typeof op.vacio?.accion === 'function' ? op.vacio.accion() : op.vacio?.accion ?? null)]
             : [h('b', {}, 'No matches'), h('div', {}, 'We can’t find a match.'), boton('Clear filter', { alClic: () => limpiarFiltro() })]
         )
       );
@@ -1350,9 +1369,15 @@ export function tabla(cx, op) {
 
   /** Repinta encabezado y filas. Sin `forzar`, solo si algo cambió. */
   function actualizar(forzar = false) {
-    const c = pintarCabeza();
+    // Las acciones pueden ser los MISMOS nodos de cada vez (botones hechos una
+    // sola vez). Para comparar se usa una copia: si se armara la cabecera con los
+    // nodos reales y luego se descartara, los botones se irían con ella.
+    const acciones = op.acciones ? [op.acciones(elegidas())].flat(Infinity) : [];
+    const copia = (lista) => lista.map((n) => (n instanceof Node ? n.cloneNode(true) : n));
+    let c = pintarCabeza(forzar ? acciones : copia(acciones));
     const htmlC = c.outerHTML;
     if (forzar || htmlC !== ultimoCabeza) {
+      if (!forzar) c = pintarCabeza(acciones);
       reemplazar(cabeza, c);
       ultimoCabeza = htmlC;
     }

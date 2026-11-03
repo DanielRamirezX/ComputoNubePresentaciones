@@ -1,6 +1,9 @@
 // Panel del docente de la evaluación: abrir y cerrar cada parte, cómo va
 // cada alumno en vivo, el detalle de uno (respuestas, rúbrica, su cuenta en
 // la consola en solo lectura y su bitácora) y lo que más costó al grupo.
+// El selector agrupa por tipo (laboratorios de sesión, prácticas, final y las
+// de octubre) y trae el «Resumen del simulador»: cómo va el grupo en todos
+// los laboratorios a la vez.
 //
 // Se refresca solo cada 5 segundos. Está pensado para abrirse en el celular
 // o la laptop del docente mientras el grupo trabaja.
@@ -16,6 +19,19 @@ const hora = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-MX', { hour: '
 const decimal = (n) => Number(n).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const porciento = (n) => `${Number(n).toLocaleString('es-MX', { maximumFractionDigits: 1 })} %`;
 const NOMBRE_PARTE = { teoria: 'Parte teórica', practica: 'Parte práctica' };
+// La opción del selector que no es una evaluación: el resumen de todo el simulador.
+const RESUMEN = 'simulador';
+const TIPOS = [
+  ['laboratorio', 'Laboratorios de sesión'],
+  ['practica', 'Prácticas integradoras'],
+  ['final', 'Examen final'],
+  ['evaluacion', 'Evaluaciones de octubre']
+];
+const tipoDe = (ev) => (TIPOS.some(([t]) => t === ev?.tipo) ? ev.tipo : 'evaluacion');
+/** Un laboratorio de sesión o una práctica solo tiene la parte práctica: se le dice «laboratorio». */
+const soloLab = (ev) => tipoDe(ev) !== 'evaluacion' && !ev.partes.includes('teoria');
+const nombreParte = (ev, p) => (p === 'practica' && soloLab(ev) ? 'Laboratorio' : NOMBRE_PARTE[p]);
+const enPreparacion = (ev) => !ev.partes.some((p) => ev.disponible[p]);
 
 function memoria(tipo) {
   try {
@@ -85,17 +101,39 @@ async function entrar(valor) {
   clave = valor;
   escribir('clave-docente', valor);
   evaluaciones = info.evaluaciones;
-  // Sin elección previa, la próxima evaluación por fecha (o la última).
-  if (!evaluaciones.some((e) => e.id === evId)) {
-    const hoy = new Date().toLocaleDateString('en-CA');
-    evId = (evaluaciones.find((e) => e.fecha >= hoy) ?? evaluaciones.at(-1)).id;
-  }
-  $('evaluacion').innerHTML = evaluaciones.map((e) => `<option value="${e.id}">${escapar(e.titulo)} · ${escapar(e.fechaTexto)}</option>`).join('');
+  if (evId !== RESUMEN && !evaluaciones.some((e) => e.id === evId)) evId = porOmision();
+  // El selector, agrupado por tipo; las que siguen en preparación lo dicen.
+  $('evaluacion').innerHTML =
+    `<optgroup label="Simulador AWS"><option value="${RESUMEN}">Resumen del simulador (todos los laboratorios)</option></optgroup>` +
+    TIPOS.map(([tipo, nombre]) => {
+      const delTipo = evaluaciones.filter((e) => tipoDe(e) === tipo);
+      if (!delTipo.length) return '';
+      return `<optgroup label="${escapar(nombre)}">${delTipo
+        .map((e) => `<option value="${e.id}">${escapar(e.titulo)}${tipo === 'evaluacion' ? ` · ${escapar(e.fechaTexto)}` : ''}${enPreparacion(e) ? ' · en preparación' : ''}</option>`)
+        .join('')}</optgroup>`;
+    }).join('');
   $('evaluacion').value = evId;
   $('aviso-clave').hidden = !info.claveInsegura;
   $('pantalla-clave').hidden = true;
   $('pantalla-panel').hidden = false;
   await cargar();
+}
+
+/**
+ * Sin elección previa: lo que tenga una parte abierta y lista, empezando por
+ * lo más reciente del curso (el final, la última práctica abierta…); si no
+ * hay nada abierto, la próxima por fecha, y si no, el resumen del simulador.
+ */
+function porOmision() {
+  const abierta = (e) => e.partes.some((p) => e[p]?.abierta && e.disponible[p]);
+  const nuevas = evaluaciones.filter((e) => tipoDe(e) !== 'evaluacion');
+  const hoy = new Date().toLocaleDateString('en-CA');
+  return (
+    [...nuevas].reverse().find((e) => tipoDe(e) !== 'laboratorio' && abierta(e))?.id ??
+    nuevas.find(abierta)?.id ??
+    evaluaciones.find((e) => e.fecha && e.fecha >= hoy)?.id ??
+    RESUMEN
+  );
 }
 
 $('btn-entrar').addEventListener('click', async () => {
@@ -123,11 +161,13 @@ async function llamar(ruta, opciones = {}) {
 async function cargar() {
   try {
     const pedida = evId;
-    const nuevos = await llamar(`api/docente/resumen?evaluacion=${encodeURIComponent(pedida)}&grupo=${encodeURIComponent($('grupo').value)}`);
+    const grupo = encodeURIComponent($('grupo').value);
+    const nuevos = await llamar(pedida === RESUMEN ? `api/docente/simulador?grupo=${grupo}` : `api/docente/resumen?evaluacion=${encodeURIComponent(pedida)}&grupo=${grupo}`);
     if (pedida !== evId) return; // cambió de evaluación mientras llegaba
     datos = nuevos;
     $('error-panel').textContent = '';
-    pintarTodo();
+    if (pedida === RESUMEN) pintarResumen();
+    else pintarTodo();
   } catch (e) {
     $('error-panel').textContent =
       e.estado === 401 ? 'La clave cambió o expiró. Recarga la página y vuelve a entrar.' : 'Se perdió la conexión con el servidor. Reintento en unos segundos.';
@@ -141,20 +181,33 @@ $('evaluacion').addEventListener('change', () => {
   datos = null;
   ultimoControl = '';
   $('control').innerHTML = '<p class="cargando">Cargando…</p>';
+  $('vista-simulador').innerHTML = '<p class="cargando">Cargando…</p>';
+  mostrarVista();
   cargar();
 });
+
+/** El resumen del simulador y una evaluación usan zonas distintas de la página. */
+function mostrarVista() {
+  $('vista-evaluacion').hidden = evId === RESUMEN;
+  $('vista-simulador').hidden = evId !== RESUMEN;
+}
 
 setInterval(() => {
   if (clave && !$('pantalla-panel').hidden && !document.hidden) cargar();
 }, 5000);
 setInterval(() => {
-  if (datos) $('actualizado').textContent = `Actualizado a las ${new Date(datos.generado).toLocaleTimeString('es-MX')}`;
+  if (datos?.generado) $('actualizado').textContent = `Actualizado a las ${new Date(datos.generado).toLocaleTimeString('es-MX')}`;
 }, 1000);
 
-function pintarTodo() {
+function pintarGrupos() {
   const actual = $('grupo').value;
   $('grupo').innerHTML =
     '<option value="">Todos</option>' + datos.grupos.map((g) => `<option value="${escapar(g)}" ${g === actual ? 'selected' : ''}>${escapar(g)}</option>`).join('');
+}
+
+function pintarTodo() {
+  mostrarVista();
+  pintarGrupos();
   $('titulo-panel').textContent = datos.evaluacion.titulo;
   pintarControl();
   pintarMetricas();
@@ -180,14 +233,19 @@ function pintarControl() {
     const abierta = ev[p].abierta;
     const listo = ev.disponible[p];
     const c = datos.conteos[p];
+    const nombre = nombreParte(ev, p);
     return `
       <div class="control__parte">
-        <h3>${NOMBRE_PARTE[p]}</h3>
-        <button type="button" class="interruptor" role="switch" aria-checked="${abierta}" aria-label="Abrir ${NOMBRE_PARTE[p].toLowerCase()}" data-parte="${p}" data-foco="parte-${p}">
+        <h3>${nombre}</h3>
+        <button type="button" class="interruptor" role="switch" aria-checked="${abierta}" aria-label="Abrir ${nombre.toLowerCase()}" data-parte="${p}" data-foco="parte-${p}">
           <span class="interruptor__riel" aria-hidden="true"></span>
           <span class="interruptor__texto">
-            <strong>${abierta ? `${NOMBRE_PARTE[p]} abierta` : `Abrir ${NOMBRE_PARTE[p].toLowerCase()}`}</strong>
-            <small>${abierta ? 'Los alumnos ya pueden entrar · toca para cerrarla' : 'Cerrada: los alumnos ven el candado'}</small>
+            <strong>${abierta ? `${nombre} ${nombre === 'Laboratorio' ? 'abierto' : 'abierta'}` : `Abrir ${nombre === 'Laboratorio' ? 'el laboratorio' : nombre.toLowerCase()}`}</strong>
+            <small>${
+              nombre === 'Laboratorio'
+                ? abierta ? 'Los alumnos ya pueden entrar · toca para cerrarlo' : 'Cerrado: los alumnos ven el candado'
+                : abierta ? 'Los alumnos ya pueden entrar · toca para cerrarla' : 'Cerrada: los alumnos ven el candado'
+            }</small>
           </span>
         </button>
         ${
@@ -199,7 +257,9 @@ function pintarControl() {
         <p class="sutil" style="margin:0">${
           p === 'teoria'
             ? `${ev.preguntas ?? '—'} preguntas · ${ev.minutosTeoria ?? 45} minutos (el reloj solo avisa)`
-            : 'Laboratorio en la consola simulada · máximo 60 minutos (el reloj solo avisa)'
+            : `Laboratorio en la consola simulada · máximo ${ev.minutosPractica ?? 60} minutos (el reloj solo avisa)${
+                tipoDe(ev) !== 'evaluacion' && ev.reintentos ? ' · después de entregar, el alumno puede repetirlo para practicar (no cambia su entrega)' : ''
+              }`
         }</p>
       </div>`;
   };
@@ -209,6 +269,11 @@ function pintarControl() {
       <h2>${escapar(ev.titulo)}</h2>
       <p>${escapar(ev.fechaTexto)}${ev.partes.length > 1 ? ` · calificación combinada: ${pesos}` : ''}</p>
     </div>
+    ${
+      tipoDe(ev) === 'laboratorio'
+        ? '<p class="control__nota">Laboratorio de sesión: arranca abierto para que cada alumno elija hacerlo aquí o en DataCamp. Aquí ves solo a quienes lo hacen en el simulador.</p>'
+        : ''
+    }
     <div class="control__partes">${ev.partes.map(parte).join('')}</div>
     <div class="control__ajustes">
       <div class="ajuste">
@@ -276,7 +341,7 @@ $('control').addEventListener('click', async (e) => {
     if (!abrir) {
       const c = datos.conteos[p];
       const si = await confirmar({
-        titulo: `¿Cerrar la ${NOMBRE_PARTE[p].toLowerCase()}?`,
+        titulo: `¿Cerrar ${nombreParte(ev, p) === 'Laboratorio' ? 'el laboratorio' : `la ${NOMBRE_PARTE[p].toLowerCase()}`}?`,
         texto: `<p>${c.enCurso ? `<strong>${c.enCurso} alumno${c.enCurso === 1 ? ' la está' : 's la están'} contestando.</strong> ` : ''}Quien no haya entregado ya no podrá hacerlo (su avance se queda guardado). Puedes volver a abrirla después.</p>`,
         si: 'Sí, cerrarla',
         no: 'Dejarla abierta',
@@ -306,8 +371,8 @@ function pintarMetricas() {
     caja(conteos.activos, 'conectados ahora'),
     ev.partes.includes('teoria') ? caja(conteos.teoria.entregaron, 'entregaron la teórica') : '',
     ev.partes.includes('teoria') && s.teoria?.entregadas ? caja(porciento(s.teoria.promedio), 'promedio teórica') : '',
-    caja(conteos.practica.entregaron, 'entregaron la práctica'),
-    s.practica?.entregadas ? caja(porciento(s.practica.promedio), 'promedio práctica') : '',
+    caja(conteos.practica.entregaron, soloLab(ev) ? 'entregaron el laboratorio' : 'entregaron la práctica'),
+    s.practica?.entregadas ? caja(porciento(s.practica.promedio), soloLab(ev) ? 'promedio del laboratorio' : 'promedio práctica') : '',
     ev.partes.length > 1 && s.combinada.entregadas ? caja(decimal(s.combinada.promedio / 10), `combinada promedio (${s.combinada.entregadas})`) : ''
   ].join('');
 }
@@ -340,7 +405,7 @@ function pintarTabla() {
   $('cabeza-tabla').innerHTML = `<tr>
     <th scope="col">Alumno</th><th scope="col">Matrícula</th><th scope="col">Grupo</th>
     ${conTeoria ? '<th scope="col">Teórica</th>' : ''}
-    <th scope="col">Práctica</th>
+    <th scope="col">${soloLab(ev) ? 'Laboratorio' : 'Práctica'}</th>
     ${combinada ? '<th scope="col" class="num">Combinada</th>' : ''}
     <th scope="col">Última señal</th><th scope="col"><span class="solo-lectores">Acciones</span></th>
   </tr>`;
@@ -361,12 +426,73 @@ function pintarTabla() {
         </tr>`
         )
         .join('')
-    : `<tr><td colspan="${columnas}">Todavía no entra nadie. Comparte la liga de la evaluación (en la plataforma: Evaluación AWS).</td></tr>`;
+    : `<tr><td colspan="${columnas}">Todavía no entra nadie. ${
+        tipoDe(ev) === 'evaluacion' ? 'Comparte la liga de la evaluación (en la plataforma: Evaluación AWS).' : 'Los alumnos lo abren desde la plataforma, en «Simulador AWS».'
+      }</td></tr>`;
 }
 
 $('tabla').addEventListener('click', (e) => {
   const id = e.target.closest('[data-ver]')?.dataset.ver;
   if (id) abrirDetalle(id);
+});
+
+/* ------------------------------------------------- resumen del simulador */
+
+/** Todos los laboratorios de sesión, prácticas y el final en una tabla, para ver de un vistazo. */
+function pintarResumen() {
+  mostrarVista();
+  pintarGrupos();
+  $('titulo-panel').textContent = 'Resumen del simulador';
+  const estado = (ev) => {
+    if (enPreparacion(ev)) return '<span class="estado-celda estado-celda--sin">En preparación</span>';
+    const abiertas = ev.partes.filter((p) => ev[p].abierta);
+    if (!abiertas.length) return `<span class="estado-celda estado-celda--sin">${icono('i-candado')} Cerrado</span>`;
+    return `<span class="estado-celda estado-celda--curso">Abierto${ev.partes.length > 1 && abiertas.length < ev.partes.length ? ` (${abiertas.map((p) => nombreParte(ev, p).toLowerCase()).join(', ')})` : ''}</span>`;
+  };
+  const cifras = (c) => (c ? `<b>${c.empezaron}</b> · <b>${c.enCurso}</b> · <b>${c.entregaron}</b>` : '—');
+  const promedio = (ev) => {
+    const lista = ev.partes.map((p) => ev.conteos[p]?.promedio).filter((x) => typeof x === 'number');
+    return lista.length ? ev.partes.map((p) => (typeof ev.conteos[p]?.promedio === 'number' ? porciento(ev.conteos[p].promedio) : '—')).join(' / ') : '—';
+  };
+  const filas = TIPOS.filter(([tipo]) => tipo !== 'evaluacion')
+    .map(([tipo, nombre]) => {
+      const lista = datos.evaluaciones.filter((ev) => tipoDe(ev) === tipo);
+      if (!lista.length) return '';
+      return `<tr class="tabla-panel__grupo"><th colspan="6" scope="colgroup">${escapar(nombre)}</th></tr>${lista
+        .map(
+          (ev) => `<tr>
+            <td><strong>${escapar(ev.titulo)}</strong><br><small class="sutil">${escapar(ev.fechaTexto)}</small></td>
+            <td>${estado(ev)}</td>
+            <td class="num">${ev.activos ? `<span class="punto-activo punto-activo--si"></span>${ev.activos}` : '0'}</td>
+            <td class="num">${ev.partes.map((p) => `${ev.partes.length > 1 ? `<small class="sutil">${p === 'teoria' ? 'teórica' : 'práctica'}</small> ` : ''}${cifras(ev.conteos[p])}`).join('<br>')}</td>
+            <td class="num">${promedio(ev)}</td>
+            <td><button class="boton boton--chico" type="button" data-ir="${escapar(ev.id)}">Ver ${icono('i-flecha')}</button></td>
+          </tr>`
+        )
+        .join('')}`;
+    })
+    .join('');
+  $('vista-simulador').innerHTML = `
+    <div class="metricas">
+      <div class="metrica"><b>${datos.registrados}</b><span>alumnos registrados${$('grupo').value ? ` en ${escapar($('grupo').value)}` : ''}</span></div>
+      <div class="metrica"><b>${datos.evaluaciones.reduce((s, ev) => s + ev.activos, 0)}</b><span>trabajando ahora en un laboratorio</span></div>
+      <div class="metrica"><b>${datos.evaluaciones.reduce((s, ev) => s + (ev.conteos.practica?.entregaron ?? 0), 0)}</b><span>laboratorios entregados</span></div>
+    </div>
+    <h2 class="seccion-panel">Laboratorios, prácticas y examen final <small>empezaron · en curso · entregaron · se actualiza cada 5 segundos</small></h2>
+    <div class="tabla-scroll">
+      <table class="tabla-panel tabla-resumen">
+        <thead><tr><th scope="col">Laboratorio</th><th scope="col">Estado</th><th scope="col" class="num">Ahora</th><th scope="col" class="num">Empezaron · en curso · entregaron</th><th scope="col" class="num">Promedio</th><th scope="col"><span class="solo-lectores">Acciones</span></th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>
+    <p class="sutil">«Ver» abre ese laboratorio: ahí lo abres o lo cierras, ves a cada alumno en vivo y descargas el CSV y el reporte. La consola libre del simulador no se califica ni llega al servidor.</p>`;
+}
+
+$('vista-simulador').addEventListener('click', (e) => {
+  const id = e.target.closest('[data-ir]')?.dataset.ir;
+  if (!id) return;
+  $('evaluacion').value = id;
+  $('evaluacion').dispatchEvent(new Event('change'));
 });
 
 /* ---------------------------------------------------------- estadísticas */

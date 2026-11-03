@@ -116,8 +116,18 @@ export const almacen = {
     guardar();
   },
 
+  /** La sesión que se da hoy en clase (o null): la Ruta abre en ella. */
+  hoy: () => estado.hoy ?? null,
+
+  /** El docente empezó la clase de esta sesión o abrió su examen. */
+  fijarHoy(sesion) {
+    if (estado.hoy === sesion) return;
+    estado.hoy = sesion;
+    guardar();
+  },
+
   /** Da de alta al alumno o actualiza sus datos y su avance. */
-  registrar({ id, nombre, matricula, grupo }, completados, pasos) {
+  registrar({ id, nombre, matricula, grupo }, completados, pasos, lugares) {
     let alumno = estado.alumnos[id];
     if (!alumno) {
       if (Object.keys(estado.alumnos).length >= MAX_ALUMNOS) {
@@ -126,11 +136,25 @@ export const almacen = {
       alumno = estado.alumnos[id] = { id, alta: new Date().toISOString(), completados: {} };
     }
     Object.assign(alumno, { nombre, matricula, grupo });
+    // Lo que manda cada navegador se suma a lo que ya había, nunca lo reemplaza:
+    // si la alumna abre la Ruta en otro navegador con el mismo perfil (aunque
+    // sea solo para leer), ese navegador manda {} y no debe borrarle nada.
+    // Nada en la Ruta deshace una actividad, así que el máximo es lo correcto.
     if (completados) {
-      alumno.completados = completados;
+      const antes = { ...alumno.completados };
+      for (const [id, xp] of Object.entries(completados)) antes[id] = Math.max(antes[id] ?? 0, xp);
+      alumno.completados = antes;
       alumno.ultimoAvance = new Date().toISOString();
     }
-    if (pasos) alumno.pasos = pasos;
+    if (pasos) {
+      const antes = { ...alumno.pasos };
+      for (const [id, n] of Object.entries(pasos)) antes[id] = Math.max(antes[id] ?? 0, n);
+      alumno.pasos = antes;
+    }
+    // Dónde hace cada laboratorio: { 's6-lab-escalar': 'simulador' }. Un
+    // registro de antes no lo trae: se trata como {}. La elección que llega
+    // gana (así se puede cambiar de opinión); la que no llega se conserva.
+    if (lugares) alumno.lugares = { ...alumno.lugares, ...lugares };
     guardar();
     return alumno;
   },
@@ -158,6 +182,7 @@ export const almacen = {
           ids: [a.id],
           completados: { ...a.completados },
           pasos: { ...a.pasos },
+          lugares: { ...a.lugares },
           inicioPracticas: { ...a.inicioPracticas }
         });
         continue;
@@ -167,9 +192,13 @@ export const almacen = {
       for (const [id, xp] of Object.entries(a.completados)) {
         previo.completados[id] = Math.max(previo.completados[id] ?? 0, xp);
       }
-      // El nombre que se queda es el del registro que se movió más recientemente.
+      // El nombre y la elección de dónde hacer cada laboratorio que se quedan
+      // son los del registro que se movió más recientemente.
       if ((a.ultimoAvance ?? a.alta) > (previo.ultimoAvance ?? previo.alta)) {
         Object.assign(previo, { nombre: a.nombre, matricula: a.matricula, ultimoAvance: a.ultimoAvance });
+        previo.lugares = { ...previo.lugares, ...a.lugares };
+      } else {
+        previo.lugares = { ...a.lugares, ...previo.lugares };
       }
       if (a.alta < previo.alta) previo.alta = a.alta;
       for (const [n, inicio] of Object.entries(a.inicioPracticas ?? {})) {

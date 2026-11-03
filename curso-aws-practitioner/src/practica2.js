@@ -63,7 +63,7 @@ export const PREGUNTAS = [
     tema: 'Identidades de IAM',
     texto: 'Una aplicación en EC2 necesita leer archivos de un bucket de S3. ¿Cuál es la forma más segura de darle acceso?',
     opciones: [
-      'Escribir llaves de acceso de un usuario en el código',
+      'Escribir en el código de la aplicación las llaves de acceso de un usuario IAM',
       'Guardar la contraseña del usuario raíz en la instancia',
       'Hacer público el bucket para que cualquiera lo lea',
       'Asignarle a la instancia un rol de IAM con permiso de lectura'
@@ -192,10 +192,10 @@ export const PREGUNTAS = [
       'AWS Certificate Manager',
       'AWS Secrets Manager',
       'Amazon GuardDuty',
-      'AWS Artifact'
+      'AWS Systems Manager Parameter Store'
     ],
     correcta: 1,
-    explicacion: 'Secrets Manager guarda secretos cifrados y puede rotarlos automáticamente. Certificate Manager es para certificados SSL/TLS.'
+    explicacion: 'Secrets Manager guarda secretos cifrados y puede rotarlos automáticamente. Parameter Store también guarda valores cifrados, pero no los rota solo; Certificate Manager es para certificados SSL/TLS y GuardDuty detecta amenazas.'
   },
   {
     id: 'p12',
@@ -232,7 +232,7 @@ export const PREGUNTAS = [
     texto: 'Hay que bloquear una dirección IP atacante para TODA una subred. ¿Qué se usa?',
     opciones: [
       'Una regla de denegación en la Network ACL de la subred',
-      'Una regla de denegación en el grupo de seguridad',
+      'Una regla de denegación en el grupo de seguridad de cada instancia',
       'Una política de IAM con Deny',
       'Un rol de IAM con permisos limitados'
     ],
@@ -251,7 +251,7 @@ export const PREGUNTAS = [
       'AWS WAF'
     ],
     correcta: 3,
-    explicacion: 'AWS WAF es un firewall de aplicaciones web: revisa las peticiones HTTP y bloquea patrones como inyección SQL o XSS.'
+    explicacion: 'AWS WAF es un firewall de aplicaciones web: revisa las peticiones HTTP y bloquea patrones como inyección SQL o XSS. Shield Standard frena ataques DDoS de volumen, no lee el contenido de las peticiones; una NACL solo ve direcciones y puertos.'
   },
 
   /* ------------------------------------------- repaso de clases anteriores */

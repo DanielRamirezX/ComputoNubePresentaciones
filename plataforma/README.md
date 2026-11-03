@@ -100,6 +100,20 @@ Un módulo con `seccion: 'Recursos didácticos'` sale en el índice bajo ese tí
 después de las clases. Ahí van los apoyos sueltos (animaciones, simuladores) que
 no son una clase completa.
 
+Un módulo puede verse como **varias tarjetas** con `accesos`: cada una entra a
+una parte distinta del módulo (`ruta: '#/simulacro-1'`) y puede ir en su propia
+sección. Así la evaluación muestra el **Simulador AWS** en su sección
+(«Simulador AWS») y los simulacros en «Evaluación»:
+
+```js
+accesos: [
+  { titulo: 'Simulador AWS', resumen: '…', ruta: '#/simulador', seccion: 'Simulador AWS' },
+  { titulo: 'Simulacro 1', etiqueta: 'Martes 20 de octubre', resumen: '…', ruta: '#/simulacro-1' }  // sin seccion: la del módulo
+]
+```
+
+Las secciones salen en el orden en que aparecen por primera vez en `curso.js`.
+
 No hay que reiniciar para cambiar contenido de una presentación, pero **sí** para
 que `curso.js` se vuelva a leer.
 

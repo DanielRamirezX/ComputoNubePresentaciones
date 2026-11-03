@@ -77,7 +77,7 @@ export const PREGUNTAS = [
     texto: 'Una empresa tiene licencias de software que se cobran por servidor físico y quiere usarlas en AWS. ¿Qué opción de EC2 le sirve?',
     opciones: [
       'Instancias Spot',
-      'AWS Budgets',
+      'Instancias On-Demand',
       'Un Compute Savings Plan',
       'Dedicated Hosts'
     ],
@@ -163,7 +163,7 @@ export const PREGUNTAS = [
       'AWS Pricing Calculator',
       'AWS Cost Anomaly Detection',
       'AWS Control Tower',
-      'Amazon CloudFront'
+      'AWS Budgets'
     ],
     correcta: 1,
     explicacion: 'Cost Anomaly Detection aprende el patrón normal de gasto y avisa cuando algo se sale de lo esperado. Budgets, en cambio, compara contra un límite que tú pones.'
@@ -188,13 +188,13 @@ export const PREGUNTAS = [
     tema: 'Cuentas y gobierno',
     texto: 'Una empresa quiere impedir que las cuentas de pruebas usen servicios fuera de una lista aprobada, sin importar los permisos de IAM de cada usuario. ¿Qué usa?',
     opciones: [
-      'Un presupuesto de AWS Budgets',
-      'Un chequeo de Trusted Advisor',
-      'Una estimación compartida',
-      'Una política de control de servicios (SCP) en AWS Organizations'
+      'Una alerta de AWS Budgets por servicio',
+      'Un chequeo de AWS Trusted Advisor',
+      'Una política de IAM en cada usuario',
+      'Una SCP en la OU de pruebas'
     ],
     correcta: 3,
-    explicacion: 'Una SCP pone el límite máximo de lo que pueden hacer las cuentas de una unidad organizativa. Lo que la SCP niega, ningún permiso de IAM lo permite.'
+    explicacion: 'Una política de control de servicios (SCP) pone el límite máximo de lo que pueden hacer las cuentas de una unidad organizativa. Lo que la SCP niega, ningún permiso de IAM lo permite (las SCP no aplican a la cuenta de administración). Una política de IAM por usuario depende justo de esos permisos; Budgets y Trusted Advisor avisan, pero no bloquean.'
   },
   {
     id: 'p13',
@@ -205,7 +205,7 @@ export const PREGUNTAS = [
       'AWS Cost Explorer',
       'AWS Marketplace',
       'AWS Control Tower',
-      'Amazon CloudWatch'
+      'AWS Trusted Advisor'
     ],
     correcta: 2,
     explicacion: 'Control Tower automatiza la creación de un entorno multicuenta con Organizations, controles y registros ya configurados.'
@@ -218,11 +218,11 @@ export const PREGUNTAS = [
     opciones: [
       'Basic Support',
       'Enterprise Support',
-      'Un plan que se elige al pagar la primera factura',
+      'Business Support+',
       'Ninguno: todo soporte tiene costo'
     ],
     correcta: 0,
-    explicacion: 'Basic Support es gratuito: incluye atención de facturación y cuotas, AWS Health Dashboard y algunos chequeos de Trusted Advisor.'
+    explicacion: 'Basic Support es gratuito: incluye atención de facturación y cuotas, AWS Health Dashboard y algunos chequeos de Trusted Advisor. Business Support+ (desde 29 USD al mes) y Enterprise Support (desde 5,000 USD al mes) se pagan.'
   },
   {
     id: 'p15',
@@ -232,11 +232,11 @@ export const PREGUNTAS = [
     opciones: [
       'Basic Support',
       'Enterprise Support',
-      'Con cualquier plan, si lo pide por correo',
+      'Business Support+',
       'Solo comprándolo en AWS Marketplace'
     ],
     correcta: 1,
-    explicacion: 'El Technical Account Manager es parte de Enterprise Support (y de los planes superiores): una persona de AWS que conoce tu arquitectura y te guía.'
+    explicacion: 'El Technical Account Manager designado es parte de Enterprise Support (y de Unified Operations): una persona de AWS que conoce tu arquitectura y te guía. Business Support+ da expertos 24/7, pero no un TAM; Marketplace vende software de terceros.'
   },
   {
     id: 'p16',
@@ -297,7 +297,7 @@ export const PREGUNTAS = [
   {
     id: 'p20',
     concepto: 'AWS Marketplace',
-    tema: 'Buenas prácticas',
+    tema: 'Soporte y asesoría',
     texto: 'Una empresa quiere comprar un firewall de otro fabricante, listo para correr en AWS y cobrado en su misma factura. ¿Dónde lo busca?',
     opciones: [
       'AWS Trusted Advisor',

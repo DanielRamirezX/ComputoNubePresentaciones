@@ -11,11 +11,13 @@
 //   'enlace'   — algo que vive fuera (una liga). Solo aparece en el índice.
 //
 // `seccion` (opcional) agrupa el módulo bajo un título aparte en el índice,
-// después de las clases. Hoy existen dos: «Evaluación» (con su propio tono) y
-// «Recursos didácticos».
+// después de las clases, en el orden en que aparece por primera vez. Hoy
+// existen tres: «Simulador AWS» y «Evaluación» (con su propio tono, azul
+// marino con naranja) y «Recursos didácticos».
 //
 // `accesos` (opcional) muestra un módulo como varias tarjetas, cada una con su
-// `ruta` dentro del módulo (por ejemplo '#/simulacro-1').
+// `ruta` dentro del módulo (por ejemplo '#/simulacro-1'). Un acceso puede
+// declarar su propia `seccion`; si no, va en la del módulo.
 // ---------------------------------------------------------------------------
 
 export const CURSO = {
@@ -59,7 +61,7 @@ export const CURSO = {
     {
       id: 'aws-practitioner',
       titulo: 'Ruta AWS Cloud Practitioner',
-      resumen: 'Guía paso a paso en el sandbox de AWS hacia la certificación. Sesión 1: tu primera máquina en EC2. Sesión 2: identidad y seguridad. Sesión 3: redes. Sesión 4: almacenamiento. Sesión 5: bases de datos. Sesión 6: escalar y automatizar. Sesión 7: costos, soporte y buenas prácticas.',
+      resumen: 'Guía paso a paso en el sandbox de AWS hacia la certificación. Sesión 1: tu primera máquina en EC2. Sesión 2: identidad y seguridad. Sesión 3: redes. Sesión 4: almacenamiento. Sesión 5: bases de datos. Sesión 6: escalar y automatizar. Sesión 7: costos, soporte y buenas prácticas. Sesión 8: simulacro de certificación. Sesiones 9 a 13: prácticas con casos reales en el simulador de AWS.',
       etiqueta: 'Laboratorio',
       tipo: 'express',
       ruta: '../curso-aws-practitioner'
@@ -72,6 +74,14 @@ export const CURSO = {
       ruta: '../evaluacion-aws',
       seccion: 'Evaluación',
       accesos: [
+        {
+          // El simulador va primero: su sección sale antes que «Evaluación».
+          titulo: 'Simulador AWS',
+          etiqueta: 'Práctica libre',
+          resumen: 'Tu propia cuenta de AWS para practicar sin miedo: aquí sí puedes crear bases de datos, balanceadores, alarmas y todo lo que en DataCamp sale negado. Trae ideas de retos y los laboratorios de las sesiones 5, 6 y 7, que se califican solos.',
+          ruta: '#/simulador',
+          seccion: 'Simulador AWS'
+        },
         {
           titulo: 'Simulacro 1',
           etiqueta: 'Martes 20 de octubre',

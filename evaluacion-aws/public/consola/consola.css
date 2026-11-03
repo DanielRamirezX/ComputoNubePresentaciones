@@ -3,6 +3,18 @@
    Todo vive bajo .cx para no chocar con la página que la contiene.
    --------------------------------------------------------------------------- */
 
+/* Los servicios que llegaron después: cada uno en su archivo. */
+@import url('servicios/css/escalar.css');
+@import url('servicios/css/balanceo.css');
+@import url('servicios/css/cloudwatch.css');
+@import url('servicios/css/mensajeria.css');
+@import url('servicios/css/rds.css');
+@import url('servicios/css/dynamodb.css');
+@import url('servicios/css/costos.css');
+@import url('servicios/css/gobierno.css');
+@import url('servicios/css/borde.css');
+@import url('servicios/css/secretos.css');
+
 .cx {
   /* La consola vive dentro del laboratorio (junto al panel de instrucciones):
      sus ajustes responden al ancho de la consola, no al de la ventana. */
@@ -712,7 +724,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 50;
+  z-index: 70; /* por encima de .cx-modales (60): un selector dentro de un modal abre su lista aquí */
 }
 
 .cx-desplegable {

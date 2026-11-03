@@ -1,14 +1,26 @@
-// Dónde repasar cada tema: las lecciones y los laboratorios de las sesiones 1
-// a 4 de la Ruta AWS (curso-aws-practitioner), con sus láminas o pasos en
-// orden. Cada pregunta teórica (campo `repaso`) y cada punto de las rúbricas
-// (`REPASO` de cada rúbrica) apunta aquí con una referencia «lección/número»,
-// por ejemplo 's3-vpc/3'; la retroalimentación la muestra como enlace a la Ruta.
-// `npm run verificar` comprueba que este catálogo siga igual que la Ruta.
+// Dónde repasar cada tema: las lecciones y los laboratorios de la Ruta AWS
+// (curso-aws-practitioner), con sus láminas o pasos en orden. Cada pregunta
+// teórica (campo `repaso`) y cada punto de las rúbricas (`REPASO` de cada
+// rúbrica) apunta aquí con una referencia «lección/número», por ejemplo
+// 's3-vpc/3'; la retroalimentación la muestra como enlace a la Ruta.
+//
+// El catálogo (LECCIONES) se arma solo al arrancar, leyendo SESIONES de
+// ../curso-aws-practitioner/public/contenido.js: así cubre todas las sesiones
+// y nunca se desincroniza. Si la Ruta no está junto a este módulo (o no se
+// pudo leer), se usan las ANCLAS.
+//
+// Las ANCLAS son las láminas de las sesiones 1 a 4 tal como estaban cuando se
+// escribieron las referencias de octubre (simulacros y bimestral). Si después
+// alguien inserta o mueve una lámina en la Ruta, 's3-vpc/3' sigue apuntando a
+// la misma lámina (se busca por su título), no a la que quedó en el lugar 3.
+// `npm run verificar` avisa si una lámina anclada desaparece de la Ruta.
 
 /** Dónde vive la Ruta AWS, relativo a /m/evaluacion/. */
 export const RUTA_URL = '../aws-practitioner/';
 
-export const LECCIONES = {
+// Las sesiones 1 a 4 como estaban en octubre (no se editan: son la referencia
+// de los números de lámina que usan las rúbricas y los bancos de octubre).
+export const ANCLAS = {
   "s1-ruta": { sesion: 1, titulo: "Tu ruta hacia la certificación", partes: ["La meta: AWS Certified Cloud Practitioner","Los cuatro temas del examen","Tu sandbox: un AWS de verdad, con reloj"] },
   "s1-global": { sesion: 1, titulo: "La infraestructura global de AWS", partes: ["Regiones, zonas y ubicaciones de borde","¿Cómo se elige una región?"] },
   "s1-ec2": { sesion: 1, titulo: "Amazon EC2 en seis piezas", partes: ["Rentar una computadora tiene seis piezas","Cómo leer un tipo de instancia","La vida de una instancia"] },
@@ -34,6 +46,50 @@ export const LECCIONES = {
   "s4-repaso": { sesion: 4, titulo: "Lo que el examen te va a preguntar", partes: ["La sesión 4 en una hoja"] }
 };
 
+/** El texto de un título de la Ruta, sin etiquetas ni espacios de más (igual que verificar.js). */
+export const limpioRuta = (t) => String(t ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+
+/**
+ * El catálogo a partir de SESIONES de la Ruta: toda actividad con láminas
+ * (lección) o pasos (laboratorio), con su sesión, su título y los títulos de
+ * sus láminas o pasos en orden.
+ */
+export function catalogoDe(sesiones) {
+  const catalogo = {};
+  for (const s of sesiones ?? []) {
+    for (const c of s.capitulos ?? []) {
+      for (const a of c.actividades ?? []) {
+        const partes = a.laminas ?? a.pasos;
+        if (!a.id || !Array.isArray(partes)) continue;
+        catalogo[a.id] = { sesion: s.numero, titulo: limpioRuta(a.titulo), partes: partes.map((x) => limpioRuta(x.titulo)) };
+      }
+    }
+  }
+  return catalogo;
+}
+
+const CONTENIDO_RUTA = new URL('../../curso-aws-practitioner/public/contenido.js', import.meta.url);
+
+let deRuta = null;
+try {
+  const { SESIONES } = await import(CONTENIDO_RUTA.href);
+  deRuta = catalogoDe(SESIONES);
+  if (!Object.keys(deRuta).length) deRuta = null;
+} catch (e) {
+  // Sin la Ruta, la retro sigue funcionando con las anclas (sesiones 1 a 4).
+  if (e?.code !== 'ERR_MODULE_NOT_FOUND') console.error('No pude leer el catálogo de la Ruta AWS; uso las anclas de octubre:', e?.message ?? e);
+}
+
+/** De dónde salió LECCIONES: 'ruta' (derivado de contenido.js) o 'anclas'. */
+export const ORIGEN_CATALOGO = deRuta ? 'ruta' : 'anclas';
+
+/**
+ * Todas las lecciones y laboratorios de la Ruta. Una lección anclada que la
+ * Ruta ya no tenga se queda (con sus anclas) para que la retro no se pierda;
+ * verificar lo marca como problema.
+ */
+export const LECCIONES = deRuta ? { ...ANCLAS, ...deRuta } : ANCLAS;
+
 /**
  * 's3-vpc/3' → { ref, sesion, leccion, parte, ruta }. Sin número apunta a la
  * lección completa. Devuelve null si la referencia no existe.
@@ -42,8 +98,15 @@ export function resolverRepaso(ref) {
   const [id, n] = String(ref ?? '').split('/');
   const l = LECCIONES[id];
   if (!l) return null;
-  const i = n === undefined ? 0 : Number(n);
-  if (!Number.isInteger(i) || i < 0 || i > l.partes.length) return null;
+  const ancla = ANCLAS[id];
+  let i = n === undefined ? 0 : Number(n);
+  // Las referencias de octubre se escribieron contra las anclas: su número se
+  // valida ahí y se traduce a la lámina con el mismo título en la Ruta de hoy.
+  if (!Number.isInteger(i) || i < 0 || i > (ancla ?? l).partes.length) return null;
+  if (i && ancla && l !== ancla) {
+    // Si la lámina ya no existe, mejor la lección completa que otra lámina.
+    i = l.partes.indexOf(ancla.partes[i - 1]) + 1;
+  }
   return { ref: String(ref), sesion: l.sesion, leccion: l.titulo, parte: i ? l.partes[i - 1] : '', ruta: i ? `${id}/${i}` : id };
 }
 

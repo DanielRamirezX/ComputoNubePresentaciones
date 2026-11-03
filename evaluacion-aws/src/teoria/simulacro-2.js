@@ -126,7 +126,7 @@ export const PREGUNTAS = [
       },
       {
         texto: 'Con la contraseña del usuario raíz, quitándole el MFA unas semanas',
-        retro: 'El usuario raíz puede todo y nadie lo puede limitar; jamás se comparte ni se le quita el MFA. El auditor solo necesita leer.'
+        retro: 'El usuario raíz puede todo y ninguna política de IAM lo limita (solo una SCP de la organización); jamás se comparte ni se le quita el MFA. El auditor solo necesita leer.'
       },
       {
         texto: 'Con el par de llaves (.pem) de las instancias EC2',

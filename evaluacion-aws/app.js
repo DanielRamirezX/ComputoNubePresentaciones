@@ -8,7 +8,7 @@ import { MAX_CARACTERES, MAX_PREGUNTAS, hayLlave, responder } from './src/asiste
 import { calificarCuenta, conRepaso, datosDe, hayRubrica } from './src/calificar.js';
 import { repasosDe } from './src/repaso.js';
 import { reporteHtml } from './src/reporte.js';
-import { EVALUACIONES, RETROS, combinada, evaluacionDe, tieneParte } from './src/evaluaciones.js';
+import { EVALUACIONES, RETROS, TIPOS, combinada, evaluacionDe, tieneParte, tipoDe } from './src/evaluaciones.js';
 import { pct, resumen, resumirPractica, resumirTeoria } from './src/estadisticas.js';
 import { crearFirmador } from './src/firma.js';
 import { crearEnrutador, enviarDescarga, enviarJson, fallo, leerJson, servirArchivos } from './src/servidor.js';
@@ -95,6 +95,10 @@ export function crearApp() {
 
   const bancoDe = (ev) => (ev.teoria ? TEORIA.get(ev.teoria) ?? null : null);
   const disponible = (ev, parte) => (parte === 'teoria' ? Boolean(bancoDe(ev)) : hayRubrica(ev.lab));
+  // Los minutos que verá el alumno: los del banco y los del laboratorio; si
+  // todavía no existen, el tope de su tipo (SIMULADOR.md §6).
+  const minutosTeoria = (ev) => (ev.teoria ? Number(bancoDe(ev)?.MINUTOS) || TIPOS[tipoDe(ev)].minutosTeoria || 45 : null);
+  const minutosPractica = (ev) => (ev.lab ? Number(LABS.get(ev.lab)?.minutos) || TIPOS[tipoDe(ev)].minutos : null);
 
   /** La cuenta de la consola que manda el navegador: un objeto y no más grande de la cuenta. */
   function cuentaDe(cuerpo) {
@@ -260,6 +264,36 @@ export function crearApp() {
 
   const porcentajeEntrega = (parte, e) => (parte === 'teoria' ? pct(e.aciertos, e.total) : pct(e.obtenidos, e.total));
 
+  // Cuántas tareas lleva cada quien según su última copia. Calificar en cada
+  // refresco del panel (cada 5 s) sería desperdicio: se recuerda por copia.
+  const avances = new Map();
+  function avanceDe(ev, copia) {
+    if (!copia || !hayRubrica(ev.lab)) return null;
+    const k = `${ev.id}:${copia.alumnoId}`;
+    const previo = avances.get(k);
+    if (previo?.hora === copia.hora) return previo.avance;
+    let avance;
+    try {
+      const { resultado } = calificarCuenta(ev.lab, copia.estado, copia.identidad);
+      avance = {
+        obtenidos: resultado.obtenidos,
+        total: resultado.total,
+        // Las tareas bono (opcionales) no cuentan en «X de Y tareas».
+        tareasLogradas: resultado.tareas.filter((t) => !t.bono && t.puntos > 0 && t.obtenidos >= t.puntos).length,
+        tareasTotal: resultado.tareas.filter((t) => !t.bono).length
+      };
+    } catch {
+      avance = { error: true };
+    }
+    avances.set(k, { hora: copia.hora, avance });
+    return avance;
+  }
+
+  // En los laboratorios de sesión y las prácticas, el alumno ve en sus
+  // tarjetas «vas en X de Y tareas» (y la Ruta también, por api/estado). Solo
+  // si el docente deja «Revisar mi avance»: en un examen eso no se adelanta.
+  const conAvance = (ev) => ['laboratorio', 'practica'].includes(tipoDe(ev));
+
   /** Cómo ve el alumno cada evaluación en su inicio. */
   function estadoPublico(ev, alumno) {
     const cfg = almacen.config(ev.id);
@@ -269,10 +303,16 @@ export function crearApp() {
       const entrega = alumno && almacen.entregaDe(alumno, ev.id, p);
       const inicio = alumno && almacen.inicio(alumno, ev.id, p);
       if (entrega) porcentajes[p] = porcentajeEntrega(p, entrega);
+      let avance = null;
+      if (p === 'practica' && inicio && !entrega && cfg.autorrevision && conAvance(ev)) {
+        const a = avanceDe(ev, almacen.copiaDe(alumno, ev.id));
+        if (a && !a.error) avance = a;
+      }
       return {
         estado: !disponible(ev, p) ? 'preparacion' : cfg[p].abierta ? 'abierta' : 'cerrada',
         empezada: Boolean(inicio),
         inicio: inicio?.hora ?? null,
+        ...(p === 'practica' && conAvance(ev) ? { avance } : {}),
         entrega: entrega
           ? {
               id: entrega.id,
@@ -286,8 +326,11 @@ export function crearApp() {
       };
     };
     const partes = { teoria: parte('teoria'), practica: parte('practica') };
+    const banco = bancoDe(ev);
     return {
       id: ev.id,
+      tipo: tipoDe(ev),
+      sesion: ev.sesion ?? null,
       titulo: ev.titulo,
       fecha: ev.fecha,
       fechaTexto: ev.fechaTexto,
@@ -298,6 +341,9 @@ export function crearApp() {
       autorrevision: cfg.autorrevision,
       asistente: asistenteActivo(ev, cfg),
       reintentos: Boolean(ev.reintentos),
+      // Para las instrucciones: cuántos casos, preguntas y minutos (sin contenido).
+      minutos: { teoria: minutosTeoria(ev), practica: minutosPractica(ev) },
+      teorica: banco ? { casos: banco.CASOS?.length ?? 0, preguntas: banco.PREGUNTAS?.length ?? 0 } : null,
       partes,
       combinada: combinada(ev, porcentajes)
     };
@@ -498,7 +544,7 @@ export function crearApp() {
     pensando.add(quien);
     let respuesta;
     try {
-      respuesta = await responder({ lab, datos, resultado, bitacora: avanzada.bitacora, historial, pregunta });
+      respuesta = await responder({ tipo: tipoDe(ev), lab, datos, resultado, bitacora: avanzada.bitacora, historial, pregunta });
     } finally {
       pensando.delete(quien);
     }
@@ -649,6 +695,8 @@ export function crearApp() {
   /** La configuración de una evaluación tal como la ve el panel. */
   const configPanel = (ev) => ({
     id: ev.id,
+    tipo: tipoDe(ev),
+    sesion: ev.sesion ?? null,
     titulo: ev.titulo,
     fecha: ev.fecha,
     fechaTexto: ev.fechaTexto,
@@ -658,6 +706,8 @@ export function crearApp() {
     partes: ['teoria', 'practica'].filter((p) => tieneParte(ev, p)),
     disponible: { teoria: tieneParte(ev, 'teoria') && disponible(ev, 'teoria'), practica: disponible(ev, 'practica') },
     minutosTeoria: Number(bancoDe(ev)?.MINUTOS) || null,
+    minutosPractica: minutosPractica(ev),
+    reintentos: Boolean(ev.reintentos),
     preguntas: bancoDe(ev)?.PREGUNTAS?.length ?? null,
     // Sin ANTHROPIC_API_KEY en el servidor, el asistente no funciona aunque esté prendido.
     asistenteListo: hayLlave(),
@@ -670,31 +720,6 @@ export function crearApp() {
     const viva = almacen.conversacionDe(a, ev.id);
     return viva.length ? viva : Array.isArray(entrega?.asistente) ? entrega.asistente : [];
   };
-
-  // Cuántas tareas lleva cada quien según su última copia. Calificar en cada
-  // refresco del panel (cada 5 s) sería desperdicio: se recuerda por copia.
-  const avances = new Map();
-  function avanceDe(ev, copia) {
-    if (!copia || !hayRubrica(ev.lab)) return null;
-    const k = `${ev.id}:${copia.alumnoId}`;
-    const previo = avances.get(k);
-    if (previo?.hora === copia.hora) return previo.avance;
-    let avance;
-    try {
-      const { resultado } = calificarCuenta(ev.lab, copia.estado, copia.identidad);
-      avance = {
-        obtenidos: resultado.obtenidos,
-        total: resultado.total,
-        // Las tareas bono (opcionales) no cuentan en «X de Y tareas».
-        tareasLogradas: resultado.tareas.filter((t) => !t.bono && t.puntos > 0 && t.obtenidos >= t.puntos).length,
-        tareasTotal: resultado.tareas.filter((t) => !t.bono).length
-      };
-    } catch {
-      avance = { error: true };
-    }
-    avances.set(k, { hora: copia.hora, avance });
-    return avance;
-  }
 
   /** Una fila de la tabla del panel: cómo va el alumno en cada parte. */
   function filaAlumno(ev, a, ahora) {
@@ -802,6 +827,46 @@ export function crearApp() {
         },
         generado: new Date(ahora).toISOString()
       });
+    })
+  );
+
+  // El resumen del simulador: cómo va el grupo en cada laboratorio de sesión,
+  // práctica y el final, sin calificar a nadie (solo cuenta inicios y
+  // entregas). El panel lo pide cuando el docente elige «Resumen del simulador».
+  app.get(
+    '/api/docente/simulador',
+    soloDocente((req, res, { query }) => {
+      const grupo = grupoPedido(query);
+      const alumnos = almacen.alumnos(grupo);
+      const ahora = Date.now();
+      const evaluaciones = EVALUACIONES.filter((ev) => tipoDe(ev) !== 'evaluacion').map((ev) => {
+        const parte = (p) => {
+          if (!tieneParte(ev, p)) return null;
+          let enCurso = 0;
+          let entregaron = 0;
+          for (const a of alumnos) {
+            if (almacen.entregaDe(a, ev.id, p)) entregaron++;
+            else if (almacen.inicio(a, ev.id, p)) enCurso++;
+          }
+          const entregas = almacen.entregas(grupo, ev.id, p);
+          const porcentajes = entregas.map((e) => porcentajeEntrega(p, e));
+          return {
+            empezaron: enCurso + entregaron,
+            enCurso,
+            entregaron,
+            promedio: porcentajes.length ? Math.round((porcentajes.reduce((x, y) => x + y, 0) / porcentajes.length) * 10) / 10 : null
+          };
+        };
+        // Conectados ahora con el laboratorio abierto: su copia llegó hace poco.
+        const activos = tieneParte(ev, 'practica')
+          ? alumnos.filter((a) => {
+              const c = almacen.copiaDe(a, ev.id);
+              return c && !almacen.entregaDe(a, ev.id, 'practica') && ahora - new Date(c.hora).getTime() < VENTANA_ACTIVO_MS;
+            }).length
+          : 0;
+        return { ...configPanel(ev), activos, conteos: { teoria: parte('teoria'), practica: parte('practica') } };
+      });
+      enviarJson(res, 200, { materia: MATERIA, grupos: almacen.grupos(), registrados: alumnos.length, evaluaciones, generado: new Date(ahora).toISOString() });
     })
   );
 

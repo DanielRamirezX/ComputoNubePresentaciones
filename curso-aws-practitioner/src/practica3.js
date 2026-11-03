@@ -12,8 +12,8 @@ export const REPASO = {
   'VPC y subredes': ['s3-vpc', 's3-ex-subredes'],
   'Rutas y gateways': ['s3-vpc', 's3-lab-vpc', 's3-ex-destinos'],
   'Conectar redes': ['s3-conectar', 's3-ex-conexion'],
-  'DNS y entrega de contenido': ['s3-borde', 's3-ex-borde'],
-  'Seguridad de la red': ['s3-vpc', 's3-ex-tu-subred']
+  'DNS y entrega de contenido': ['s3-borde', 's3-ex-borde', 's3-repaso'],
+  'Seguridad de la red': ['s3-vpc', 's3-borde', 's3-ex-tu-subred']
 };
 
 // Lo que se muestra antes de empezar y en el desplegable de cada pregunta.
@@ -61,7 +61,7 @@ export const PREGUNTAS = [
     texto: 'Una aplicación debe seguir funcionando si se cae un centro de datos completo. ¿Cómo se distribuyen sus servidores?',
     opciones: [
       'Todos en una subred grande con un CIDR /16',
-      'En una sola zona, pero con instancias más grandes',
+      'En una sola zona de disponibilidad, pero con instancias más grandes',
       'En una ubicación de borde de CloudFront',
       'En subredes de al menos dos zonas de disponibilidad'
     ],
@@ -119,7 +119,7 @@ export const PREGUNTAS = [
       'Qué usuarios de IAM pueden entrar a la VPC',
       'Hacia dónde se dirige el tráfico que sale de una subred',
       'Qué puertos están abiertos en cada instancia',
-      'Cuánto cuesta el tráfico entre regiones'
+      'Cuánto cuesta el tráfico que sale hacia otras regiones de AWS'
     ],
     correcta: 1,
     explicacion: 'La tabla de rutas dice a dónde va el tráfico de cada subred: dentro de la VPC (local), a internet, a un NAT o a otra red. Los puertos los controlan los grupos de seguridad y las NACL.'
@@ -174,11 +174,11 @@ export const PREGUNTAS = [
     opciones: [
       'Conectar una VPC con la oficina por una línea dedicada',
       'Conectar dos VPC para que se comuniquen con IP privadas',
-      'Repartir tráfico web entre varias instancias',
+      'Repartir el tráfico web entre varias instancias de la misma VPC',
       'Registrar un nombre de dominio para la VPC'
     ],
     correcta: 1,
-    explicacion: 'Un VPC Peering une dos VPC (incluso de otra cuenta o región) para que hablen por IP privadas, sin pasar por internet.'
+    explicacion: 'Un VPC Peering une dos VPC (incluso de otra cuenta o región) para que hablen por IP privadas, sin pasar por internet. No es transitivo: si A está unida con B y B con C, A no llega a C; para muchas VPC se usa Transit Gateway.'
   },
   {
     id: 'p12',
@@ -217,7 +217,7 @@ export const PREGUNTAS = [
       'Un NAT Gateway en cada región',
       'Más subredes en la VPC de N. Virginia',
       'Amazon CloudFront para servir las imágenes desde ubicaciones de borde',
-      'Un VPC Peering con regiones de Asia y Europa'
+      'Un VPC Peering entre N. Virginia y las regiones de Asia y Europa'
     ],
     correcta: 2,
     explicacion: 'CloudFront guarda copias del contenido en ubicaciones de borde cerca de los usuarios, así cargan mucho más rápido.'
@@ -253,7 +253,7 @@ export const PREGUNTAS = [
   {
     id: 'p17',
     concepto: 'Servicios globales',
-    tema: 'Seguridad de la red',
+    tema: 'DNS y entrega de contenido',
     texto: '¿Cuál de estos servicios es global y no pertenece a una sola región?',
     opciones: [
       'Amazon VPC',
@@ -266,17 +266,17 @@ export const PREGUNTAS = [
   },
   {
     id: 'p18',
-    concepto: 'Capas de seguridad de la red',
+    concepto: 'Shield Standard contra DDoS',
     tema: 'Seguridad de la red',
-    texto: '¿Qué capa de seguridad actúa a nivel de subred y acepta reglas para negar tráfico?',
+    texto: 'Una tienda servida con CloudFront y Route 53 quiere protección contra los ataques DDoS más comunes sin pagar nada extra. ¿Qué la protege ya?',
     opciones: [
-      'La Network ACL',
-      'El grupo de seguridad',
-      'La tabla de rutas',
-      'El Internet Gateway'
+      'AWS Shield Standard',
+      'AWS Shield Advanced',
+      'Amazon GuardDuty',
+      'Una Network ACL en la subred del sitio'
     ],
     correcta: 0,
-    explicacion: 'La NACL protege subredes completas y acepta reglas de permitir y de negar. El grupo de seguridad protege instancias y solo permite.'
+    explicacion: 'AWS Shield Standard protege a todos los clientes de AWS, sin costo extra y sin activarlo, contra los ataques DDoS más comunes de red y de transporte; CloudFront y Route 53 lo aprovechan en el borde. Shield Advanced sí cuesta (agrega protección y un equipo de respuesta), GuardDuty detecta amenazas pero no frena un DDoS, y CloudFront no vive en una subred.'
   },
   {
     id: 'p19',
@@ -285,12 +285,12 @@ export const PREGUNTAS = [
     texto: 'Un equipo de seguridad quiere registrar qué tráfico entra y sale de las interfaces de red de su VPC. ¿Qué activa?',
     opciones: [
       'AWS Artifact',
-      'Amazon Route 53',
+      'AWS CloudTrail',
       'VPC Flow Logs',
-      'AWS Direct Connect'
+      'AWS Config'
     ],
     correcta: 2,
-    explicacion: 'VPC Flow Logs registra el tráfico IP que pasa por las interfaces de red de la VPC: sirve para auditar y para resolver problemas.'
+    explicacion: 'VPC Flow Logs registra el tráfico IP que entra y sale de las interfaces de red de la VPC: sirve para auditar y para resolver problemas. CloudTrail registra llamadas a la API (quién hizo qué en la cuenta), Config registra cambios de configuración y Artifact entrega reportes de cumplimiento.'
   },
   {
     id: 'p20',

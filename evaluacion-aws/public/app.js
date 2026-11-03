@@ -1,11 +1,15 @@
-// La evaluación del lado del alumno: registro, las tres evaluaciones como
-// tarjetas, la parte teórica (casos de negocio) y la práctica (un laboratorio
-// en la consola de AWS simulada), con sus resultados.
+// La evaluación del lado del alumno: registro, las evaluaciones como tarjetas
+// (separadas por tipo: laboratorios de sesión, prácticas integradoras, examen
+// final y las de octubre), la parte teórica (casos de negocio) y la práctica
+// (un laboratorio en la consola de AWS simulada), con sus resultados. Además,
+// el apartado «Simulador AWS» (#/simulador): una consola libre para practicar
+// sin calificación, con ideas de retos, y las tarjetas de los laboratorios.
 //
 // Todo cuelga del hash (#/simulacro-1, #/simulacro-1/teoria,
-// #/simulacro-1/practica, #/simulacro-1/resultado) y las llamadas al servidor
-// son relativas (api/…): así la misma página sirve suelta en la raíz y montada
-// en /m/evaluacion/ dentro de la plataforma.
+// #/simulacro-1/practica, #/simulacro-1/resultado, #/simulador,
+// #/simulador/consola) y las llamadas al servidor son relativas (api/…): así
+// la misma página sirve suelta en la raíz y montada en /m/evaluacion/ dentro
+// de la plataforma.
 //
 // Lo que el alumno va haciendo vive primero en localStorage (respuestas a
 // medias, la cuenta de la consola) y se copia al servidor. Si se va la red,
@@ -70,6 +74,8 @@ const fechaHora = (iso) =>
 const hora = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '');
 const decimal = (n) => Number(n).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const porciento = (n) => `${Number(n).toLocaleString('es-MX', { maximumFractionDigits: 1 })} %`;
+/** La calificación (de 0 a 10) con su escala a la vista: la Ruta habla de «x de 100» y sin rótulo se confunden. */
+const cifraDe10 = (n) => (n === null || n === undefined ? '—' : `${decimal(n)}<small class="marcador__escala"> de 10</small>`);
 
 // crypto.randomUUID solo existe con HTTPS o en localhost, y en el salón la
 // plataforma corre por http://192.168…; getRandomValues sí está siempre.
@@ -317,18 +323,24 @@ async function pintar() {
 
   const [primera = '', segunda = '', tercera = ''] = ruta();
   if (!perfil || primera === 'registro') return vistaRegistro();
+  // La consola libre vive en este equipo: abre aunque el servidor no conteste.
+  if (primera === 'simulador' && segunda === 'consola') return vistaConsolaLibre(tercera);
 
   if (!servidor) {
     app.innerHTML = `${barra()}<main class="pagina"><p class="cargando">Cargando tus evaluaciones…</p></main>`;
     try {
       await cargarEstado();
     } catch (e) {
+      // El simulador se puede usar sin servidor: solo faltan las tarjetas de los laboratorios.
+      if (primera === 'simulador') return vistaSimulador({ sinServidor: e });
       return vistaSinServidor(e);
     }
   } else {
     // Lo guardado puede tener unos segundos: se pinta ya y se refresca enseguida.
     setTimeout(latido, 0);
   }
+  // El apartado del simulador no es una evaluación: se atiende antes de buscarla.
+  if (primera === 'simulador') return segunda ? ir('simulador') : vistaSimulador();
   const ev = primera ? evDe(primera) : null;
   if (primera && !ev) return ir('');
   if (!ev) return vistaInicio();
@@ -363,7 +375,7 @@ function barra({ volver = null, titulo = 'Evaluación AWS', detalle = '' } = {})
 /** La pastilla de estado de una parte. */
 function pastilla(parte) {
   if (parte.entrega) {
-    return `<span class="pastilla pastilla--entregada">${icono('i-check')} Entregada · ${decimal(parte.entrega.calificacion)}</span>`;
+    return `<span class="pastilla pastilla--entregada">${icono('i-check')} Entregada · ${decimal(parte.entrega.calificacion)} de 10</span>`;
   }
   if (parte.estado === 'abierta') return `<span class="pastilla pastilla--abierta"><span class="punto-vivo" aria-hidden="true"></span>Abierta</span>`;
   if (parte.estado === 'preparacion') return `<span class="pastilla pastilla--preparacion">En preparación</span>`;
@@ -371,13 +383,46 @@ function pastilla(parte) {
 }
 
 const NOMBRE_PARTE = { teoria: 'Parte teórica', practica: 'Parte práctica' };
+
+// Los tipos de evaluación (src/evaluaciones.js): cómo se agrupan en el inicio
+// y cómo se nombran. Lo que no traiga tipo se trata como una de octubre.
+const TIPOS = {
+  laboratorio: {
+    plural: 'Laboratorios de sesión',
+    texto: 'La versión de simulador del laboratorio de cada sesión de la Ruta. Siempre están abiertos y se califican solos: tu entrega queda como evidencia y después puedes repetirlos.'
+  },
+  practica: {
+    plural: 'Prácticas integradoras',
+    texto: 'Un caso real completo por sesión, de la 9 a la 13, que integra todo el temario del examen. Tu docente las abre en clase.'
+  },
+  final: { plural: 'Examen final', texto: 'Una parte teórica con casos de negocio y una práctica en el simulador. Una sola entrega.' },
+  evaluacion: { plural: 'Evaluaciones de octubre', texto: 'Los simulacros y el bimestral. Puedes ver tu resultado y repetir los simulacros para practicar.' }
+};
+const tipoDe = (ev) => (Object.hasOwn(TIPOS, ev?.tipo ?? '') ? ev.tipo : 'evaluacion');
+/** Un laboratorio de sesión o una práctica: solo tiene la parte práctica y se llama «laboratorio». */
+const esSoloLab = (ev) => tipoDe(ev) !== 'evaluacion' && !ev.partes?.teoria;
+const nombreParte = (ev, n) => (n === 'practica' && esSoloLab(ev) ? 'Laboratorio' : NOMBRE_PARTE[n]);
+/** «el laboratorio», «la parte práctica»… para armar frases. */
+const laParte = (ev, n) => (nombreParte(ev, n) === 'Laboratorio' ? 'el laboratorio' : `la ${NOMBRE_PARTE[n].toLowerCase()}`);
+/** A dónde regresa «volver»: las de octubre al inicio, lo demás al simulador. */
+const volverDe = (ev) => (tipoDe(ev) === 'evaluacion' ? { ruta: '', texto: 'Mis evaluaciones' } : { ruta: 'simulador', texto: 'Simulador AWS' });
+
 // «Examen bimestral · parte práctica» ya dice de qué parte es: no se repite.
 const tituloParte = (ev, n) =>
-  ev.titulo.toLowerCase().includes(NOMBRE_PARTE[n].toLowerCase()) ? ev.titulo : `${ev.titulo} · ${NOMBRE_PARTE[n]}`;
+  esSoloLab(ev) || ev.titulo.toLowerCase().includes(NOMBRE_PARTE[n].toLowerCase()) ? ev.titulo : `${ev.titulo} · ${NOMBRE_PARTE[n]}`;
 const DESCRIBE_PARTE = {
   teoria: 'Casos de negocio con preguntas de opción múltiple · 45 minutos',
   practica: 'Un laboratorio en la consola de AWS simulada · máximo 60 minutos'
 };
+/** Qué es cada parte, con sus minutos (los de octubre dicen lo de siempre). */
+function describeParte(ev, n) {
+  if (tipoDe(ev) === 'evaluacion') return DESCRIBE_PARTE[n];
+  if (n === 'teoria') {
+    const t = ev.teorica;
+    return `${t?.casos ? `${t.casos} casos de negocio con ${t.preguntas} preguntas` : 'Casos de negocio con preguntas'} de opción múltiple · ${ev.minutos?.teoria ?? 50} minutos`;
+  }
+  return `Un laboratorio en la consola de AWS simulada · máximo ${ev.minutos?.practica ?? 60} minutos`;
+}
 
 /** ¿Hay laboratorio público para esta evaluación? (si ya cargó la lista) */
 const labPublico = (ev) => (LABS_LISTOS ? LABS_LISTOS.has(ev.lab) : true);
@@ -387,10 +432,16 @@ const estadoParte = (ev, nombre) => {
   return p;
 };
 
-function textoParte(p) {
+/** «Vas en 2 de 5 tareas» (laboratorios de sesión y prácticas con «Revisar mi avance»). */
+const textoAvance = (a) => (a?.tareasTotal ? `vas en ${a.tareasLogradas} de ${a.tareasTotal} tareas` : '');
+
+function textoParte(p, ev) {
+  // «el laboratorio» es masculino; «la parte teórica/práctica», femenino.
+  const la = ev && esSoloLab(ev) ? 'lo' : 'la';
   if (p.entrega) return `${p.entrega.aciertos !== undefined ? `${p.entrega.aciertos} de ${p.entrega.total} aciertos` : `${p.entrega.obtenidos} de ${p.entrega.total} puntos`} · entregada a las ${hora(p.entrega.fin)}`;
-  if (p.estado === 'abierta') return p.empezada ? 'Ya la empezaste: sigue donde ibas.' : 'Ya puedes empezar.';
-  if (p.estado === 'preparacion') return 'Todavía la están preparando.';
+  if (p.estado === 'abierta' && p.avance?.tareasTotal) return `Ya lo empezaste: ${textoAvance(p.avance)}.`;
+  if (p.estado === 'abierta') return p.empezada ? `Ya ${la} empezaste: sigue donde ibas.` : 'Ya puedes empezar.';
+  if (p.estado === 'preparacion') return `Todavía ${la} están preparando.`;
   return 'Tu docente la abre en clase. Esta pantalla cambia sola cuando la abra.';
 }
 
@@ -468,39 +519,75 @@ function vistaSinServidor(e) {
 
 /* ---------------------------------------------------------------- inicio */
 
+// En el inicio, primero lo de este bimestre (laboratorios, prácticas, el
+// final) y al último lo de octubre. El final solo aparece cuando se abre.
+const ORDEN_TIPOS = ['laboratorio', 'practica', 'final', 'evaluacion'];
+const visibleEnInicio = (ev) =>
+  tipoDe(ev) !== 'final' || ['teoria', 'practica'].some((n) => ev.partes[n] && (ev.partes[n].estado === 'abierta' || ev.partes[n].entrega));
+
+/** La tarjeta de una evaluación (en el inicio y en el apartado del simulador). */
+function tarjetaEv(ev) {
+  const tipo = tipoDe(ev);
+  const partes = ['teoria', 'practica'].filter((n) => ev.partes[n]);
+  return `
+    <a class="tarjeta-ev tarjeta-ev--${tipo}" href="#/${ev.id}">
+      <span class="tarjeta-ev__fecha">${icono(tipo === 'evaluacion' ? 'i-reloj' : tipo === 'final' ? 'i-libro' : 'i-consola')} ${escapar(ev.fechaTexto)}</span>
+      <h2>${escapar(ev.titulo)}</h2>
+      <p class="tarjeta-ev__resumen">${escapar(ev.resumen)}</p>
+      <ul class="tarjeta-ev__partes">
+        ${partes
+          .map((n) => {
+            const p = estadoParte(ev, n);
+            const nota =
+              !p.entrega && p.estado === 'cerrada'
+                ? 'tu docente la abre en clase'
+                : !p.entrega && p.estado === 'abierta' && p.avance?.tareasTotal
+                  ? textoAvance(p.avance)
+                  : !p.entrega && p.estado === 'abierta' && p.empezada
+                    ? 'ya lo empezaste'
+                    : '';
+            return `<li><span class="tarjeta-ev__parte">${nombreParte(ev, n)}</span>${pastilla(p)}${nota ? `<span class="tarjeta-ev__nota">${nota}</span>` : ''}${
+              p.avance?.tareasTotal && !p.entrega
+                ? `<span class="progreso tarjeta-ev__progreso" aria-hidden="true"><span style="width:${Math.round((p.avance.tareasLogradas / p.avance.tareasTotal) * 100)}%"></span></span>`
+                : ''
+            }</li>`;
+          })
+          .join('')}
+      </ul>
+      ${ev.combinada !== null && partes.length > 1 ? `<p class="tarjeta-ev__combinada">Calificación combinada: <strong>${decimal(ev.combinada / 10)}</strong></p>` : ''}
+      <span class="tarjeta-ev__abrir">Abrir ${icono('i-flecha')}</span>
+    </a>`;
+}
+
+/** Las tarjetas de un tipo, con su título (o nada si no hay ninguna visible). */
+function grupoTarjetas(tipo, { titulo = TIPOS[tipo].plural, texto = TIPOS[tipo].texto } = {}) {
+  const lista = (servidor?.evaluaciones ?? []).filter((ev) => tipoDe(ev) === tipo && visibleEnInicio(ev));
+  if (!lista.length) return '';
+  return `
+    <section class="grupo-ev grupo-ev--${tipo}" aria-labelledby="grupo-${tipo}">
+      <div class="grupo-ev__cabeza">
+        <h2 id="grupo-${tipo}">${escapar(titulo)}</h2>
+        <p>${escapar(texto)}</p>
+      </div>
+      <div class="rejilla-ev">${lista.map(tarjetaEv).join('')}</div>
+    </section>`;
+}
+
 function vistaInicio() {
-  const pintarTarjetas = () =>
-    servidor.evaluaciones
-      .map((ev) => {
-        const partes = ['teoria', 'practica'].filter((n) => ev.partes[n]);
-        return `
-        <a class="tarjeta-ev" href="#/${ev.id}">
-          <span class="tarjeta-ev__fecha">${icono('i-reloj')} ${escapar(ev.fechaTexto)}</span>
-          <h2>${escapar(ev.titulo)}</h2>
-          <p class="tarjeta-ev__resumen">${escapar(ev.resumen)}</p>
-          <ul class="tarjeta-ev__partes">
-            ${partes
-              .map((n) => {
-                const p = estadoParte(ev, n);
-                return `<li><span class="tarjeta-ev__parte">${NOMBRE_PARTE[n]}</span>${pastilla(p)}${
-                  !p.entrega && p.estado === 'cerrada' ? '<span class="tarjeta-ev__nota">tu docente la abre en clase</span>' : ''
-                }</li>`;
-              })
-              .join('')}
-          </ul>
-          ${ev.combinada !== null && partes.length > 1 ? `<p class="tarjeta-ev__combinada">Calificación combinada: <strong>${decimal(ev.combinada / 10)}</strong></p>` : ''}
-          <span class="tarjeta-ev__abrir">Abrir ${icono('i-flecha')}</span>
-        </a>`;
-      })
-      .join('');
+  const pintarGrupos = () => ORDEN_TIPOS.map((tipo) => grupoTarjetas(tipo)).join('');
 
   app.innerHTML = `
     ${barra()}
     <main class="pagina">
-      <p class="etiqueta">Ruta AWS · Evaluación del bimestre</p>
+      <p class="etiqueta">Ruta AWS · Evaluación y simulador</p>
       <h1 class="inicio__titulo">Hola, ${escapar(nombreCorto(perfil.nombre))}</h1>
-      <p class="inicio__intro">Estas son tus evaluaciones. Cada parte se abre cuando tu docente lo indica en clase; mientras esté cerrada, esta página se actualiza sola.</p>
-      <div class="rejilla-ev" id="rejilla-ev">${pintarTarjetas()}</div>
+      <p class="inicio__intro">Estos son tus laboratorios y evaluaciones. Lo que tu docente abre en clase aparece aquí solo: mientras esté cerrado, esta página se actualiza sola.</p>
+      <a class="aviso-simulador" href="#/simulador">
+        <span class="aviso-simulador__icono">${icono('i-consola')}</span>
+        <span class="aviso-simulador__texto"><strong>Simulador AWS</strong><span>Una cuenta de AWS para practicar lo que quieras, sin calificación: aquí sí puedes crear bases de datos, balanceadores y alarmas.</span></span>
+        <span class="aviso-simulador__ir">Abrir ${icono('i-flecha')}</span>
+      </a>
+      <div id="grupos-ev">${pintarGrupos()}</div>
       <p class="sutil inicio__nota">¿No eres ${escapar(perfil.nombre)}? <a href="#/registro">Cambia tus datos</a>.</p>
     </main>`;
 
@@ -509,13 +596,13 @@ function vistaInicio() {
     const ahoraTxt = JSON.stringify(servidor.evaluaciones);
     if (ahoraTxt === antes) return;
     antes = ahoraTxt;
-    document.getElementById('rejilla-ev').innerHTML = pintarTarjetas();
+    document.getElementById('grupos-ev').innerHTML = pintarGrupos();
   };
   alLatido = repintar;
   cargarLabs()
     .then(() => {
       antes = '';
-      if (document.getElementById('rejilla-ev')) repintar();
+      if (document.getElementById('grupos-ev')) repintar();
     })
     .catch(() => {});
 }
@@ -535,15 +622,15 @@ function vistaEvaluacion(ev) {
           if (puedeRepetir(ev, n)) accion += `<a class="boton boton--sutil" href="#/${ev.id}/${n}/intento">${hayIntento(ev.id, n) ? 'Continuar mi intento' : 'Intentar de nuevo'}</a>`;
         }
         else if (p.estado === 'abierta') {
-          accion = `<a class="boton boton--primario" href="#/${ev.id}/${n}">${p.empezada ? 'Continuar' : 'Empezar'} la ${NOMBRE_PARTE[n].toLowerCase()} ${icono('i-flecha')}</a>`;
+          accion = `<a class="boton boton--primario" href="#/${ev.id}/${n}">${p.empezada ? 'Continuar' : 'Empezar'} ${laParte(ev, n)} ${icono('i-flecha')}</a>`;
         }
         return `
           <section class="parte ${p.entrega ? 'parte--entregada' : p.estado === 'abierta' ? 'parte--abierta' : ''}" aria-labelledby="parte-${n}">
             <div class="parte__icono">${icono(n === 'teoria' ? 'i-libro' : 'i-consola')}</div>
             <div class="parte__texto">
-              <h2 id="parte-${n}">${NOMBRE_PARTE[n]} ${pastilla(p)}</h2>
-              <p class="parte__describe">${DESCRIBE_PARTE[n]}${ev.pesos[n] && ev.pesos[n] < 100 ? ` · vale el ${ev.pesos[n]} %` : ''}</p>
-              <p class="parte__estado">${textoParte(p)}</p>
+              <h2 id="parte-${n}">${nombreParte(ev, n)} ${pastilla(p)}</h2>
+              <p class="parte__describe">${describeParte(ev, n)}${ev.pesos[n] && ev.pesos[n] < 100 ? ` · vale el ${ev.pesos[n]} %` : ''}</p>
+              <p class="parte__estado">${textoParte(p, ev)}</p>
             </div>
             <div class="parte__accion">${accion}</div>
           </section>`;
@@ -565,18 +652,17 @@ function vistaEvaluacion(ev) {
   };
 
   app.innerHTML = `
-    ${barra({ volver: { ruta: '', texto: 'Mis evaluaciones' }, titulo: ev.titulo })}
+    ${barra({ volver: volverDe(ev), titulo: ev.titulo })}
     <main class="pagina pagina--media">
       <p class="etiqueta">${escapar(ev.fechaTexto)}</p>
       <h1>${escapar(ev.titulo)}</h1>
       <p class="evaluacion__resumen">${escapar(ev.resumen)}</p>
       <div id="partes">${pintarPartes()}</div>
+      ${notaEntrega(ev)}
       ${
-        ev.reintentos
-          ? '<p class="sutil">Cada parte se entrega <strong>una sola vez</strong> y esa entrega es tu calificación. Después puedes repetirla las veces que quieras para practicar: los intentos no la cambian.</p>'
-          : ev.partes.teoria || ev.partes.practica
-            ? '<p class="sutil">Cada parte se entrega <strong>una sola vez</strong>. Si algo sale mal, avísale a tu docente.</p>'
-            : ''
+        tipoDe(ev) === 'laboratorio'
+          ? `<div class="hoja nota-lugar">${icono('i-alerta')}<div><h2>¿DataCamp o simulador?</h2><p>Este laboratorio también existe en la Ruta AWS, con el sandbox de DataCamp. Si tu docente te deja elegir, hazlo donde prefieras: <strong>aquí se califica solo</strong> y sí puedes crear todo lo que en DataCamp sale negado.</p></div></div>`
+          : ''
       }
     </main>`;
 
@@ -592,6 +678,23 @@ function vistaEvaluacion(ev) {
       if (document.getElementById('partes')) document.getElementById('partes').innerHTML = pintarPartes();
     })
     .catch(() => {});
+}
+
+/** Cómo se entrega cada tipo: lo dice la página de la evaluación, al pie. */
+function notaEntrega(ev) {
+  const tipo = tipoDe(ev);
+  if (tipo === 'laboratorio') {
+    return '<p class="sutil">Al entregar, tu calificación queda como <strong>evidencia</strong> para tu docente. Después puedes repetir el laboratorio las veces que quieras para practicar: los intentos no cambian tu entrega.</p>';
+  }
+  if (tipo === 'practica') {
+    return '<p class="sutil">Se entrega <strong>una sola vez</strong> y esa entrega es tu calificación. Después puedes repetirla las veces que quieras para practicar: los intentos no la cambian.</p>';
+  }
+  if (tipo === 'final') return '<p class="sutil">Cada parte se entrega <strong>una sola vez</strong> y no se puede repetir. Si algo sale mal, avísale a tu docente en ese momento.</p>';
+  return ev.reintentos
+    ? '<p class="sutil">Cada parte se entrega <strong>una sola vez</strong> y esa entrega es tu calificación. Después puedes repetirla las veces que quieras para practicar: los intentos no la cambian.</p>'
+    : ev.partes.teoria || ev.partes.practica
+      ? '<p class="sutil">Cada parte se entrega <strong>una sola vez</strong>. Si algo sale mal, avísale a tu docente.</p>'
+      : '';
 }
 
 /** Pantalla de "todavía no": se abre sola en cuanto el docente la active. */
@@ -682,15 +785,22 @@ async function vistaTeoria(ev) {
 }
 
 function instruccionesTeoria(ev) {
+  // Lo que trae el banco (los simulacros: 5 casos, 25 preguntas, 45 minutos).
+  const casos = ev.teorica?.casos || 5;
+  const preguntas = ev.teorica?.preguntas || 25;
+  const minutos = ev.minutos?.teoria || 45;
+  const porCaso = preguntas / casos;
   app.innerHTML = `
     ${barra({ volver: { ruta: ev.id, texto: ev.titulo }, titulo: `${ev.titulo} · Parte teórica` })}
     <main class="pagina pagina--angosta">
       <p class="etiqueta">Parte teórica · antes de empezar</p>
       <h1>Cómo funciona</h1>
       <ul class="reglas hoja">
-        <li><strong>5 casos de negocio</strong>, cada uno con <strong>5 preguntas</strong> de opción múltiple: 25 en total.</li>
+        <li><strong>${casos} casos de negocio</strong>, ${
+          Number.isInteger(porCaso) ? `cada uno con <strong>${porCaso} preguntas</strong> de opción múltiple: ${preguntas} en total` : `con <strong>${preguntas} preguntas</strong> de opción múltiple en total`
+        }.</li>
         <li>Arriba de cada grupo de preguntas está la historia del caso. Léela con calma: las respuestas salen de ahí.</li>
-        <li>Tienes <strong>45 minutos</strong>. El reloj solo te avisa: no se corta nada.</li>
+        <li>Tienes <strong>${minutos} minutos</strong>. El reloj solo te avisa: no se corta nada.</li>
         <li>Puedes moverte entre casos y cambiar respuestas. Se guardan en este equipo mientras contestas.</li>
         <li>Al final revisas todo y entregas. <strong>Solo se entrega una vez.</strong></li>
       </ul>
@@ -1062,22 +1172,34 @@ async function vistaPractica(ev) {
   arrancarPractica(ev, LAB, labs);
 }
 
+/** El último renglón de las instrucciones del laboratorio: cómo se entrega según el tipo. */
+function reglaEntrega(ev) {
+  const tipo = tipoDe(ev);
+  if (tipo === 'laboratorio') {
+    return 'Cuando termines, pulsa <strong>«Entregar laboratorio»</strong>: tu calificación queda como <strong>evidencia</strong> para tu docente. Después puedes repetirlo para practicar, sin cambiar tu entrega.';
+  }
+  if (tipo === 'practica') return 'Cuando termines, pulsa <strong>«Entregar laboratorio»</strong>. <strong>Esa entrega es tu calificación</strong>; después puedes repetirla para practicar.';
+  if (tipo === 'final') return 'Cuando termines, pulsa <strong>«Entregar laboratorio»</strong>. <strong>Solo se entrega una vez y no se puede repetir.</strong>';
+  return 'Cuando termines, pulsa <strong>«Entregar laboratorio»</strong>. <strong>Solo se entrega una vez.</strong>';
+}
+
 function instruccionesPractica(ev, LAB, labs) {
   const movil = matchMedia('(max-width: 760px)').matches;
   app.innerHTML = `
     ${barra({ volver: { ruta: ev.id, texto: ev.titulo }, titulo: tituloParte(ev, 'practica') })}
     <main class="pagina pagina--angosta">
-      <p class="etiqueta">Parte práctica · antes de empezar</p>
+      <p class="etiqueta">${nombreParte(ev, 'practica')} · antes de empezar</p>
       <h1>${escapar(LAB.titulo)}</h1>
       ${movil ? `<p class="aviso-suave">${icono('i-alerta')}<span>Se recomienda hacer el laboratorio en una <strong>computadora</strong>: la consola necesita espacio. Puedes intentarlo en el teléfono, pero será incómodo.</span></p>` : ''}
       <ul class="reglas hoja">
         <li>Vas a trabajar en una <strong>consola de AWS simulada</strong>: se ve y se usa como la real, pero no cuesta nada y no necesita internet.</li>
-        <li>Junto a la consola tienes el <strong>caso</strong>, tus <strong>tareas</strong> con sus puntos y <strong>tus datos</strong> (el rango de tu red, tu sufijo…). Son distintos a los de tu vecino.</li>
+        <li>Junto a la consola tienes el <strong>caso</strong>, tus <strong>tareas</strong> con sus puntos y <strong>tus datos</strong> (tu sufijo, tu IP…). Son distintos a los de tu vecino.</li>
         <li>Tienes un máximo de <strong>${LAB.minutos || 60} minutos</strong>. El reloj solo avisa.</li>
         <li>Todo lo que haces se guarda solo, en este equipo y en el servidor.</li>
+        ${tipoDe(ev) !== 'evaluacion' && LAB.pistas ? '<li>Cada tarea trae una pista <strong>«¿Dónde se hace?»</strong> por si no sabes por dónde empezar. Ábrela solo si la necesitas.</li>' : ''}
         ${ev.autorrevision ? '<li>Con <strong>«Revisar mi avance»</strong> ves qué llevas bien y qué te falta, sin entregar.</li>' : ''}
         ${ev.asistente ? '<li>Si te atoras, pregúntale al <strong>asistente</strong>: te ayuda a encontrar dónde está el problema, pero <strong>no te da la respuesta</strong>. Tu docente puede leer la conversación.</li>' : ''}
-        <li>Cuando termines, pulsa <strong>«Entregar laboratorio»</strong>. <strong>Solo se entrega una vez.</strong></li>
+        <li>${reglaEntrega(ev)}</li>
       </ul>
       <button class="boton boton--primario boton--ancho" type="button" id="btn-empezar">Abrir la consola · arranca el reloj ${icono('i-flecha')}</button>
     </main>`;
@@ -1118,9 +1240,14 @@ async function arrancarPractica(ev, LAB, labs) {
   laboratorio(ev, LAB, labs, datos, consolaModulo.montarConsola);
 }
 
-/** Etiquetas de los datos del alumno (public/labs/comun.js). Lo que no esté aquí se muestra con su nombre. */
+/**
+ * Etiquetas de los datos del alumno (public/labs/comun.js). Lo que no esté aquí
+ * se muestra con su nombre. Cada laboratorio puede cambiar la etiqueta o la
+ * ayuda de un dato con `LAB.etiquetasDatos = { clave: [etiqueta, ayuda] }` (por
+ * ejemplo, cuando la VPC ya existe) y elegir cuáles se ven con `LAB.datosVisibles`.
+ */
 const ETIQUETAS_DATOS = {
-  vpcCidr: ['Rango de tu VPC', 'Úsalo al crear tu VPC.'],
+  vpcCidr: ['Rango de tu VPC', 'El bloque de direcciones de tu VPC. Lee el caso: si tu VPC ya existe, es el suyo y no crees otra.'],
   octeto: ['Tu número de red', 'El segundo número de todas tus direcciones: 10.<b>N</b>.x.x'],
   sufijo: ['Tu sufijo', 'Para nombres que deben ser únicos en el mundo, como los buckets.'],
   ipCasa: ['La IP de tu casa', 'La que aparece al elegir «My IP».'],
@@ -1131,6 +1258,22 @@ const ordenDato = (k) => {
   const i = Object.keys(ETIQUETAS_DATOS).indexOf(k);
   return i === -1 ? 99 : i;
 };
+
+/** Los datos del alumno como lista con su botón «Copiar» (el laboratorio y la consola libre). */
+function htmlDatos(datos, visibles = null, etiquetas = {}) {
+  return Object.entries(datos)
+    .sort(([a], [b]) => ordenDato(a) - ordenDato(b))
+    .filter(([k, v]) => (!visibles || visibles.includes(k)) && !OCULTOS.has(k) && (typeof v === 'string' || typeof v === 'number'))
+    .map(([k, v]) => {
+      const [etiqueta, ayuda] = etiquetas[k] ?? ETIQUETAS_DATOS[k] ?? [k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()), ''];
+      return `<div class="dato">
+        <dt>${escapar(etiqueta)}</dt>
+        <dd><code>${escapar(v)}</code><button type="button" class="boton boton--chico boton--sutil" data-copiar="${escapar(v)}" aria-label="Copiar ${escapar(etiqueta)}">${icono('i-copiar')}<span>Copiar</span></button></dd>
+        ${ayuda ? `<p class="dato__ayuda">${ayuda}</p>` : ''}
+      </div>`;
+    })
+    .join('');
+}
 
 /**
  * El laboratorio en marcha. Con `intento`, es un intento de práctica después de
@@ -1195,7 +1338,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
       ${
         intento
           ? `<div class="aviso-intento">${icono('i-libro')}<span><strong>Intento de práctica:</strong> tu calificación es la de tu primera entrega y no cambia. Esta cuenta se guarda solo en este equipo.</span></div>`
-          : `<div class="aviso-cierre" id="aviso-cierre" hidden role="alert">${icono('i-alerta')} Tu docente cerró la parte práctica. Tu avance quedó guardado; si no alcanzaste a entregar, avísale.</div>`
+          : `<div class="aviso-cierre" id="aviso-cierre" hidden role="alert">${icono('i-alerta')} Tu docente cerró ${laParte(ev, 'practica')}. Tu avance quedó guardado; si no alcanzaste a entregar, avísale.</div>`
       }
       ${movil ? `<div class="aviso-movil" id="aviso-movil">${icono('i-alerta')}<span>Se recomienda una computadora para el laboratorio. Puedes seguir aquí: las instrucciones están debajo de la consola.</span><button class="boton boton--chico" type="button" id="btn-aviso-movil">Entendido</button></div>` : ''}
       <div class="lab__cuerpo">
@@ -1227,20 +1370,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
             </section>
             <section role="tabpanel" id="tp-datos" aria-labelledby="tab-datos" data-panel="datos">
               <p class="sutil">Estos datos son <strong>solo tuyos</strong>: salen de tu ${identidad.matricula ? 'matrícula' : 'nombre'}. Úsalos tal cual.</p>
-              <dl class="datos-alumno">
-                ${Object.entries(datos)
-                  .sort(([a], [b]) => ordenDato(a) - ordenDato(b))
-                  .filter(([k, v]) => !OCULTOS.has(k) && (typeof v === 'string' || typeof v === 'number'))
-                  .map(([k, v]) => {
-                    const [etiqueta, ayuda] = ETIQUETAS_DATOS[k] ?? [k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()), ''];
-                    return `<div class="dato">
-                      <dt>${escapar(etiqueta)}</dt>
-                      <dd><code>${escapar(v)}</code><button type="button" class="boton boton--chico boton--sutil" data-copiar="${escapar(v)}" aria-label="Copiar ${escapar(etiqueta)}">${icono('i-copiar')}<span>Copiar</span></button></dd>
-                      ${ayuda ? `<p class="dato__ayuda">${ayuda}</p>` : ''}
-                    </div>`;
-                  })
-                  .join('')}
-              </dl>
+              <dl class="datos-alumno">${htmlDatos(datos, LAB.datosVisibles, LAB.etiquetasDatos)}</dl>
               <p class="sutil">Tu cuenta: ${escapar(identidad.nombre)}${identidad.matricula ? ` · ${escapar(identidad.matricula)}` : ''}</p>
             </section>
             <section role="tabpanel" id="tp-avance" aria-labelledby="tab-avance" data-panel="avance"></section>
@@ -1290,7 +1420,13 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   mostrarPestana(pestana);
 
   // Cada bloque de código de las instrucciones (el user data) trae su «Copiar».
+  // El botón va en una caja junto al <pre>, no dentro: así, si el alumno
+  // selecciona el script a mano, la palabra «Copiar» no se cuela en lo copiado.
   lab.querySelectorAll('.lab__panel pre.lab-codigo').forEach((pre) => {
+    const caja = document.createElement('div');
+    caja.className = 'lab-codigo-caja';
+    pre.before(caja);
+    caja.append(pre);
     const boton = document.createElement('button');
     boton.type = 'button';
     boton.className = 'lab-codigo__copiar';
@@ -1302,7 +1438,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
         setTimeout(() => (boton.querySelector('span').textContent = 'Copiar'), 1600);
       })
     );
-    pre.prepend(boton);
+    caja.append(boton);
   });
 
   lab.addEventListener('click', (e) => {
@@ -1580,9 +1716,11 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
           }
         : {
             titulo: '¿Entregar el laboratorio?',
-            texto: `<p>Se califica tu cuenta tal como está ahora. Después de entregar <strong>ya no podrás cambiar nada</strong>.</p>${
-              autorrevision ? '<p>¿Ya usaste «Revisar mi avance»? Es buena idea antes de entregar.</p>' : ''
-            }`,
+            texto: `<p>Se califica tu cuenta tal como está ahora. ${
+              ev.reintentos && tipoDe(ev) !== 'evaluacion'
+                ? 'Esa entrega es la que ve tu docente y <strong>ya no cambia</strong>; después podrás repetir el laboratorio para practicar.'
+                : 'Después de entregar <strong>ya no podrás cambiar nada</strong>.'
+            }</p>${autorrevision ? '<p>¿Ya usaste «Revisar mi avance»? Es buena idea antes de entregar.</p>' : ''}`,
             si: 'Sí, entregar',
             no: 'Seguir trabajando'
           }
@@ -1686,7 +1824,7 @@ async function vistaIntento(ev, parte) {
 async function empezarIntento(ev, parte, { preguntar = true } = {}) {
   if (preguntar) {
     const si = await confirmar({
-      titulo: `¿Repetir la ${NOMBRE_PARTE[parte].toLowerCase()}?`,
+      titulo: `¿Repetir ${laParte(ev, parte)}?`,
       texto: `<p>Empiezas de cero${parte === 'practica' ? ', con la cuenta de AWS del principio' : ''}. <strong>Tu calificación no cambia:</strong> cuenta solo tu primera entrega, que tu docente ya tiene.</p><p>Al terminar ves cómo te fue y puedes repetirla las veces que quieras.</p>`,
       si: 'Sí, empezar de nuevo',
       no: 'Cancelar'
@@ -1710,12 +1848,12 @@ function vistaResultadoIntento(ev, parte, r) {
   app.innerHTML = `
     ${barra({ volver: { ruta: ev.id, texto: ev.titulo }, titulo: `${ev.titulo} · Intento de práctica` })}
     <main class="pagina pagina--media resultado">
-      <p class="etiqueta">${NOMBRE_PARTE[parte]} · intento de práctica</p>
+      <p class="etiqueta">${nombreParte(ev, parte)} · intento de práctica</p>
       <h1>Así te fue en este intento</h1>
       <p class="aviso-suave">${icono('i-alerta')}<span>Este intento <strong>no cambia tu calificación</strong>: tu docente solo toma tu primera entrega.</span></p>
       <div class="marcadores">
-        <div class="marcador marcador--combinada"><span class="marcador__nombre">Este intento</span><span class="marcador__cifra">${decimal(r.calificacion)}</span><span class="marcador__detalle">${detalle(r)}</span></div>
-        ${oficial ? `<a class="marcador" href="#/${ev.id}/resultado"><span class="marcador__nombre">Tu entrega (la que cuenta)</span><span class="marcador__cifra">${decimal(oficial.calificacion)}</span><span class="marcador__detalle">${detalle(oficial)}</span></a>` : ''}
+        <div class="marcador marcador--combinada"><span class="marcador__nombre">Este intento</span><span class="marcador__cifra">${cifraDe10(r.calificacion)}</span><span class="marcador__detalle">${detalle(r)}</span></div>
+        ${oficial ? `<a class="marcador" href="#/${ev.id}/resultado"><span class="marcador__nombre">Tu entrega (la que cuenta)</span><span class="marcador__cifra">${cifraDe10(oficial.calificacion)}</span><span class="marcador__detalle">${detalle(oficial)}</span></a>` : ''}
       </div>
       ${parte === 'teoria' ? seccionTeoria(r) : seccionPractica(r)}
       <div class="acciones">
@@ -1733,12 +1871,12 @@ function htmlIntentos(ev, partes) {
   return `
     <section class="hoja intentos" aria-labelledby="titulo-intentos">
       <h2 id="titulo-intentos">¿Quieres practicar otra vez?</h2>
-      <p>Puedes repetir ${repetibles.length > 1 ? 'cada parte' : 'esta parte'} desde cero, las veces que quieras. <strong>Tu calificación no cambia:</strong> tu docente solo toma tu primera entrega.</p>
+      <p>Puedes repetir ${repetibles.length > 1 ? 'cada parte' : esSoloLab(ev) ? 'el laboratorio' : 'esta parte'} desde cero, las veces que quieras. <strong>Tu calificación no cambia:</strong> tu docente solo toma tu primera entrega.</p>
       <div class="acciones">
         ${repetibles
           .map(
-            (n) => `<button class="boton" type="button" data-intento="${n}">Repetir la ${NOMBRE_PARTE[n].toLowerCase()}</button>${
-              hayIntento(ev.id, n) ? `<a class="boton boton--sutil" href="#/${ev.id}/${n}/intento">Continuar mi intento de la ${n === 'teoria' ? 'teórica' : 'práctica'}</a>` : ''
+            (n) => `<button class="boton" type="button" data-intento="${n}">Repetir ${laParte(ev, n)}</button>${
+              hayIntento(ev.id, n) ? `<a class="boton boton--sutil" href="#/${ev.id}/${n}/intento">Continuar mi intento ${esSoloLab(ev) ? 'del laboratorio' : `de la ${n === 'teoria' ? 'teórica' : 'práctica'}`}</a>` : ''
             }`
           )
           .join('')}
@@ -1875,13 +2013,13 @@ async function vistaResultado(ev) {
       <h1>Tu resultado, ${escapar(nombreCorto(perfil.nombre))}</h1>
       ${datos.offline ? '<p class="aviso-suave">Sin conexión: te muestro lo que quedó guardado en este equipo.</p>' : ''}
       <div class="marcadores">
-        ${partes.length > 1 ? `<div class="marcador marcador--combinada"><span class="marcador__nombre">Combinada</span><span class="marcador__cifra">${combinada === null ? '—' : decimal(combinada / 10)}</span><span class="marcador__detalle">${combinada === null ? 'cuando entregues las dos partes' : partes.map((n) => `${e.pesos[n]} % ${n === 'teoria' ? 'teórica' : 'práctica'}`).join(' + ')}</span></div>` : ''}
+        ${partes.length > 1 ? `<div class="marcador marcador--combinada"><span class="marcador__nombre">Combinada</span><span class="marcador__cifra">${cifraDe10(combinada === null ? null : combinada / 10)}</span><span class="marcador__detalle">${combinada === null ? 'cuando entregues las dos partes' : partes.map((n) => `${e.pesos[n]} % ${n === 'teoria' ? 'teórica' : 'práctica'}`).join(' + ')}</span></div>` : ''}
         ${partes
           .map((n) => {
             const r = n === 'teoria' ? t : p;
             return `<a class="marcador" href="#${n === 'teoria' ? 'res-teoria' : 'res-practica'}">
-              <span class="marcador__nombre">${NOMBRE_PARTE[n]}</span>
-              <span class="marcador__cifra">${r ? decimal(r.calificacion) : '—'}</span>
+              <span class="marcador__nombre">${nombreParte(e, n)}</span>
+              <span class="marcador__cifra">${cifraDe10(r ? r.calificacion : null)}</span>
               <span class="marcador__detalle">${r ? (n === 'teoria' ? `${r.aciertos} de ${r.total} aciertos` : `${decimal(r.obtenidos)} de ${r.total} puntos`) : 'sin entregar'}</span>
             </a>`;
           })
@@ -1901,7 +2039,7 @@ async function vistaResultado(ev) {
         <p class="sutil">Guárdalo en PDF o tómale captura a esta pantalla: es tu comprobante. Este equipo también guarda una copia firmada por si el servidor se reinicia.</p>
       </section>
       ${datos.offline ? '' : htmlIntentos(e, partes)}
-      <div class="acciones"><button class="boton boton--oscuro" type="button" id="btn-imprimir">Imprimir o guardar en PDF</button><a class="boton" href="#/${ev.id}">Volver a ${escapar(ev.titulo)}</a><a class="boton boton--sutil" href="#/">Mis evaluaciones</a></div>
+      <div class="acciones"><button class="boton boton--oscuro" type="button" id="btn-imprimir">Imprimir o guardar en PDF</button><a class="boton" href="#/${ev.id}">Volver a ${escapar(ev.titulo)}</a><a class="boton boton--sutil" href="#/${volverDe(ev).ruta}">${volverDe(ev).texto}</a></div>
     </main>`;
   app.querySelector('#btn-imprimir').addEventListener('click', () => window.print());
   app.querySelector('.intentos')?.addEventListener('click', (evento) => {
@@ -1968,6 +2106,726 @@ function seccionPractica(r) {
       ${htmlTareasPractica(r.tareas, conChecks)}
       ${conChecks ? '' : '<p class="sutil">Tu docente revisará el detalle de cada tarea en clase.</p>'}
     </section>`;
+}
+
+/* ------------------------------------------------------- simulador AWS */
+
+// El apartado «Simulador AWS» (#/simulador): una cuenta de AWS simulada para
+// practicar sin calificación (la «consola libre»), ideas de retos y las
+// tarjetas de los laboratorios de sesión, las prácticas y el examen final.
+//
+// La consola libre vive solo en este equipo (localStorage, clave
+// `libre-<perfil>`): no viaja al servidor y el docente no la ve. Para llevarla
+// a otro equipo se descarga como archivo JSON y se vuelve a cargar.
+
+const claveLibre = () => `libre-${perfil.id}`;
+const clavePanelLibre = 'panel-plegado-libre';
+// Una cuenta de una hora de uso pesa menos de 512 KB; un archivo mucho más
+// grande no es una cuenta del simulador.
+const LIMITE_ARCHIVO = 3 * 1024 * 1024;
+
+const cuantos = (x) => (Array.isArray(x) ? x.length : 0);
+
+/** Los temas en que se agrupan las ideas, en orden. */
+const TEMAS_IDEAS = [
+  ['red', 'Cómputo y redes'],
+  ['datos', 'Almacenamiento y bases de datos'],
+  ['automatizar', 'Escalar, vigilar y automatizar'],
+  ['seguridad', 'Seguridad y gobierno'],
+  ['costos', 'Costos y buenas prácticas']
+];
+
+/**
+ * Ideas para practicar: retos cortos, sin calificar. `texto(d)` usa los datos
+ * del alumno (su rango, su sufijo); `ruta` es el servicio que abre la consola;
+ * `hecho(cuenta)` solo adivina si ya lo intentó (por eso dice «parece»). Las
+ * colecciones de los servicios nuevos pueden no existir en una cuenta vieja:
+ * todo se lee con `?.`.
+ */
+const IDEAS = [
+  {
+    id: 'servidor-web',
+    tema: 'red',
+    servicio: 'EC2',
+    sesion: 1,
+    ruta: 'ec2',
+    titulo: 'Tu primer servidor web',
+    texto: () =>
+      'Lanza una instancia <strong>t2.micro</strong> con Amazon Linux, un grupo de seguridad que deje entrar <strong>HTTP (80)</strong> y un <em>user data</em> que instale Apache. Luego abre su IP pública: debe salir tu página.',
+    hecho: (e) => (e.instancias ?? []).some((i) => i.estado === 'running')
+  },
+  {
+    id: 'red-propia',
+    tema: 'red',
+    servicio: 'VPC',
+    sesion: 3,
+    ruta: 'vpc',
+    titulo: 'Tu propia red',
+    texto: (d) =>
+      `Crea una VPC <code>${escapar(d.vpcCidr)}</code> con una subred pública y una privada en zonas distintas. Conecta un <strong>Internet Gateway</strong> y pon la ruta <code>0.0.0.0/0</code> solo en la tabla de la pública.`,
+    hecho: (e) => {
+      const propias = new Set((e.vpcs ?? []).filter((v) => !v.porDefecto).map((v) => v.id));
+      return (e.igws ?? []).some((g) => propias.has(g.vpcId));
+    }
+  },
+  {
+    id: 'sitio-global',
+    tema: 'red',
+    servicio: 'CloudFront · Route 53',
+    sesion: 3,
+    ruta: 'cloudfront',
+    titulo: 'Un sitio rápido en todo el mundo',
+    texto: () => 'Publica un sitio estático en S3, ponle una distribución de <strong>CloudFront</strong> y, en Route 53, un registro <strong>Alias</strong> que apunte a ella.',
+    hecho: (e) => cuantos(e.cloudfront?.distribuciones) > 0
+  },
+  {
+    id: 'bucket-seguro',
+    tema: 'datos',
+    servicio: 'S3',
+    sesion: 4,
+    ruta: 's3/buckets',
+    titulo: 'Un bucket a prueba de accidentes',
+    texto: (d) =>
+      `Crea el bucket <code>fotos-${escapar(d.sufijo)}</code> con <strong>Block all public access</strong> y el versionado encendido. Sube un archivo, súbelo otra vez y mira sus dos versiones.`,
+    hecho: (e) => (e.buckets ?? []).some((b) => b.versionado === 'Enabled')
+  },
+  {
+    id: 'ciclo-vida',
+    tema: 'datos',
+    servicio: 'S3',
+    sesion: 4,
+    ruta: 's3/buckets',
+    titulo: 'Que lo viejo cueste menos',
+    texto: () => 'En tu bucket, crea una regla de ciclo de vida que mande los objetos a <strong>Glacier Flexible Retrieval</strong> a los 90 días y los borre a los 365.',
+    hecho: (e) => (e.buckets ?? []).some((b) => cuantos(b.ciclo) > 0)
+  },
+  {
+    id: 'efs',
+    tema: 'datos',
+    servicio: 'EFS',
+    sesion: 4,
+    ruta: 'efs',
+    titulo: 'Una carpeta compartida',
+    texto: () => 'Crea un sistema de archivos <strong>EFS</strong> Regional con <em>mount targets</em> en dos zonas. Con «Attach» ves el comando para montarlo en tus instancias.',
+    hecho: (e) => cuantos(e.efs?.sistemas) > 0
+  },
+  {
+    id: 'base-multiaz',
+    tema: 'datos',
+    servicio: 'RDS',
+    sesion: 5,
+    ruta: 'rds',
+    titulo: 'Una base que no se cae',
+    texto: () =>
+      'Crea una base <strong>MySQL</strong> con la plantilla Dev/Test, <strong>Multi-AZ DB instance</strong> y sin acceso público. Cuando diga <em>Available</em>, usa <strong>Reboot with failover</strong> y mira cómo cambia la zona.',
+    hecho: (e) => cuantos(e.rds?.instancias) > 0
+  },
+  {
+    id: 'respaldos',
+    tema: 'datos',
+    servicio: 'RDS',
+    sesion: 5,
+    ruta: 'rds',
+    titulo: 'Respaldos y réplicas',
+    texto: () => 'Toma un <strong>snapshot</strong> manual de tu base y crea una <strong>read replica</strong>. Uno protege tus datos; la otra reparte las lecturas.',
+    hecho: (e) => cuantos(e.rds?.snapshots) > 0
+  },
+  {
+    id: 'dynamo',
+    tema: 'datos',
+    servicio: 'DynamoDB',
+    sesion: 5,
+    ruta: 'dynamodb',
+    titulo: 'Puntajes sin servidor',
+    texto: (d) =>
+      `Crea la tabla <code>puntajes-${escapar(d.sufijo)}</code> con partition key <code>jugador</code> en modo <strong>on-demand</strong>. Agrega tres ítems y dale a uno un atributo que los demás no tengan: DynamoDB no pide un esquema fijo.`,
+    hecho: (e) => cuantos(e.dynamodb?.tablas) > 0
+  },
+  {
+    id: 'hora-pico',
+    tema: 'automatizar',
+    servicio: 'EC2 · Auto Scaling',
+    sesion: 6,
+    ruta: 'ec2',
+    titulo: 'Aguanta la hora pico',
+    texto: () =>
+      'Arma una <strong>plantilla de lanzamiento</strong>, un <strong>Application Load Balancer</strong> y un grupo de Auto Scaling de 2 a 4 instancias que siga el 50 % de CPU. Luego pulsa «Simular hora pico» y mira cómo crece.',
+    hecho: (e) => cuantos(e.autoscaling?.grupos) > 0 && cuantos(e.elb?.balanceadores) > 0
+  },
+  {
+    id: 'autocuracion',
+    tema: 'automatizar',
+    servicio: 'EC2 · Auto Scaling',
+    sesion: 6,
+    ruta: 'ec2',
+    titulo: 'Un grupo que se cura solo',
+    texto: () => 'Con tu grupo de Auto Scaling andando, termina a mano una de sus instancias. Ve a la pestaña <strong>Activity</strong> del grupo y mira quién la reemplaza.',
+    hecho: null
+  },
+  {
+    id: 'alarma',
+    tema: 'automatizar',
+    servicio: 'CloudWatch · SNS',
+    sesion: 6,
+    ruta: 'cloudwatch',
+    titulo: 'Que te avisen',
+    texto: () =>
+      'Crea un tema de <strong>SNS</strong> con tu correo y confirma la suscripción en la «Bandeja de correo (simulada)». Después, una alarma de <strong>CloudWatch</strong> de CPU mayor a 70 % que avise a ese tema.',
+    hecho: (e) => (e.cloudwatch?.alarmas ?? []).some((a) => a.creadaPor !== 'autoscaling')
+  },
+  {
+    id: 'desacoplar',
+    tema: 'automatizar',
+    servicio: 'SQS · Lambda',
+    sesion: 6,
+    ruta: 'sqs',
+    titulo: 'Desacopla los pedidos',
+    texto: () =>
+      'Crea la cola <code>pedidos</code> y una función <strong>Lambda</strong> con esa cola como <em>trigger</em>. Manda un mensaje a la cola y busca en CloudWatch Logs lo que escribió la función.',
+    hecho: (e) => cuantos(e.lambda?.funciones) > 0 && cuantos(e.sqs?.colas) > 0
+  },
+  {
+    id: 'programada',
+    tema: 'automatizar',
+    servicio: 'EventBridge',
+    sesion: 6,
+    ruta: 'eventbridge',
+    titulo: 'Una tarea que se hace sola',
+    texto: () => 'Crea una regla de <strong>EventBridge</strong> con el horario <code>rate(5 minutes)</code> que invoque tu Lambda. En el simulador, 5 minutos pasan en 50 segundos.',
+    hecho: (e) => cuantos(e.eventbridge?.reglas) > 0
+  },
+  {
+    id: 'minimo-privilegio',
+    tema: 'seguridad',
+    servicio: 'IAM',
+    sesion: 2,
+    ruta: 'iam',
+    titulo: 'Mínimo privilegio',
+    texto: () =>
+      'Crea el grupo <code>Lectores</code> con <strong>ReadOnlyAccess</strong> y mete a un usuario nuevo. Revisa que el usuario no tenga políticas sueltas: todo le llega por el grupo.',
+    hecho: (e) => (e.iam?.usuarios ?? []).some((u) => cuantos(u.grupos) > 0)
+  },
+  {
+    id: 'secretos',
+    tema: 'seguridad',
+    servicio: 'Secrets Manager · KMS',
+    sesion: 2,
+    ruta: 'secretsmanager',
+    titulo: 'Guarda bien los secretos',
+    texto: () =>
+      'Crea una llave de <strong>KMS</strong> con rotación anual y guarda en <strong>Secrets Manager</strong> las credenciales de tu base, cifradas con esa llave. Aquí sí funciona «Retrieve secret value».',
+    hecho: (e) => cuantos(e.secretos?.secretos) > 0
+  },
+  {
+    id: 'organizacion',
+    tema: 'seguridad',
+    servicio: 'Organizations',
+    sesion: 7,
+    ruta: 'organizations',
+    titulo: 'Cuentas con reglas',
+    texto: () =>
+      'Crea una organización con la unidad <code>Pruebas</code> y una <strong>SCP</strong> que niegue <code>rds:*</code>. Pégasela a Pruebas: ni el administrador de esas cuentas podrá crear bases.',
+    hecho: (e) => Boolean(e.organizations)
+  },
+  {
+    id: 'presupuesto',
+    tema: 'costos',
+    servicio: 'Billing',
+    sesion: 7,
+    ruta: 'billing',
+    titulo: 'Sin sorpresas en la factura',
+    texto: () => 'Crea un presupuesto mensual de 10 USD con una alerta al 80 % del gasto real y otra al 100 % del pronóstico. Las alertas llegan a la bandeja de correo simulada.',
+    hecho: (e) => cuantos(e.costos?.presupuestos) > 0
+  },
+  {
+    id: 'calculadora',
+    tema: 'costos',
+    servicio: 'Pricing Calculator',
+    sesion: 7,
+    ruta: 'billing',
+    titulo: 'Cotiza antes de crear',
+    texto: () => 'En la <strong>Pricing Calculator</strong>, estima dos t3.micro On-Demand todo el mes y compáralas con un Savings Plan. ¿Cuánto te ahorras?',
+    hecho: (e) => cuantos(e.costos?.estimaciones) > 0
+  },
+  {
+    id: 'advisor',
+    tema: 'costos',
+    servicio: 'Trusted Advisor',
+    sesion: 7,
+    ruta: 'trustedadvisor',
+    titulo: 'Haz caso a los consejos',
+    texto: () => 'Abre Trusted Advisor y pulsa <strong>Refresh all checks</strong>. Si sale el SSH abierto al mundo o la cuenta raíz sin MFA, arréglalo y vuelve a refrescar.',
+    hecho: null
+  },
+  {
+    id: 'well-architected',
+    tema: 'costos',
+    servicio: 'Well-Architected',
+    sesion: 7,
+    ruta: 'wellarchitected',
+    titulo: 'Revisa tu arquitectura',
+    texto: () => 'Define una carga de trabajo en la <strong>Well-Architected Tool</strong> y contesta las preguntas del pilar <strong>Reliability</strong>. ¿Qué riesgos te marca?',
+    hecho: (e) => cuantos(e.wellarchitected?.cargas) > 0
+  }
+];
+
+/** ¿Parece hecha? Una cuenta rara nunca truena la lista. */
+function ideaHecha(idea, cuenta) {
+  if (!idea.hecho || !cuenta) return false;
+  try {
+    return Boolean(idea.hecho(cuenta));
+  } catch {
+    return false;
+  }
+}
+
+/** Lo que hay en la cuenta, contado para la tarjeta: «3 instancias · 1 VPC propia…». */
+function resumenCuenta(e) {
+  const piezas = [
+    [(e.instancias ?? []).filter((i) => i.estado !== 'terminated').length, 'instancia', 'instancias'],
+    [(e.vpcs ?? []).filter((v) => !v.porDefecto).length, 'VPC propia', 'VPC propias'],
+    [cuantos(e.buckets), 'bucket', 'buckets'],
+    [cuantos(e.rds?.instancias), 'base RDS', 'bases RDS'],
+    [cuantos(e.dynamodb?.tablas), 'tabla DynamoDB', 'tablas DynamoDB'],
+    [cuantos(e.elb?.balanceadores), 'balanceador', 'balanceadores'],
+    [cuantos(e.autoscaling?.grupos), 'grupo de Auto Scaling', 'grupos de Auto Scaling'],
+    [cuantos(e.cloudwatch?.alarmas), 'alarma', 'alarmas'],
+    [cuantos(e.lambda?.funciones), 'función Lambda', 'funciones Lambda'],
+    [cuantos(e.sqs?.colas), 'cola SQS', 'colas SQS'],
+    [cuantos(e.sns?.temas), 'tema SNS', 'temas SNS'],
+    [cuantos(e.iam?.usuarios), 'usuario de IAM', 'usuarios de IAM']
+  ];
+  return piezas.filter(([n]) => n > 0).map(([n, uno, varios]) => `${n} ${n === 1 ? uno : varios}`);
+}
+
+/** La cuenta que viene en un archivo: la nuestra ({ formato, estado }) o una cuenta suelta. */
+function cuentaDeArchivo(datos) {
+  const e = datos?.formato === 'simulador-aws' ? datos.estado : datos;
+  const valida =
+    e &&
+    typeof e === 'object' &&
+    !Array.isArray(e) &&
+    e.cuenta &&
+    typeof e.cuenta === 'object' &&
+    e.iam &&
+    typeof e.iam === 'object' &&
+    ['vpcs', 'subredes', 'instancias', 'buckets', 'gruposSeguridad'].every((k) => Array.isArray(e[k]));
+  return valida ? e : null;
+}
+
+/** Descarga la cuenta como archivo JSON (para llevarla a otro equipo o guardarla). */
+function descargarCuenta(cuenta) {
+  const fecha = new Date().toLocaleDateString('en-CA');
+  const texto = JSON.stringify({ formato: 'simulador-aws', version: 1, guardada: new Date().toISOString(), alumno: perfil.nombre, estado: cuenta }, null, 1);
+  const enlace = document.createElement('a');
+  enlace.href = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
+  enlace.download = `mi-cuenta-aws-${fecha}.json`;
+  document.body.append(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(enlace.href), 10000);
+}
+
+/** Pide un archivo JSON y devuelve la cuenta que trae (o null si el alumno cancela o no sirve). */
+function elegirArchivoCuenta() {
+  return new Promise((resolve) => {
+    const entrada = document.createElement('input');
+    entrada.type = 'file';
+    entrada.accept = '.json,application/json';
+    entrada.addEventListener('change', async () => {
+      const archivo = entrada.files?.[0];
+      if (!archivo) return resolve(null);
+      if (archivo.size > LIMITE_ARCHIVO) {
+        aviso('Ese archivo es demasiado grande para ser una cuenta del simulador.', 'error');
+        return resolve(null);
+      }
+      try {
+        const cuenta = cuentaDeArchivo(JSON.parse(await archivo.text()));
+        if (!cuenta) aviso('Ese archivo no es una cuenta del simulador. Usa uno que hayas descargado con «Descargar mi cuenta».', 'error');
+        resolve(cuenta);
+      } catch {
+        aviso('No pude leer ese archivo: no es un JSON válido.', 'error');
+        resolve(null);
+      }
+    });
+    entrada.click();
+  });
+}
+
+const confirmarCarga = () =>
+  confirmar({
+    titulo: '¿Cargar esta cuenta?',
+    texto: '<p>Reemplaza <strong>todo</strong> lo que tienes ahora en tu consola libre. Si quieres conservarlo, primero descarga tu cuenta.</p>',
+    si: 'Sí, cargarla',
+    no: 'Cancelar'
+  });
+
+const confirmarReinicio = () =>
+  confirmar({
+    titulo: '¿Reiniciar tu cuenta?',
+    texto: '<p>Se borra <strong>todo</strong> lo que creaste en tu consola libre y empiezas con una cuenta nueva, como la de AWS el primer día. No afecta tus laboratorios ni tus calificaciones.</p>',
+    si: 'Sí, reiniciar',
+    no: 'Cancelar',
+    peligro: true
+  });
+
+/** Una idea como tarjeta. `enConsola`: dentro del panel de la consola libre (botón en lugar de enlace). */
+function htmlIdea(idea, datos, cuenta, { enConsola = false, activa = false } = {}) {
+  const hecha = ideaHecha(idea, cuenta);
+  const meta = `<p class="idea__meta"><span class="chip">${escapar(idea.servicio)}</span><span class="idea__sesion">Sesión ${idea.sesion}</span>${
+    hecha ? `<span class="idea__hecha">${icono('i-check')} parece que ya lo hiciste</span>` : ''
+  }</p>`;
+  const cuerpo = `${meta}<h3>${escapar(idea.titulo)}</h3><p class="idea__texto">${idea.texto(datos)}</p>`;
+  if (enConsola) {
+    return `<li class="idea ${hecha ? 'idea--hecha' : ''} ${activa ? 'idea--activa' : ''}" data-idea="${idea.id}">${cuerpo}
+      <button class="boton boton--chico boton--sutil" type="button" data-ir-idea="${idea.id}">Ir a ${escapar(idea.servicio.split(' · ')[0])} ${icono('i-flecha')}</button></li>`;
+  }
+  return `<a class="idea ${hecha ? 'idea--hecha' : ''}" href="#/simulador/consola/${idea.id}">${cuerpo}<span class="idea__ir">Practicar ${icono('i-flecha')}</span></a>`;
+}
+
+/** El apartado del simulador: la consola libre, las ideas y los laboratorios. */
+async function vistaSimulador({ sinServidor = null } = {}) {
+  let datos = null;
+  try {
+    datos = (await cargarLabs()).datosAlumno({ nombre: perfil.nombre, matricula: perfil.matricula });
+  } catch {
+    datos = { vpcCidr: '10.0.0.0/16', sufijo: 'tuyo' };
+  }
+  const guardada = leer(claveLibre(), null);
+  const cuenta = guardada?.estado ?? null;
+  const resumen = cuenta ? resumenCuenta(cuenta) : [];
+  const hechas = cuenta ? IDEAS.filter((i) => ideaHecha(i, cuenta)).length : 0;
+
+  const pintarLabs = () =>
+    sinServidor
+      ? `<div class="hoja">${icono('i-alerta')} <strong>No pude cargar tus laboratorios</strong> (${escapar(sinServidor.message)}). La consola libre sí funciona: vive en este equipo.</div>`
+      : grupoTarjetas('laboratorio', {
+          titulo: 'Laboratorios de sesión',
+          texto: 'La versión de simulador del laboratorio de cada sesión: siempre abiertos y se califican solos. Tu entrega queda como evidencia y después puedes repetirlos.'
+        }) +
+        grupoTarjetas('practica', { titulo: 'Prácticas integradoras', texto: 'Un caso real completo por sesión, de la 9 a la 13. Tu docente las abre en clase: mientras, ves el candado.' }) +
+        grupoTarjetas('final', { titulo: 'Examen final', texto: 'Ya está abierto. Lee las instrucciones con calma antes de empezar.' });
+
+  app.innerHTML = `
+    ${barra({ volver: { ruta: '', texto: 'Mis evaluaciones' }, titulo: 'Simulador AWS' })}
+    <main class="pagina simulador">
+      <section class="simulador__portada" aria-labelledby="titulo-simulador">
+        <div class="simulador__presenta">
+          <p class="etiqueta">Simulador AWS</p>
+          <h1 id="titulo-simulador">Tu cuenta de AWS para practicar</h1>
+          <p class="simulador__intro">Una consola que se ve y se usa como la de AWS (en inglés, como la real), pero que vive en tu navegador: no cuesta nada, no necesita tarjeta y no se apaga a los 45 minutos.</p>
+          <ul class="simulador__puntos">
+            <li>${icono('i-check')}<span>Aquí <strong>sí puedes crear</strong> lo que en DataCamp sale negado: bases RDS, balanceadores, alarmas, usuarios de IAM y subir archivos a S3.</span></li>
+            <li>${icono('i-check')}<span>La consola libre <strong>no se califica</strong>: equivócate, borra y vuelve a intentar.</span></li>
+            <li>${icono('i-check')}<span>Los <strong>laboratorios</strong> de abajo sí se califican solos y tu docente ve tu avance.</span></li>
+          </ul>
+        </div>
+        <div class="libre" aria-labelledby="titulo-libre">
+          <p class="libre__etiqueta">${icono('i-consola')} Consola libre</p>
+          <h2 id="titulo-libre">${cuenta ? 'Tu cuenta te espera' : 'Estrena tu cuenta'}</h2>
+          <p class="libre__detalle">${
+            cuenta
+              ? resumen.length
+                ? `Tienes ${escapar(resumen.slice(0, 4).join(' · '))}${resumen.length > 4 ? '…' : ''}.`
+                : 'Todavía no creas nada en ella.'
+              : 'Una cuenta nueva, como la de AWS el primer día, con la VPC por omisión ya lista.'
+          }${guardada?.hora ? ` <span class="sutil">Último cambio: ${escapar(fechaHora(guardada.hora))}</span>` : ''}</p>
+          ${hechas ? `<p class="libre__ideas">${icono('i-check')} Llevas <strong>${hechas} de ${IDEAS.length}</strong> ideas para practicar.</p>` : ''}
+          <a class="boton boton--primario boton--ancho" href="#/simulador/consola">${cuenta ? 'Abrir mi consola' : 'Abrir la consola'} ${icono('i-flecha')}</a>
+          <div class="libre__acciones">
+            <button class="boton boton--chico boton--oscuro" type="button" id="btn-descargar" ${cuenta ? '' : 'disabled'}>Descargar mi cuenta</button>
+            <button class="boton boton--chico boton--oscuro" type="button" id="btn-cargar">Cargar una cuenta</button>
+          </div>
+          <p class="libre__nota">Se guarda solo en este equipo y navegador. Para seguir en otro, descárgala aquí y cárgala allá.${
+            cuenta ? ' <button type="button" class="enlace-claro" id="btn-reiniciar-libre">Reiniciar mi cuenta</button>' : ''
+          }</p>
+        </div>
+      </section>
+
+      <section class="ideas" aria-labelledby="titulo-ideas">
+        <div class="grupo-ev__cabeza">
+          <h2 id="titulo-ideas">Ideas para practicar</h2>
+          <p>Retos cortos para tu consola libre, por servicio. No se califican: elige uno, ábrelo y aprende haciéndolo. Los nombres usan tus datos (tu red ${escapar(datos.vpcCidr)}, tu sufijo ${escapar(datos.sufijo)}).</p>
+        </div>
+        ${TEMAS_IDEAS.map(([tema, nombre]) => {
+          const lista = IDEAS.filter((i) => i.tema === tema);
+          return `<h3 class="ideas__tema">${escapar(nombre)}</h3><div class="ideas__rejilla">${lista.map((i) => htmlIdea(i, datos, cuenta)).join('')}</div>`;
+        }).join('')}
+      </section>
+
+      <div id="grupos-simulador">${pintarLabs()}</div>
+    </main>`;
+
+  document.getElementById('btn-descargar')?.addEventListener('click', () => {
+    const actual = leer(claveLibre(), null);
+    if (actual?.estado) descargarCuenta(actual.estado);
+  });
+  document.getElementById('btn-cargar').addEventListener('click', async () => {
+    const nueva = await elegirArchivoCuenta();
+    if (!nueva) return;
+    if (leer(claveLibre(), null)?.estado && !(await confirmarCarga())) return;
+    if (!guardar(claveLibre(), { estado: nueva, rev: 0, hora: new Date().toISOString() })) return aviso('No pude guardar la cuenta en este equipo.', 'error');
+    aviso('Listo: cargué tu cuenta.', 'exito');
+    ir('simulador/consola');
+  });
+  document.getElementById('btn-reiniciar-libre')?.addEventListener('click', async () => {
+    if (!(await confirmarReinicio())) return;
+    guardar(claveLibre(), null);
+    aviso('Tu cuenta volvió a empezar.', 'info');
+    pintar();
+  });
+
+  if (sinServidor) return;
+  let antes = JSON.stringify(servidor.evaluaciones);
+  alLatido = () => {
+    const ahoraTxt = JSON.stringify(servidor.evaluaciones);
+    if (ahoraTxt === antes) return;
+    antes = ahoraTxt;
+    const zona = document.getElementById('grupos-simulador');
+    if (zona) zona.innerHTML = pintarLabs();
+  };
+  cargarLabs()
+    .then(() => {
+      antes = '';
+      alLatido?.();
+    })
+    .catch(() => {});
+}
+
+/**
+ * La consola libre: la consola simulada a pantalla completa, con un panel de
+ * ideas y tus datos. Usa la misma pantalla que un laboratorio, sin reloj, sin
+ * entregar y sin servidor. `ideaId` (opcional) abre la consola en el servicio
+ * de esa idea.
+ */
+async function vistaConsolaLibre(ideaId = '') {
+  app.innerHTML = `${barra({ volver: { ruta: 'simulador', texto: 'Simulador AWS' }, titulo: 'Consola libre' })}<main class="pagina"><p class="cargando">Preparando tu cuenta de AWS simulada…</p></main>`;
+  const pedido = location.hash;
+  let labs;
+  let consolaModulo;
+  let modelo;
+  try {
+    [labs, consolaModulo, modelo] = await Promise.all([cargarLabs(), import('./consola/consola.js'), import('./consola/modelo.js')]);
+  } catch (e) {
+    console.error(e);
+    if (location.hash !== pedido) return;
+    app.innerHTML = `${barra({ volver: { ruta: 'simulador', texto: 'Simulador AWS' }, titulo: 'Consola libre' })}
+      <main class="pagina pagina--angosta"><div class="hoja"><h1>No pude abrir la consola</h1><p>Recarga la página. Si sigue igual, avísale a tu docente: tu cuenta sigue guardada en este equipo.</p><button class="boton boton--primario" type="button" id="btn-reintentar">Intentar de nuevo</button></div></main>`;
+    document.getElementById('btn-reintentar').addEventListener('click', pintar);
+    return;
+  }
+  if (location.hash !== pedido) return;
+
+  const datos = labs.datosAlumno({ nombre: perfil.nombre, matricula: perfil.matricula });
+  const guardada = leer(claveLibre(), null);
+  let cuenta = cuentaDeArchivo(guardada?.estado) ?? modelo.cuentaNueva(datos);
+  let rev = guardada?.rev ?? 0;
+  let ideaActiva = IDEAS.some((i) => i.id === ideaId) ? ideaId : '';
+  let plegado = leer(clavePanelLibre, false) === true;
+  let pestana = 'ideas';
+
+  document.body.classList.add('modo-lab');
+  const movil = matchMedia('(max-width: 760px)').matches;
+  app.innerHTML = `
+    <div class="lab lab--libre ${plegado ? 'lab--plegado' : ''}" id="lab">
+      <header class="lab__barra">
+        <a class="lab__salir" href="#/simulador" title="Tu cuenta queda guardada en este equipo">${icono('i-flecha', 'icono icono--atras')}<span>Salir</span></a>
+        <div class="lab__titulo"><span>Simulador AWS · consola libre</span><strong>Tu cuenta para practicar</strong></div>
+        <span class="lab__guardado" id="guardado" aria-live="polite"></span>
+        <div class="lab__acciones">
+          <button class="boton boton--oscuro boton--chico" type="button" id="btn-panel" aria-controls="panel" aria-expanded="${!plegado}">${icono('i-panel')}<span>${plegado ? 'Mostrar' : 'Ocultar'} ideas</span></button>
+          <button class="boton boton--oscuro boton--chico" type="button" id="btn-descargar">${icono('i-copiar')}<span>Descargar mi cuenta</span></button>
+          <button class="boton boton--oscuro boton--chico" type="button" id="btn-cargar"><span>Cargar una cuenta</span></button>
+        </div>
+      </header>
+      <div class="aviso-intento">${icono('i-libro')}<span><strong>Consola libre:</strong> nada de lo que hagas aquí se califica. Tu cuenta se guarda solo en este equipo.</span></div>
+      ${movil ? `<div class="aviso-movil" id="aviso-movil">${icono('i-alerta')}<span>La consola se usa mejor en una computadora. Puedes seguir aquí: las ideas están debajo de la consola.</span><button class="boton boton--chico" type="button" id="btn-aviso-movil">Entendido</button></div>` : ''}
+      <div class="lab__cuerpo">
+        <div class="lab__consola" id="consola" role="region" aria-label="Consola de AWS simulada"></div>
+        <aside class="lab__panel" id="panel" aria-label="Ideas para practicar">
+          <div class="pestanas-lab" role="tablist" aria-label="Panel">
+            <button type="button" role="tab" id="tab-ideas" data-pestana="ideas" aria-controls="tp-ideas">Ideas</button>
+            <button type="button" role="tab" id="tab-datos" data-pestana="datos" aria-controls="tp-datos">Tus datos</button>
+          </div>
+          <div class="lab__contenido">
+            <section role="tabpanel" id="tp-ideas" aria-labelledby="tab-ideas" data-panel="ideas"></section>
+            <section role="tabpanel" id="tp-datos" aria-labelledby="tab-datos" data-panel="datos">
+              <p class="sutil">Úsalos para que tus nombres y rangos se parezcan a los de tus laboratorios. Salen de tu ${perfil.matricula ? 'matrícula' : 'nombre'}.</p>
+              <dl class="datos-alumno">${htmlDatos(datos)}</dl>
+            </section>
+          </div>
+          <footer class="lab__pie">
+            <button type="button" class="enlace-peligro" id="btn-reiniciar">Reiniciar mi cuenta</button>
+          </footer>
+        </aside>
+      </div>
+    </div>`;
+
+  const $ = (id) => document.getElementById(id);
+  const lab = $('lab');
+
+  function mostrarPestana(nombre) {
+    pestana = nombre;
+    lab.querySelectorAll('[data-pestana]').forEach((b) => {
+      b.setAttribute('aria-selected', String(b.dataset.pestana === nombre));
+      b.tabIndex = b.dataset.pestana === nombre ? 0 : -1;
+    });
+    lab.querySelectorAll('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== nombre));
+  }
+  lab.querySelector('.pestanas-lab').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pestana]');
+    if (b) mostrarPestana(b.dataset.pestana);
+  });
+  lab.querySelector('.pestanas-lab').addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    mostrarPestana(pestana === 'ideas' ? 'datos' : 'ideas');
+    lab.querySelector(`[data-pestana="${pestana}"]`).focus();
+  });
+  mostrarPestana(pestana);
+
+  /** Las ideas, con su palomita según la cuenta de este momento. */
+  function pintarIdeas() {
+    const hechas = IDEAS.filter((i) => ideaHecha(i, cuenta)).length;
+    $('tp-ideas').innerHTML = `
+      <p class="sutil">Retos cortos, sin calificar. Pulsa «Ir a…» y la consola te lleva al servicio. ${hechas ? `Llevas <strong>${hechas} de ${IDEAS.length}</strong>.` : ''}</p>
+      ${TEMAS_IDEAS.map(
+        ([tema, nombre]) => `<h3 class="ideas__tema ideas__tema--panel">${escapar(nombre)}</h3>
+        <ol class="ideas__lista">${IDEAS.filter((i) => i.tema === tema)
+          .map((i) => htmlIdea(i, datos, cuenta, { enConsola: true, activa: i.id === ideaActiva }))
+          .join('')}</ol>`
+      ).join('')}`;
+  }
+  pintarIdeas();
+  // Si se llegó desde una idea, se ve en el panel sin tener que buscarla (solo
+  // con el panel al lado: en pantallas angostas movería la página entera).
+  if (ideaActiva && matchMedia('(min-width: 1001px)').matches) requestAnimationFrame(() => lab.querySelector('.idea--activa')?.scrollIntoView({ block: 'center' }));
+
+  $('tp-ideas').addEventListener('click', (e) => {
+    const id = e.target.closest('[data-ir-idea]')?.dataset.irIdea;
+    const idea = IDEAS.find((i) => i.id === id);
+    if (!idea) return;
+    ideaActiva = idea.id;
+    consola?.irA(idea.ruta);
+    lab.querySelectorAll('.idea').forEach((li) => li.classList.toggle('idea--activa', li.dataset.idea === idea.id));
+    if (movil) $('consola').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  lab.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-copiar]');
+    if (!b) return;
+    copiar(b.dataset.copiar).then(() => {
+      const texto = b.querySelector('span');
+      texto.textContent = '¡Copiado!';
+      setTimeout(() => (texto.textContent = 'Copiar'), 1600);
+    });
+  });
+
+  $('btn-panel').addEventListener('click', () => {
+    plegado = !plegado;
+    guardar(clavePanelLibre, plegado);
+    lab.classList.toggle('lab--plegado', plegado);
+    $('btn-panel').setAttribute('aria-expanded', String(!plegado));
+    $('btn-panel').querySelector('span').textContent = `${plegado ? 'Mostrar' : 'Ocultar'} ideas`;
+  });
+  $('btn-aviso-movil')?.addEventListener('click', () => $('aviso-movil').remove());
+
+  /* --------------------------------------------- guardar en este equipo */
+
+  const textoGuardado = (t, clase = '') => {
+    const el = $('guardado');
+    if (!el) return;
+    el.className = `lab__guardado ${clase}`;
+    el.textContent = t;
+  };
+
+  let espera = null;
+  let pendiente = false;
+  function guardarYa() {
+    clearTimeout(espera);
+    espera = null;
+    if (!pendiente) return;
+    pendiente = false;
+    if (guardar(claveLibre(), { estado: cuenta, rev, hora: new Date().toISOString() })) textoGuardado(`Guardado ${hora(new Date().toISOString())}`, 'lab__guardado--bien');
+    else textoGuardado('No pude guardar en este equipo: descarga tu cuenta para no perderla', 'lab__guardado--mal');
+  }
+
+  // Tras cada acción de la consola. Se guarda medio segundo después: si el
+  // alumno hace varias cosas seguidas, se escribe una sola vez.
+  let esperaIdeas = null;
+  function alCambiar(estado) {
+    cuenta = estado;
+    rev += 1;
+    pendiente = true;
+    clearTimeout(espera);
+    espera = setTimeout(guardarYa, 500);
+    clearTimeout(esperaIdeas);
+    esperaIdeas = setTimeout(pintarIdeas, 800);
+  }
+
+  const alOcultar = () => {
+    if (document.visibilityState === 'hidden') guardarYa();
+  };
+  window.addEventListener('pagehide', guardarYa);
+  document.addEventListener('visibilitychange', alOcultar);
+
+  /* ------------------------------------------------------- la consola */
+
+  let consola = null;
+  function montar() {
+    consola?.destruir();
+    consola = null;
+    const contenedor = $('consola');
+    contenedor.innerHTML = '';
+    try {
+      consola = consolaModulo.montarConsola(contenedor, { estado: cuenta, alumno: { nombre: perfil.nombre, matricula: perfil.matricula }, alCambiar, soloLectura: false });
+      const idea = IDEAS.find((i) => i.id === ideaActiva);
+      if (idea) consola.irA(idea.ruta);
+    } catch (e) {
+      console.error(e);
+      contenedor.innerHTML = '<p class="lab__fallo">La consola tuvo un problema al abrir esta cuenta. Recarga la página; si sigue igual, usa «Reiniciar mi cuenta» (abajo, en el panel).</p>';
+    }
+  }
+  montar();
+  if (!guardada?.estado) {
+    pendiente = true;
+    guardarYa();
+  } else textoGuardado(guardada.hora ? `Guardado ${hora(guardada.hora)}` : '');
+
+  alSalir.push(() => {
+    guardarYa();
+    clearTimeout(esperaIdeas);
+    window.removeEventListener('pagehide', guardarYa);
+    document.removeEventListener('visibilitychange', alOcultar);
+    consola?.destruir();
+    document.body.classList.remove('modo-lab');
+  });
+
+  /* ------------------------------------- descargar, cargar y reiniciar */
+
+  $('btn-descargar').addEventListener('click', () => {
+    guardarYa();
+    descargarCuenta(cuenta);
+  });
+
+  $('btn-cargar').addEventListener('click', async () => {
+    const nueva = await elegirArchivoCuenta();
+    if (!nueva || !(await confirmarCarga())) return;
+    alCambiar(nueva);
+    guardarYa();
+    montar();
+    pintarIdeas();
+    aviso('Listo: cargué tu cuenta.', 'exito');
+  });
+
+  $('btn-reiniciar').addEventListener('click', async () => {
+    if (!(await confirmarReinicio())) return;
+    alCambiar(modelo.cuentaNueva(datos));
+    guardarYa();
+    ideaActiva = '';
+    montar();
+    pintarIdeas();
+    aviso('Tu cuenta volvió a empezar.', 'info');
+  });
 }
 
 /* ---------------------------------------------------------------- arranque */

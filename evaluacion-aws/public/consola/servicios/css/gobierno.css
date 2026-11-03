@@ -1,0 +1,562 @@
+/* ---------------------------------------------------------------------------
+   GOBIERNO · AWS Organizations (portada, árbol Root → OU → cuentas, editor de
+   SCP con su validador, probador del simulador, facturación consolidada) y
+   AWS Well-Architected Tool (pilares, revisión con la lista de preguntas a la
+   izquierda, riesgos e Improvement plan).
+   Todo bajo .cx con clases cx-org-… y cx-wa-…
+   --------------------------------------------------------------------------- */
+
+/* Portadas («AWS Organizations», «AWS Well-Architected Tool»). */
+.cx .cx-org-heroe {
+  padding: 28px 32px;
+  border-radius: var(--cx-radio);
+  background: linear-gradient(120deg, #0f1b2a 0%, #16263a 55%, #1b2e45 100%);
+  border: 1px solid var(--cx-borde-suave);
+}
+
+.cx .cx-org-heroe__titulo {
+  margin: 4px 0 8px;
+  font-size: 34px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-org-heroe__lema {
+  margin: 0;
+  font-size: 18px;
+  color: var(--cx-texto);
+  max-width: 720px;
+}
+
+.cx .cx-org-pasos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.cx .cx-org-pasos li {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.cx .cx-org-pasos p {
+  margin: 2px 0 0;
+}
+
+.cx .cx-org-pasos__n {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--cx-primario-texto);
+  background: var(--cx-enlace);
+}
+
+/* El árbol de AWS accounts. */
+.cx .cx-org-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 4px 20px 12px;
+  border-bottom: 1px solid var(--cx-borde-suave);
+}
+
+.cx .cx-org-buscar {
+  flex: 1 1 280px;
+  max-width: 520px;
+}
+
+.cx .cx-org-arbol {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 8px;
+}
+
+.cx .cx-org-fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 20px 6px 12px;
+  border-bottom: 1px solid var(--cx-borde-suave);
+}
+
+.cx .cx-org-fila:last-child {
+  border-bottom-color: transparent;
+}
+
+.cx .cx-org-fila:hover {
+  background: var(--cx-hover);
+}
+
+.cx .cx-org-fila--elegida,
+.cx .cx-org-fila--elegida:hover {
+  background: var(--cx-elegido);
+  box-shadow: inset 2px 0 0 var(--cx-enlace);
+}
+
+.cx .cx-org-fila--apagada {
+  opacity: 0.55;
+}
+
+.cx .cx-org-control {
+  flex: none;
+  width: 20px;
+  display: grid;
+  place-items: center;
+}
+
+.cx .cx-org-control input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--cx-enlace);
+  cursor: pointer;
+}
+
+.cx .cx-org-flecha {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-org-flecha:hover {
+  background: var(--cx-borde-suave);
+}
+
+.cx .cx-org-flecha--vacia {
+  pointer-events: none;
+}
+
+.cx .cx-org-icono {
+  flex: none;
+  color: var(--cx-sec);
+}
+
+.cx .cx-org-icono--raiz,
+.cx .cx-org-icono--carpeta {
+  color: #f5c045;
+}
+
+.cx .cx-org-icono--cuenta {
+  color: var(--cx-enlace);
+}
+
+.cx .cx-org-nombre {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cx .cx-org-nombre__fila {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.cx .cx-org-nombre-texto {
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-org-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--cx-sec);
+}
+
+.cx .cx-org-vacio {
+  padding: 16px 20px;
+}
+
+.cx .cx-org-celda-larga {
+  white-space: normal;
+  min-width: 260px;
+}
+
+.cx .cx-org-derecha {
+  text-align: right;
+  justify-content: flex-end;
+  padding-right: 20px;
+}
+
+.cx .cx-org-total td {
+  border-top: 1px solid var(--cx-borde);
+}
+
+.cx .cx-org-apagar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Editor de SCP y su validador. */
+.cx .cx-org-editor-caja {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cx-borde-input);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cx .cx-org-editor {
+  border: 0 !important;
+  border-radius: 0 !important;
+  min-height: 340px;
+  tab-size: 4;
+  resize: vertical;
+  background: #0b1016;
+  line-height: 1.55;
+}
+
+.cx .cx-org-validador {
+  border-top: 1px solid var(--cx-borde-suave);
+  background: var(--cx-fondo-2);
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.cx .cx-org-validador__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  color: var(--cx-sec);
+}
+
+.cx .cx-org-validador__n--mal {
+  color: var(--cx-error);
+  font-weight: 700;
+}
+
+.cx .cx-org-validador__tam {
+  margin-left: auto;
+}
+
+.cx .cx-org-validador__lista {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.cx .cx-org-validador__lista li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--cx-texto);
+}
+
+.cx .cx-org-validador__lista .cx-icono {
+  color: var(--cx-error);
+  margin-top: 2px;
+}
+
+.cx .cx-org-validador__bien {
+  margin-top: 6px;
+}
+
+.cx .cx-org-ejemplos {
+  display: grid;
+  gap: 8px;
+}
+
+.cx .cx-org-ejemplos .cx-boton {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.cx .cx-org-lista {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.cx .cx-org-probador > .cx-campo {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.cx .cx-org-mensaje {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+/* --------------------------------------------------- Well-Architected */
+
+.cx .cx-wa-numero {
+  font-weight: 700;
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-wa-numero--alto {
+  color: var(--cx-error);
+}
+
+.cx .cx-wa-numero--medio {
+  color: var(--cx-aviso);
+}
+
+.cx .cx-wa-pilares {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
+}
+
+.cx .cx-wa-pilar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.cx .cx-wa-pilar p {
+  margin: 2px 0 0;
+}
+
+.cx .cx-wa-pilar__id {
+  flex: none;
+  min-width: 46px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cx-fuerte);
+  background: #27374d;
+}
+
+.cx .cx-wa-lentes {
+  display: flex;
+  flex-direction: column;
+}
+
+.cx .cx-wa-lente {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--cx-borde-suave);
+}
+
+.cx .cx-wa-lente:last-child {
+  border-bottom: 0;
+}
+
+.cx .cx-wa-estado {
+  max-width: 320px;
+}
+
+/* La revisión: preguntas a la izquierda, la pregunta a la derecha. */
+.cx .cx-wa-revision {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.cx .cx-wa-nav {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+  border: 1px solid var(--cx-borde-suave);
+  border-radius: var(--cx-radio);
+  background: var(--cx-contenedor);
+  padding: 12px 0;
+}
+
+.cx .cx-wa-nav__titulo {
+  padding: 0 16px 10px;
+  font-weight: 700;
+  color: var(--cx-fuerte);
+  border-bottom: 1px solid var(--cx-borde-suave);
+}
+
+.cx .cx-wa-nav__pilar {
+  padding: 10px 0 4px;
+}
+
+.cx .cx-wa-nav__nombre {
+  padding: 0 16px 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--cx-sec);
+}
+
+.cx .cx-wa-nav__pregunta {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  width: 100%;
+  padding: 5px 16px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--cx-enlace);
+  border-left: 3px solid transparent;
+}
+
+.cx .cx-wa-nav__pregunta:hover {
+  background: var(--cx-hover);
+  color: var(--cx-enlace-hover);
+}
+
+.cx .cx-wa-nav__pregunta--actual,
+.cx .cx-wa-nav__pregunta--actual:hover {
+  color: var(--cx-fuerte);
+  font-weight: 700;
+  border-left-color: var(--cx-enlace);
+  background: var(--cx-elegido);
+}
+
+.cx .cx-wa-punto {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cx-apagado);
+}
+
+.cx .cx-wa-punto--high {
+  background: var(--cx-error);
+  border-color: var(--cx-error);
+}
+
+.cx .cx-wa-punto--medium {
+  background: var(--cx-aviso);
+  border-color: var(--cx-aviso);
+}
+
+.cx .cx-wa-punto--none {
+  background: var(--cx-exito);
+  border-color: var(--cx-exito);
+}
+
+.cx .cx-wa-punto--not_applicable {
+  background: var(--cx-apagado);
+}
+
+.cx .cx-wa-opciones {
+  display: flex;
+  flex-direction: column;
+}
+
+.cx .cx-wa-opcion {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--cx-borde-suave);
+}
+
+.cx .cx-wa-opcion--ninguna {
+  border-bottom: 0;
+  padding-top: 14px;
+}
+
+.cx .cx-wa-opcion__riesgo,
+.cx .cx-wa-faltan__riesgo {
+  flex: none;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 700;
+  border: 1px solid currentColor;
+}
+
+.cx .cx-wa-faltan__riesgo--alto {
+  color: var(--cx-error);
+}
+
+.cx .cx-wa-faltan__riesgo--medio {
+  color: var(--cx-aviso);
+}
+
+.cx .cx-wa-riesgo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Improvement plan. */
+.cx .cx-wa-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cx .cx-wa-item {
+  border: 1px solid var(--cx-borde-suave);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.cx .cx-wa-item__cabeza {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.cx .cx-wa-faltan {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.cx .cx-wa-faltan li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+@container cx (max-width: 900px) {
+  .cx .cx-wa-revision {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cx .cx-wa-nav {
+    position: static;
+    max-height: 260px;
+  }
+  .cx .cx-wa-pilares {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cx .cx-org-heroe {
+    padding: 20px;
+  }
+  .cx .cx-org-heroe__titulo {
+    font-size: 26px;
+  }
+}
+
+.cx .cx-tabla__tabla .cx-org-nombre__fila {
+  flex-wrap: nowrap;
+}

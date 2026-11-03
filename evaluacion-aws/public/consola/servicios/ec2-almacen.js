@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import * as ui from '../ui.js';
-import { adjuntarVolumen, crearSnapshot, crearVolumen, desadjuntarVolumen, eliminarSnapshot, eliminarVolumen, TIPOS_VOLUMEN, tipoVolumen } from '../modelo.js';
+import { adjuntarVolumen, cambiarPermisosSnapshot, crearSnapshot, crearVolumen, desadjuntarVolumen, eliminarSnapshot, eliminarVolumen, TIPOS_VOLUMEN, tipoVolumen } from '../modelo.js';
 import { enlaceRecurso, idParentesis, nombre, noExiste, opcionesZona, panelVacio, pestanaEtiquetas } from './comun.js';
 
 const { h } = ui;
@@ -80,6 +80,28 @@ function accionesVolumen(cx, sel, alBorrar) {
   ];
 }
 
+/* ======================================================== llaves de KMS */
+
+/** «KMS key» de Create volume: la AWS managed key aws/ebs y las llaves propias que sirven para cifrar. */
+function opcionesLlaveEbs(cx) {
+  const propias = (cx.estado.kms?.llaves ?? []).filter((k) => !k.administradaPorAws && k.estado === 'Enabled' && k.spec === 'SYMMETRIC_DEFAULT' && k.uso === 'ENCRYPT_DECRYPT');
+  return [
+    { valor: 'aws/ebs', etiqueta: 'aws/ebs', descripcion: 'Default key that protects my EBS volumes when no other key is defined', etiquetaDerecha: 'AWS managed key' },
+    ...propias.map((k) => ({ valor: k.id, etiqueta: k.alias ?? k.id, descripcion: k.id, etiquetaDerecha: 'Customer managed key' }))
+  ];
+}
+
+/** La llave con la que va cifrado (volumen o snapshot): «KMS key ID» y «KMS key alias» del detalle. */
+function paresLlave(cx, r) {
+  if (!r.cifrado) return [];
+  const ref = r.llaveKms ?? 'aws/ebs';
+  const k = (cx.estado.kms?.llaves ?? []).find((x) => x.id === ref || (x.aliases ?? []).includes(ref));
+  return [
+    { etiqueta: 'KMS key ID', valor: k ? ui.copiable(k.id) : '–' },
+    { etiqueta: 'KMS key alias', valor: k ? k.alias ?? '–' : ref }
+  ];
+}
+
 function paresVolumen(cx, v) {
   return ui.pares(
     [
@@ -91,6 +113,7 @@ function paresVolumen(cx, v) {
       { etiqueta: 'IOPS', valor: v.iops ?? '–' },
       { etiqueta: 'Throughput', valor: rendimiento(v) },
       { etiqueta: 'Encryption', valor: v.cifrado ? 'Encrypted' : 'Not encrypted' },
+      ...paresLlave(cx, v),
       { etiqueta: 'Snapshot', valor: v.snapshotId ? (v.snapshotId.startsWith('snap-') && cx.estado.snapshots.some((s) => s.id === v.snapshotId) ? enlaceRecurso(cx, v.snapshotId) : v.snapshotId) : '–' },
       { etiqueta: 'Availability Zone', valor: v.az },
       { etiqueta: 'Created', valor: ui.fechaLarga(v.creado) },
@@ -174,7 +197,7 @@ function detalleVolumen(cx, { id }) {
 function crearVolumenPagina(cx, { snap } = {}) {
   cx.migas([{ texto: 'EC2', ruta: 'ec2' }, { texto: 'Volumes', ruta: 'ec2/volumenes' }, { texto: 'Create volume' }]);
   const desdeSnap = snap ? cx.estado.snapshots.find((s) => s.id === snap) : null;
-  const f = { tipo: 'gp3', tamano: desdeSnap ? String(desdeSnap.tamano) : '100', iops: '3000', rendimiento: '125', az: 'us-east-1a', snapshotId: desdeSnap?.id ?? null, cifrado: Boolean(desdeSnap?.cifrado), etiquetas: [], error: null };
+  const f = { tipo: 'gp3', tamano: desdeSnap ? String(desdeSnap.tamano) : '100', iops: '3000', rendimiento: '125', az: 'us-east-1a', snapshotId: desdeSnap?.id ?? null, cifrado: Boolean(desdeSnap?.cifrado), llaveKms: desdeSnap?.cifrado ? desdeSnap.llaveKms ?? 'aws/ebs' : 'aws/ebs', etiquetas: [], error: null };
   const form = ui.region(() => {
     const t = tipoVolumen(f.tipo);
     const conIops = ['gp3', 'io1', 'io2'].includes(f.tipo);
@@ -236,6 +259,7 @@ function crearVolumenPagina(cx, { snap } = {}) {
             if (s) {
               f.tamano = String(Math.max(Number(f.tamano) || 0, s.tamano));
               f.cifrado = s.cifrado;
+              if (s.cifrado) f.llaveKms = s.llaveKms ?? 'aws/ebs';
             }
             form.repintar();
           }
@@ -246,8 +270,23 @@ function crearVolumenPagina(cx, { snap } = {}) {
         info: 'volumen',
         cx,
         descripcion: 'Use Amazon EBS encryption as an encryption solution for your EBS resources associated with your EC2 instances.',
-        control: ui.casilla({ etiqueta: 'Encrypt this volume', marcada: f.cifrado, desactivado: Boolean(f.snapshotId && cx.estado.snapshots.find((s) => s.id === f.snapshotId)?.cifrado), alCambiar: (v) => (f.cifrado = v) })
-      })
+        control: ui.casilla({
+          etiqueta: 'Encrypt this volume',
+          marcada: f.cifrado,
+          desactivado: Boolean(f.snapshotId && cx.estado.snapshots.find((s) => s.id === f.snapshotId)?.cifrado),
+          alCambiar: (v) => {
+            f.cifrado = v;
+            form.repintar();
+          }
+        })
+      }),
+      f.cifrado
+        ? ui.campo({
+            etiqueta: 'KMS key',
+            descripcion: 'The AWS KMS key to use for the encryption. If you don’t choose one, Amazon EBS uses the AWS managed key aws/ebs.',
+            control: ui.selector({ opciones: opcionesLlaveEbs(cx), valor: f.llaveKms, filtrar: true, filtroPlaceholder: 'Find KMS keys', etiquetaAccesible: 'KMS key', alCambiar: (v) => (f.llaveKms = v) })
+          })
+        : null
     );
   });
   return h(
@@ -270,6 +309,7 @@ function crearVolumenPagina(cx, { snap } = {}) {
             az: f.az,
             snapshotId: f.snapshotId,
             cifrado: f.cifrado,
+            llaveKms: f.cifrado ? f.llaveKms : null,
             iops: ['gp3', 'io1', 'io2'].includes(f.tipo) ? Number(f.iops) || undefined : undefined
           })
         );
@@ -378,7 +418,7 @@ function accionesSnapshot(cx, sel, alBorrar) {
     { texto: 'Create volume from snapshot', escribe: true, desactivado: !uno || uno.estado !== 'completed', alClic: () => cx.ir(`ec2/volumenes/crear/${uno.id}`) },
     { texto: 'Create image from snapshot', desactivado: true },
     { texto: 'Copy snapshot', desactivado: true },
-    { texto: 'Modify permissions', desactivado: true },
+    { texto: 'Modify permissions', escribe: true, desactivado: !uno, alClic: () => permisosSnapshot(cx, uno) },
     { texto: 'Manage tags', escribe: true, desactivado: !uno, alClic: () => cx.ir(`ec2/etiquetas/${uno.id}`) },
     '-',
     {
@@ -403,6 +443,46 @@ function accionesSnapshot(cx, sel, alBorrar) {
   ];
 }
 
+/** Actions → «Modify permissions»: Private (solo esta cuenta) o Public (cualquier cuenta de AWS). */
+function permisosSnapshot(cx, s) {
+  const f = { publico: Boolean(s.publico) };
+  const zona = ui.region(() => [
+    ui.campo({
+      etiqueta: 'Sharing options',
+      info: 'snapshot',
+      cx,
+      control: ui.radios({
+        valor: f.publico ? 'pub' : 'priv',
+        alCambiar: (v) => ((f.publico = v === 'pub'), zona.repintar()),
+        opciones: [
+          { valor: 'priv', etiqueta: 'Private', descripcion: 'Only you and the AWS accounts that you specify can access the snapshot.' },
+          { valor: 'pub', etiqueta: 'Public', descripcion: 'All AWS accounts can access the snapshot.', desactivado: Boolean(s.cifrado) }
+        ]
+      })
+    }),
+    s.cifrado ? ui.alerta({ tipo: 'info', contenido: 'Encrypted snapshots can’t be made public.' }) : null,
+    f.publico ? ui.alerta({ tipo: 'aviso', contenido: 'Any AWS account will be able to create a volume from this snapshot and read all of its data. Trusted Advisor flags public EBS snapshots as a security risk.' }) : null
+  ]);
+  const m = cx.modal({
+    titulo: 'Modify permissions',
+    ancho: 'mediano',
+    contenido: [h('p', { class: 'cx-texto-sec' }, `Snapshot ID: ${s.id}`), zona],
+    pie: [
+      ui.boton('Cancel', { variante: 'texto', alClic: () => m.cerrar() }),
+      ui.boton('Save changes', {
+        variante: 'primario',
+        alClic: () => {
+          const r = cx.hacer({ servicio: 'EC2', accion: 'ModifySnapshotAttribute', error: 'Failed to modify snapshot permissions' }, (e) => cambiarPermisosSnapshot(e, s.id, { publico: f.publico }));
+          if (r.ok) {
+            m.cerrar();
+            cx.flash({ tipo: 'exito', texto: `Successfully modified permissions for snapshot ${s.id}.` });
+          }
+        }
+      })
+    ]
+  });
+}
+
 function paresSnapshot(cx, s) {
   return ui.pares(
     [
@@ -415,6 +495,8 @@ function paresSnapshot(cx, s) {
       { etiqueta: 'Volume size', valor: `${s.tamano} GiB` },
       { etiqueta: 'Started', valor: ui.fechaLarga(s.creado) },
       { etiqueta: 'Encryption', valor: s.cifrado ? 'Encrypted' : 'Not encrypted' },
+      ...paresLlave(cx, s),
+      { etiqueta: 'Permissions', valor: s.publico ? ui.estado('aviso', 'Public') : 'Private' },
       { etiqueta: 'Storage tier', valor: 'Standard' }
     ],
     { columnas: 4 }

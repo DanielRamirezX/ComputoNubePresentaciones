@@ -55,7 +55,7 @@ export const SESION_2 = {
               html: `
                 <p class="entrada"><strong>IAM</strong> (Identity and Access Management) decide <em>quién</em> entra a tu cuenta de AWS y <em>qué</em> puede hacer. Es gratis y es global: no depende de la región.</p>
                 <div class="rejilla rejilla--3 roles">
-                  <article class="rol">${icono('llave')}<h3>Usuario raíz</h3><p>El correo con el que se abrió la cuenta. Puede <strong>todo</strong> y nadie lo puede limitar.</p></article>
+                  <article class="rol">${icono('llave')}<h3>Usuario raíz</h3><p>El correo con el que se abrió la cuenta. Puede <strong>todo</strong> y ninguna política de IAM lo limita (solo una SCP, si la cuenta está en una organización).</p></article>
                   <article class="rol">${icono('usuario')}<h3>Usuario IAM</h3><p>Una persona o una aplicación, con su contraseña o sus llaves de acceso. Empieza sin ningún permiso.</p></article>
                   <article class="rol">${icono('edificio')}<h3>Grupo</h3><p>Un conjunto de usuarios con los mismos permisos, por ejemplo “Desarrolladores”. Un grupo no contiene otros grupos.</p></article>
                   <article class="rol">${icono('insignia')}<h3>Rol</h3><p>Permisos que alguien “se pone” por un rato, con credenciales temporales. Lo usan servicios como EC2 y personas de otras cuentas.</p></article>
@@ -63,18 +63,18 @@ export const SESION_2 = {
                   <article class="rol">${icono('nube')}<h3>IAM Identity Center</h3><p>Un solo inicio de sesión (SSO) para que los empleados entren a varias cuentas de AWS.</p></article>
                 </div>
                 ${recuadro('recuerda', 'Las políticas se “pegan” a usuarios, grupos o roles. Así es como reciben permisos. Un usuario nuevo, sin políticas, no puede hacer nada.')}`,
-              notas: 'Es la lámina base de la sesión. Si alguien pregunta por Cognito: es para los usuarios de TUS aplicaciones (los clientes de tu tienda), no para quienes administran la cuenta.'
+              notas: 'Es la lámina base de la sesión. Si alguien pregunta por Cognito: es para los usuarios de TUS aplicaciones (los clientes de tu tienda), no para quienes administran la cuenta. “Federación” (palabra del examen) es entrar con la cuenta que ya da la empresa, como su directorio de empleados, sin crear un usuario IAM por persona; IAM Identity Center lo hace.'
             },
             {
               titulo: 'El usuario raíz: guárdalo bajo llave',
               html: `
                 <p class="entrada">El usuario raíz es como la escritura de tu casa: la necesitas pocas veces, y si alguien te la roba se queda con todo.</p>
                 <div class="carrera">
-                  <div class="carrera__fila carrera__fila--propio"><span class="carrera__quien">Solo el usuario raíz puede…</span><ol><li>Cerrar la cuenta</li><li>Cambiar el plan de soporte</li><li>Cambiar el correo y los datos de la cuenta</li></ol><span class="carrera__tiempo">pocas veces al año</span></div>
+                  <div class="carrera__fila carrera__fila--propio"><span class="carrera__quien">Solo el usuario raíz puede…</span><ol><li>Cerrar la cuenta</li><li>Cambiar el correo de la cuenta y la contraseña del raíz</li><li>Devolverle los permisos al único administrador si se los quitó por error</li></ol><span class="carrera__tiempo">pocas veces al año</span></div>
                   <div class="carrera__fila carrera__fila--nube"><span class="carrera__quien">Buenas prácticas</span><ol><li>Actívale MFA</li><li>No le crees llaves de acceso</li><li>Crea un usuario administrador y usa ese diario</li></ol><span class="carrera__tiempo">desde el día uno</span></div>
                 </div>
                 ${recuadro('examen', 'Si una pregunta dice <em>“¿qué hacer primero con una cuenta nueva?”</em>, la respuesta es <strong>activar MFA en el usuario raíz</strong> y dejar de usarlo para el trabajo diario.')}`,
-              notas: 'En el sandbox no eres el usuario raíz: eres un usuario IAM llamado datacamp-learner-user. Lo verán en el laboratorio.'
+              notas: 'En el sandbox no eres el usuario raíz: eres un usuario IAM llamado datacamp-learner-user. Lo verán en el laboratorio. Ojo con guías viejas: “cambiar el plan de soporte” ya no es exclusivo del raíz (desde 2022 se puede dar ese permiso con IAM). Otras tareas que sí lo son: activar el acceso de IAM a la facturación y registrarse como vendedor de instancias reservadas.'
             },
             {
               titulo: 'Cómo se entra: contraseña, llaves y MFA',
@@ -145,7 +145,7 @@ export const SESION_2 = {
   ]
 }`)}
                 <p>Se lee así: <em>“Se permite ver la lista y descargar los archivos del bucket fotos-tienda”</em>. Nada más: ni subir, ni borrar, ni tocar otro bucket.</p>
-                ${recuadro('tecnico', 'El <strong>ARN</strong> (Amazon Resource Name) es el nombre completo y único de un recurso: <em>arn:aws:servicio:región:cuenta:recurso</em>. En el laboratorio verás muchos.')}`,
+                ${recuadro('tecnico', 'El <strong>ARN</strong> (Amazon Resource Name) es el nombre completo y único de un recurso: <em>arn:aws:servicio:región:cuenta:recurso</em>. En S3 la región y la cuenta van vacías, por eso ves <em>:::</em> en el ejemplo. En el laboratorio verás muchos.')}`,
               notas: 'No hay que memorizar la sintaxis para el examen; sí entender Effect, Action y Resource.'
             },
             {
@@ -170,7 +170,7 @@ export const SESION_2 = {
                   <div>${icono('llave')}<strong>Afecta a todos</strong><p>Incluso al administrador y al usuario raíz de las cuentas miembro.</p></div>
                 </div>
                 ${recuadro('sabias', 'Tu sandbox de DataCamp es una cuenta dentro de una organización. Por eso hay servicios que nadie puede usar ahí, aunque tuvieras permisos de administrador: una SCP los niega.')}`,
-              notas: 'Conecta con la sesión 7 (Organizations y facturación consolidada).'
+              notas: 'Conecta con la sesión 7 (Organizations y facturación consolidada). Detalle fino: las SCP no limitan a la cuenta de administración (la que creó la organización), solo a las cuentas miembro.'
             }
           ]
         },
@@ -215,7 +215,7 @@ export const SESION_2 = {
                   </table>
                 </div>
                 ${recuadro('examen', 'Hay cosas que <strong>siempre</strong> son tuyas, en cualquier servicio: tus datos, quién tiene acceso y la configuración que eliges. Hay cosas que <strong>siempre</strong> son de AWS: la seguridad física y la infraestructura global.')}`,
-              notas: 'Pregunta clave del examen. La “configuración compartida” incluye parches (AWS parcha la infraestructura; tú, tus sistemas operativos y aplicaciones) y la capacitación de cada lado.'
+              notas: 'Pregunta clave del examen. AWS llama “controles compartidos” a los que tienen las dos partes, cada una en su capa: los parches (AWS parcha la infraestructura; tú, tus sistemas operativos y aplicaciones), la configuración y la capacitación de su propia gente.'
             },
             {
               titulo: 'Cumplimiento: AWS Artifact',
@@ -249,7 +249,7 @@ export const SESION_2 = {
             { texto: 'Parchar el motor de base de datos de RDS', grupo: 'aws', retro: 'RDS es administrado: AWS parcha el motor y el sistema operativo.' },
             { texto: 'Decidir quién puede borrar las fotos de S3', grupo: 'cliente', retro: 'Los permisos (IAM y políticas del bucket) siempre son tuyos.' },
             { texto: 'Reemplazar un disco duro que falló', grupo: 'aws', retro: 'El hardware es de AWS.' },
-            { texto: 'Activar el cifrado de tus datos', grupo: 'cliente', retro: 'AWS te da las herramientas; activarlas y elegir llaves es tu decisión.' },
+            { texto: 'Activar el cifrado de tus datos', grupo: 'cliente', retro: 'AWS te da las herramientas; decidir qué se cifra y con qué llaves es tu responsabilidad (aunque S3 ya cifre por omisión).' },
             { texto: 'Abrir solo los puertos necesarios en el grupo de seguridad', grupo: 'cliente', retro: 'La configuración del firewall de tus recursos es tuya.' },
             { texto: 'Mantener el hipervisor que separa a los clientes', grupo: 'aws', retro: 'La capa de virtualización es parte de la nube, no de lo que pones en ella.' }
           ],
@@ -273,7 +273,7 @@ export const SESION_2 = {
                       <tr><th scope="row">AWS KMS</th><td>Crea y guarda las llaves con que se cifran tus datos</td><td>“llaves de cifrado”</td></tr>
                       <tr><th scope="row">Secrets Manager</th><td>Guarda contraseñas y llaves de API, y puede <strong>rotarlas</strong> solo</td><td>“rotación automática de credenciales”</td></tr>
                       <tr><th scope="row">Parameter Store</th><td>Guarda configuración y secretos sencillos (parte de Systems Manager)</td><td>“configuración” sin rotación</td></tr>
-                      <tr><th scope="row">AWS Certificate Manager</th><td>Certificados SSL/TLS gratis para HTTPS</td><td>“certificados”, “HTTPS”</td></tr>
+                      <tr><th scope="row">AWS Certificate Manager</th><td>Certificados SSL/TLS públicos, gratis al usarlos con servicios de AWS, para HTTPS</td><td>“certificados”, “HTTPS”</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -290,15 +290,16 @@ export const SESION_2 = {
                       <tr><th scope="row">AWS CloudTrail</th><td>¿<strong>Quién</strong> hizo <strong>qué</strong> y cuándo? Registra cada llamada a la API.</td></tr>
                       <tr><th scope="row">AWS Config</th><td>¿Cómo estaba configurado este recurso antes, y cumple mis reglas?</td></tr>
                       <tr><th scope="row">Amazon GuardDuty</th><td>¿Hay actividad sospechosa? Detecta amenazas analizando registros.</td></tr>
-                      <tr><th scope="row">Amazon Inspector</th><td>¿Mis instancias o contenedores tienen vulnerabilidades conocidas?</td></tr>
+                      <tr><th scope="row">Amazon Inspector</th><td>¿Mis instancias, imágenes de contenedor o funciones Lambda tienen vulnerabilidades conocidas?</td></tr>
                       <tr><th scope="row">Amazon Macie</th><td>¿Hay datos personales o sensibles en mis buckets de S3?</td></tr>
                       <tr><th scope="row">AWS Security Hub</th><td>¿Cómo voy en seguridad? Junta los hallazgos de todos en un tablero.</td></tr>
                       <tr><th scope="row">Amazon Detective</th><td>¿Qué pasó exactamente en este incidente? Ayuda a investigar.</td></tr>
+                      <tr><th scope="row">AWS Trusted Advisor</th><td>¿Dejé algo inseguro? Avisa de puertos abiertos a todo internet, buckets públicos o el raíz sin MFA.</td></tr>
                     </tbody>
                   </table>
                 </div>
                 ${recuadro('examen', 'Las dos más confundidas: <strong>CloudTrail</strong> = quién hizo qué (auditoría de acciones). <strong>Config</strong> = cómo está configurado y si cumple (historial de configuración).')}`,
-              notas: 'Truco: Inspector inspecciona servidores; Macie busca datos personales; GuardDuty es el guardia que detecta amenazas.'
+              notas: 'Truco: Inspector inspecciona servidores; Macie busca datos personales; GuardDuty es el guardia que detecta amenazas. Si sobra tiempo: AWS Audit Manager junta evidencia para auditorías propias; en AWS Marketplace hay productos de seguridad de terceros; y la información de seguridad de AWS está en el AWS Security Center, el AWS Security Blog y el Knowledge Center de re:Post. Las cuatro cosas salen en la guía del examen.'
             },
             {
               titulo: 'Defender la red',
@@ -842,7 +843,7 @@ export const SESION_2 = {
                   <div class="repaso__capitulo"><span class="repaso__numero">2</span>${lista([
                     '<strong>De la nube</strong> (AWS): lo físico. <strong>En la nube</strong> (tú): datos, accesos y configuración. <strong>Artifact</strong>: reportes de cumplimiento.',
                     '<strong>KMS</strong>: llaves. <strong>Secrets Manager</strong>: secretos con rotación. <strong>CloudTrail</strong>: quién hizo qué. <strong>Config</strong>: configuración.',
-                    '<strong>GuardDuty</strong>: amenazas. <strong>Inspector</strong>: vulnerabilidades. <strong>Macie</strong>: datos sensibles en S3.'
+                    '<strong>GuardDuty</strong>: amenazas. <strong>Inspector</strong>: vulnerabilidades. <strong>Macie</strong>: datos sensibles en S3. <strong>Trusted Advisor</strong>: lo que dejaste inseguro.'
                   ])}</div>
                   <div class="repaso__capitulo"><span class="repaso__numero">3</span>${lista([
                     '<strong>Grupo de seguridad</strong>: instancia, solo permite, stateful. <strong>NACL</strong>: subred, permite y niega, stateless.',

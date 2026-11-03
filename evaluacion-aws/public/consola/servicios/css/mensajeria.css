@@ -1,0 +1,673 @@
+/* ---------------------------------------------------------------------------
+   SNS, SQS, LAMBDA Y EVENTBRIDGE (servicios/sns.js, sqs.js, lambda.js, eventbridge.js)
+   El buzón simulado, las portadas, el «Function overview» de Lambda, su
+   editor de código y la salida de Test. Todo bajo .cx con clases cx-msj-…;
+   los ajustes por ancho con @container cx.
+   --------------------------------------------------------------------------- */
+
+/* El botón del buzón y su contador */
+.cx .cx-msj-buzon-zona {
+  display: inline-flex;
+}
+
+.cx .cx-msj-buzon-boton {
+  gap: 6px;
+}
+
+.cx .cx-msj-contador {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--cx-flash-error);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* Portadas (SNS, SQS, Lambda, EventBridge) */
+.cx .cx-msj-portada {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 32px;
+  align-items: start;
+  padding: 8px 0 12px;
+}
+
+.cx .cx-msj-portada__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cx .cx-msj-portada__titulo {
+  font-size: 40px;
+  line-height: 46px;
+  font-weight: 700;
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-msj-portada__lema {
+  font-size: 22px;
+  line-height: 30px;
+  color: var(--cx-fuerte);
+}
+
+/* El diagrama «How it works» */
+.cx .cx-msj-flujo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.cx .cx-msj-flujo__caja {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--cx-borde);
+  border-radius: 10px;
+  background: var(--cx-fondo);
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-msj-flujo__caja small {
+  color: var(--cx-sec);
+}
+
+.cx .cx-msj-flujo__caja--tema {
+  border-color: #e7157b;
+  background: rgba(231, 21, 123, 0.12);
+}
+
+.cx .cx-msj-flujo__flecha {
+  font-size: 22px;
+  color: var(--cx-sec);
+}
+
+.cx .cx-msj-flujo__destinos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cx .cx-msj-flujo__destinos .cx-msj-flujo__caja {
+  padding: 4px 12px;
+}
+
+/* Botón «Remove» alineado con los campos de una fila */
+.cx .cx-msj-quitar {
+  align-self: flex-end;
+  padding-bottom: 2px;
+}
+
+/* ============================================================= el buzón */
+
+.cx .cx-msj-buzon {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  min-height: 460px;
+  border: 1px solid var(--cx-borde);
+  border-radius: var(--cx-radio);
+  background: var(--cx-contenedor);
+  overflow: hidden;
+}
+
+.cx .cx-msj-buzon__lista {
+  border-right: 1px solid var(--cx-borde);
+  overflow-y: auto;
+  max-height: 640px;
+}
+
+.cx .cx-msj-buzon__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  width: 100%;
+  padding: 12px 16px 12px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--cx-borde-suave);
+  background: transparent;
+  color: var(--cx-texto);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  position: relative;
+}
+
+.cx .cx-msj-buzon__item:hover {
+  background: var(--cx-hover);
+}
+
+.cx .cx-msj-buzon__item--abierto {
+  background: var(--cx-elegido);
+  box-shadow: inset 3px 0 0 var(--cx-enlace);
+}
+
+.cx .cx-msj-buzon__item--nuevo::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 18px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cx-enlace);
+}
+
+.cx .cx-msj-buzon__de {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx .cx-msj-buzon__item--nuevo .cx-msj-buzon__de,
+.cx .cx-msj-buzon__item--nuevo .cx-msj-buzon__asunto {
+  color: var(--cx-fuerte);
+  font-weight: 700;
+}
+
+.cx .cx-msj-buzon__fecha {
+  color: var(--cx-sec);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cx .cx-msj-buzon__asunto,
+.cx .cx-msj-buzon__vista {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx .cx-msj-buzon__vista {
+  color: var(--cx-sec);
+  font-size: 12px;
+}
+
+.cx .cx-msj-buzon__vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  min-height: 200px;
+  padding: 24px;
+  text-align: center;
+  color: var(--cx-sec);
+}
+
+.cx .cx-msj-correo {
+  min-width: 0;
+  overflow-y: auto;
+  max-height: 640px;
+}
+
+.cx .cx-msj-correo__cabeza {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--cx-borde-suave);
+}
+
+.cx .cx-msj-correo__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--cx-sec);
+  overflow-wrap: anywhere;
+}
+
+.cx .cx-msj-correo__meta b {
+  color: var(--cx-texto);
+}
+
+/* El correo se lee como un correo: fondo claro, como en un cliente de email. */
+.cx .cx-msj-correo__cuerpo {
+  margin: 20px 24px 24px;
+  padding: 20px 24px;
+  border-radius: 8px;
+  background: #f4f4f6;
+  color: #16191f;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 21px;
+  overflow-wrap: anywhere;
+}
+
+.cx .cx-msj-correo__texto {
+  white-space: pre-wrap;
+}
+
+.cx .cx-msj-correo__cuerpo .cx-msj-correo__enlace {
+  color: #0b62c4;
+  text-decoration: underline;
+  font-weight: 700;
+}
+
+.cx .cx-msj-correo__extra {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* La página «Subscription confirmed!» */
+.cx .cx-msj-confirmada {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 4px;
+  overflow-wrap: anywhere;
+}
+
+.cx .cx-msj-confirmada__marca {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ff9900;
+  letter-spacing: 0.02em;
+}
+
+.cx .cx-msj-confirmada h2 {
+  font-size: 26px;
+  line-height: 32px;
+  color: var(--cx-exito);
+}
+
+/* ================================================================ SQS */
+
+.cx .cx-msj-mensajes-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+}
+
+.cx .cx-msj-sondeo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cx .cx-msj-sondeo .cx-progreso {
+  width: 160px;
+  margin-left: 0;
+}
+
+.cx .cx-msj-sondeo .cx-progreso > span {
+  transition: width 0.9s linear;
+}
+
+/* ============================================================= Lambda */
+
+/* Function overview: el diagrama con los disparadores y los destinos */
+.cx .cx-msj-resumen-fn {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.cx .cx-msj-diagrama {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--cx-borde-suave);
+  border-radius: 12px;
+  background: var(--cx-fondo);
+}
+
+.cx .cx-msj-diagrama__lado {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.cx .cx-msj-diagrama__fn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--cx-borde);
+  border-radius: 10px;
+  background: var(--cx-contenedor);
+  min-width: 170px;
+}
+
+.cx .cx-msj-diagrama__titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--cx-fuerte);
+  overflow-wrap: anywhere;
+}
+
+.cx .cx-msj-disparador {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--cx-borde);
+  border-radius: 8px;
+  background: var(--cx-contenedor);
+  color: var(--cx-fuerte);
+  font-size: 13px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.cx .cx-msj-disparador:hover {
+  border-color: var(--cx-enlace);
+}
+
+.cx .cx-msj-disparador small {
+  display: block;
+  color: var(--cx-sec);
+  font-size: 12px;
+}
+
+/* El editor de código (estilo del editor de la consola) */
+.cx .cx-msj-editor {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  border: 1px solid var(--cx-borde);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0b0f14;
+}
+
+.cx .cx-msj-editor__lado {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  border-right: 1px solid var(--cx-borde-suave);
+  background: #10151c;
+}
+
+.cx .cx-msj-editor__titulo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--cx-sec);
+}
+
+.cx .cx-msj-editor__lado .cx-boton {
+  width: 100%;
+  justify-content: center;
+}
+
+.cx .cx-msj-editor__evento {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.cx .cx-msj-editor__evento button {
+  padding: 2px 6px;
+}
+
+.cx .cx-msj-editor__principal {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cx .cx-msj-editor__pestana {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--cx-borde-suave);
+  font-family: var(--cx-mono);
+  font-size: 12.5px;
+  color: var(--cx-fuerte);
+  background: #10151c;
+}
+
+.cx .cx-msj-editor__pestana em {
+  color: var(--cx-aviso);
+  font-style: normal;
+}
+
+.cx .cx-msj-editor textarea.cx-msj-codigo {
+  display: block;
+  width: 100%;
+  min-height: 340px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  resize: vertical;
+  background: #0b0f14;
+  color: #d5dbdb;
+  font-family: var(--cx-mono);
+  font-size: 13px;
+  line-height: 20px;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.cx .cx-msj-salida {
+  border-top: 1px solid var(--cx-borde-suave);
+  padding: 12px 14px;
+  font-family: var(--cx-mono);
+  font-size: 12.5px;
+  line-height: 19px;
+  color: #d5dbdb;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.cx .cx-msj-salida__titulo {
+  font-family: var(--cx-fuente);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--cx-sec);
+  margin-bottom: 6px;
+}
+
+.cx .cx-msj-salida__ok {
+  color: var(--cx-exito);
+}
+
+.cx .cx-msj-salida__mal {
+  color: var(--cx-error);
+}
+
+/* Configuration: el menú de la izquierda */
+.cx .cx-msj-config {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.cx .cx-msj-config__menu {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cx-borde);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--cx-contenedor);
+}
+
+.cx .cx-msj-config__menu button {
+  padding: 8px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--cx-enlace);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cx .cx-msj-config__menu button:hover:not(:disabled) {
+  background: var(--cx-hover);
+}
+
+.cx .cx-msj-config__menu button:disabled {
+  color: var(--cx-apagado);
+  cursor: default;
+}
+
+.cx .cx-msj-config__menu .cx-msj-config__activo {
+  color: var(--cx-fuerte);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--cx-enlace);
+  background: var(--cx-elegido);
+}
+
+/* Resultado de Test */
+.cx .cx-msj-resultado {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cx .cx-msj-resultado .cx-log {
+  max-height: 360px;
+}
+
+/* Tablas de solo lectura (variables de entorno, políticas, destinos) */
+.cx .cx-msj-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.cx .cx-msj-tabla th {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--cx-borde);
+  color: var(--cx-fuerte);
+  font-weight: 700;
+  text-align: left;
+}
+
+.cx .cx-msj-tabla td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--cx-borde-suave);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.cx .cx-msj-tabla tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Las gráficas de Monitor (2 × 2) */
+.cx .cx-msj-graficas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* =========================================================== EventBridge */
+
+.cx .cx-msj-tarjetas-inicio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.cx .cx-msj-tarjetas-inicio .cx-contenedor__cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.cx .cx-msj-destino + .cx-msj-destino {
+  margin-top: 16px;
+}
+
+/* Valor + unidad en una fila (rate, timeout) */
+.cx .cx-msj-rate {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 200px);
+  gap: 8px;
+  align-items: start;
+}
+
+/* El cron de seis campos (Minutes, Hours, Day of month…) */
+.cx .cx-msj-cron {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 640px;
+}
+
+.cx .cx-msj-cron__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cx .cx-msj-cron__campo small {
+  color: var(--cx-sec);
+  font-size: 12px;
+}
+
+.cx .cx-msj-cron__valor .cx-entrada {
+  width: 100%;
+  font-family: var(--cx-mono);
+  text-align: center;
+}
+
+/* ============================================================== anchos */
+
+@container cx (max-width: 1060px) {
+  .cx .cx-msj-portada,
+  .cx .cx-msj-resumen-fn {
+    grid-template-columns: 1fr;
+  }
+  .cx .cx-msj-tarjetas-inicio {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container cx (max-width: 900px) {
+  .cx .cx-msj-buzon {
+    grid-template-columns: 1fr;
+  }
+  .cx .cx-msj-buzon__lista {
+    border-right: 0;
+    border-bottom: 1px solid var(--cx-borde);
+    max-height: 280px;
+  }
+  .cx .cx-msj-editor,
+  .cx .cx-msj-config {
+    grid-template-columns: 1fr;
+  }
+  .cx .cx-msj-editor__lado {
+    border-right: 0;
+    border-bottom: 1px solid var(--cx-borde-suave);
+  }
+  .cx .cx-msj-diagrama,
+  .cx .cx-msj-graficas {
+    grid-template-columns: 1fr;
+  }
+  .cx .cx-msj-cron {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .cx .cx-msj-portada__titulo {
+    font-size: 30px;
+    line-height: 36px;
+  }
+}

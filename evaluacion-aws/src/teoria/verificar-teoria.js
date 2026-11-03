@@ -1,25 +1,85 @@
-// Revisa que los bancos teóricos de los simulacros cumplan el contrato 4 de
-// DISENO.md: 5 casos y 25 preguntas (5 por caso), 4 opciones con texto y
-// retroalimentación, clave balanceada sin rachas de tres, reparto parejo por
-// tema y ninguna pregunta repetida entre simulacros.
+// Revisa que los bancos teóricos cumplan el contrato 4 de DISENO.md: casos
+// con 5 preguntas cada uno, 4 opciones con texto y retroalimentación, clave
+// balanceada sin rachas de tres, reparto por tema y ninguna pregunta repetida
+// entre bancos.
+//
+// Los simulacros de octubre siguen sus reglas fijas (5 casos, 25 preguntas,
+// 45 minutos, los 4 temas de las sesiones 1 a 4). Un banco puede declarar las
+// suyas con `export const REGLAS`, y el del examen final debe hacerlo
+// (SIMULADOR.md §6: 8 casos × 5 preguntas, 50 minutos):
+//
+//   export const REGLAS = {
+//     casos: 8, preguntasPorCaso: 5, minutos: 50,
+//     temas: ['Conceptos de la nube', …],              // por omisión, TEMAS del banco
+//     porTema: { 'Conceptos de la nube': [9, 11], … },  // o { min, max } para todos (opcional)
+//     porLetra: { min, max },                          // opcional (por omisión, parejo ± 1)
+//     sesiones: [0, 13],                               // rango del campo `sesion` (0 = fuera de la Ruta)
+//     palabrasHistoria: { min: 80, max: 150 }          // opcional
+//   };
 //
 //   node src/teoria/verificar-teoria.js      → imprime el resultado; sale con 1 si hay problemas
 //   import { verificarTeoria } from './teoria/verificar-teoria.js'   → lista de problemas ([] si todo bien)
 
 import { pathToFileURL } from 'node:url';
+import { EVALUACIONES, TIPOS, tipoDe } from '../evaluaciones.js';
 import { TEORIA } from './index.js';
 
+const LETRAS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+// Las reglas de los simulacros de octubre (no cambian).
 const TEMAS = ['Fundamentos y EC2', 'Identidad y seguridad', 'Redes', 'Almacenamiento'];
-const SESION_DE_TEMA = { 'Fundamentos y EC2': 1, 'Identidad y seguridad': 2, Redes: 3, Almacenamiento: 4 };
-const CASOS_POR_BANCO = 5;
-const PREGUNTAS_POR_CASO = 5;
-const OPCIONES = 4;
-const LETRAS = ['A', 'B', 'C', 'D'];
-const POR_LETRA = { min: 6, max: 7 };
-const POR_TEMA = { min: 6, max: 7 };
-const PALABRAS_HISTORIA = { min: 80, max: 150 };
-// La correcta no debe delatarse por ser la opción más larga.
-const MAX_CORRECTA_MAS_LARGA = 8;
+const DE_OCTUBRE = {
+  temas: TEMAS,
+  sesionDeTema: { 'Fundamentos y EC2': 1, 'Identidad y seguridad': 2, Redes: 3, Almacenamiento: 4 },
+  minutos: 45,
+  casos: 5,
+  preguntasPorCaso: 5,
+  opciones: 4,
+  porLetra: { min: 6, max: 7 },
+  porTema: { min: 6, max: 7 },
+  palabrasHistoria: { min: 80, max: 150 },
+  // La correcta no debe delatarse por ser la opción más larga.
+  maxCorrectaMasLarga: 8
+};
+
+// Lo que pide SIMULADOR.md §6 para la teórica del examen final.
+const DEL_FINAL = { casos: 8, preguntasPorCaso: 5, minutos: 50 };
+
+const tipoDelBanco = (id) => tipoDe(EVALUACIONES.find((ev) => ev.teoria === id));
+
+/** Las reglas de un banco: las de octubre, o las que declara en REGLAS (completadas). */
+function reglasDe(id, banco) {
+  const tipo = tipoDelBanco(id);
+  if (!banco.REGLAS && tipo !== 'final') return DE_OCTUBRE;
+  const r = banco.REGLAS ?? {};
+  const casos = r.casos ?? DEL_FINAL.casos;
+  const preguntasPorCaso = r.preguntasPorCaso ?? DEL_FINAL.preguntasPorCaso;
+  const opciones = r.opciones ?? 4;
+  const n = casos * preguntasPorCaso;
+  return {
+    temas: r.temas ?? banco.TEMAS ?? [],
+    sesionDeTema: r.sesionDeTema ?? null,
+    sesiones: r.sesiones ?? [0, 13],
+    minutos: r.minutos ?? TIPOS[tipo].minutosTeoria ?? 45,
+    casos,
+    preguntasPorCaso,
+    opciones,
+    porLetra: r.porLetra ?? { min: Math.floor(n / opciones) - 1, max: Math.ceil(n / opciones) + 1 },
+    porTema: r.porTema ?? null,
+    palabrasHistoria: r.palabrasHistoria ?? DE_OCTUBRE.palabrasHistoria,
+    maxCorrectaMasLarga: r.maxCorrectaMasLarga ?? Math.ceil(n * 0.32)
+  };
+}
+
+/** [min, max] de preguntas de un tema según `porTema` (por tema, parejo o «al menos 1»). */
+function rangoTema(porTema, tema) {
+  if (!porTema) return [1, Infinity];
+  const propio = porTema[tema];
+  if (Array.isArray(propio)) return propio;
+  if (typeof propio === 'number') return [propio, propio];
+  if (typeof porTema.min === 'number') return [porTema.min, porTema.max ?? Infinity];
+  return [1, Infinity];
+}
 
 const vacio = (s) => typeof s !== 'string' || s.trim() === '';
 const sinEtiquetas = (html) => html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
@@ -29,9 +89,19 @@ const normalizar = (s) => s.toLowerCase().replace(/\s+/g, ' ').trim();
 function revisarBanco(id, banco) {
   const p = [];
   const err = (msg) => p.push(`${id}: ${msg}`);
+  const R = reglasDe(id, banco);
+  const CASOS_POR_BANCO = R.casos;
+  const PREGUNTAS_POR_CASO = R.preguntasPorCaso;
+  const OPCIONES = R.opciones;
+  const PALABRAS_HISTORIA = R.palabrasHistoria;
 
-  if (JSON.stringify(banco.TEMAS) !== JSON.stringify(TEMAS)) err(`TEMAS debe ser ${JSON.stringify(TEMAS)}`);
-  if (banco.MINUTOS !== 45) err('MINUTOS debe ser 45');
+  if (tipoDelBanco(id) === 'final') {
+    if (!banco.REGLAS) err('el banco del examen final debe exportar REGLAS (8 casos × 5 preguntas, 50 minutos)');
+    for (const [k, v] of Object.entries(DEL_FINAL)) if (R[k] !== v) err(`REGLAS.${k} es ${R[k]}; el examen final pide ${v}`);
+  }
+  if (!R.temas.length) err('no declara TEMAS');
+  if (JSON.stringify(banco.TEMAS) !== JSON.stringify(R.temas)) err(`TEMAS debe ser ${JSON.stringify(R.temas)}`);
+  if (banco.MINUTOS !== R.minutos) err(`MINUTOS debe ser ${R.minutos}`);
   if (vacio(banco.CASO)) err('falta CASO (instrucciones antes de empezar)');
   if (typeof banco.publica !== 'function') err('falta la función publica()');
   if (typeof banco.calificar !== 'function') err('falta la función calificar()');
@@ -61,8 +131,8 @@ function revisarBanco(id, banco) {
   // Preguntas
   const idsPregunta = new Set();
   const porCaso = new Map();
-  const porTema = Object.fromEntries(TEMAS.map((t) => [t, 0]));
-  const porLetra = [0, 0, 0, 0];
+  const porTema = Object.fromEntries(R.temas.map((t) => [t, 0]));
+  const porLetra = Array(OPCIONES).fill(0);
   let correctaMasLarga = 0;
 
   for (const q of preguntas) {
@@ -77,10 +147,13 @@ function revisarBanco(id, banco) {
       if (q.id && !q.id.startsWith(q.caso)) err(`${nombre}: su id no empieza con su caso (${q.caso})`);
     }
 
-    if (!TEMAS.includes(q.tema)) err(`${nombre}: el tema «${q.tema}» no está en TEMAS`);
+    if (!R.temas.includes(q.tema)) err(`${nombre}: el tema «${q.tema}» no está en TEMAS`);
     else {
       porTema[q.tema] += 1;
-      if (q.sesion !== SESION_DE_TEMA[q.tema]) err(`${nombre}: el tema «${q.tema}» es de la sesión ${SESION_DE_TEMA[q.tema]}, no ${q.sesion}`);
+      if (R.sesionDeTema && q.sesion !== R.sesionDeTema[q.tema]) err(`${nombre}: el tema «${q.tema}» es de la sesión ${R.sesionDeTema[q.tema]}, no ${q.sesion}`);
+    }
+    if (!R.sesionDeTema && !(Number.isInteger(q.sesion) && q.sesion >= R.sesiones[0] && q.sesion <= R.sesiones[1])) {
+      err(`${nombre}: «sesion» debe ser un entero de ${R.sesiones[0]} a ${R.sesiones[1]} (0 = fuera de la Ruta), no ${q.sesion}`);
     }
     if (vacio(q.concepto)) err(`${nombre}: falta concepto`);
     if (vacio(q.texto)) err(`${nombre}: falta texto`);
@@ -112,22 +185,23 @@ function revisarBanco(id, banco) {
   }
 
   // Reparto por tema.
-  for (const t of TEMAS) {
-    if (porTema[t] < POR_TEMA.min || porTema[t] > POR_TEMA.max) {
-      err(`el tema «${t}» tiene ${porTema[t]} preguntas (deben ser ${POR_TEMA.min}–${POR_TEMA.max})`);
+  for (const t of R.temas) {
+    const [min, max] = rangoTema(R.porTema, t);
+    if (porTema[t] < min || porTema[t] > max) {
+      err(`el tema «${t}» tiene ${porTema[t]} preguntas (deben ser ${min}${max === Infinity ? ' o más' : `–${max}`})`);
     }
   }
 
   // Clave balanceada y sin tres seguidas.
   porLetra.forEach((n, i) => {
-    if (n < POR_LETRA.min || n > POR_LETRA.max) err(`la clave tiene ${n} respuestas en ${LETRAS[i]} (deben ser ${POR_LETRA.min}–${POR_LETRA.max})`);
+    if (n < R.porLetra.min || n > R.porLetra.max) err(`la clave tiene ${n} respuestas en ${LETRAS[i]} (deben ser ${R.porLetra.min}–${R.porLetra.max})`);
   });
   for (let i = 2; i < preguntas.length; i += 1) {
     const [a, b, c] = [preguntas[i - 2], preguntas[i - 1], preguntas[i]].map((q) => q.correcta);
     if (a === b && b === c) err(`tres respuestas seguidas en ${LETRAS[c]}: ${preguntas[i - 2].id}, ${preguntas[i - 1].id} y ${preguntas[i].id}`);
   }
-  if (correctaMasLarga > MAX_CORRECTA_MAS_LARGA) {
-    err(`en ${correctaMasLarga} preguntas la correcta es la opción más larga (máximo ${MAX_CORRECTA_MAS_LARGA})`);
+  if (correctaMasLarga > R.maxCorrectaMasLarga) {
+    err(`en ${correctaMasLarga} preguntas la correcta es la opción más larga (máximo ${R.maxCorrectaMasLarga})`);
   }
 
   // publica() no debe filtrar la respuesta ni la retroalimentación.
@@ -146,7 +220,7 @@ function revisarBanco(id, banco) {
     }
   }
 
-  // calificar(): todo bien da 25, nada da 0, basura cuenta como error.
+  // calificar(): todo bien da el total, nada da 0, basura cuenta como error.
   if (typeof banco.calificar === 'function' && preguntas.length) {
     const todas = Object.fromEntries(preguntas.map((q) => [q.id, q.correcta]));
     const perfecto = banco.calificar(todas);

@@ -103,7 +103,7 @@ export const SESION_5 = {
                   <article class="rol">${icono('nube')}<h3>Aurora Serverless</h3><p>Crece y se encoge sola según el uso, e incluso se pausa si nadie la usa. La verás en el laboratorio.</p></article>
                 </div>
                 ${recuadro('examen', '<em>“Compatible con MySQL o PostgreSQL, con más rendimiento y alta disponibilidad”</em> → <strong>Aurora</strong>.')}`,
-              notas: 'RDS no da acceso al sistema operativo del servidor: si un caso pide control total del sistema operativo, la respuesta es EC2.'
+              notas: 'RDS no da acceso al sistema operativo del servidor: si un caso pide control total del sistema operativo, la respuesta es EC2. (Existe RDS Custom, para Oracle y SQL Server, que sí deja entrar al servidor, pero el examen casi nunca lo pide.)'
             }
           ]
         },
@@ -140,7 +140,7 @@ export const SESION_5 = {
                     <tbody>
                       <tr><th scope="row">Multi-AZ</th><td>Mantiene una copia <strong>en espera</strong> en otra zona, sincronizada al instante. Si la principal falla, RDS cambia sola (<em>failover</em>).</td><td><strong>Disponibilidad</strong></td></tr>
                       <tr><th scope="row">Réplicas de lectura</th><td>Copias que atienden consultas de <strong>solo lectura</strong>. Pueden estar en otra zona o en otra región.</td><td><strong>Rendimiento</strong> (repartir lecturas)</td></tr>
-                      <tr><th scope="row">Respaldos automáticos</th><td>Guardan la base y sus cambios hasta <strong>35 días</strong>. Se restaura a cualquier segundo de ese periodo.</td><td><strong>Recuperar</strong> errores</td></tr>
+                      <tr><th scope="row">Respaldos automáticos</th><td>Guardan la base y sus cambios hasta <strong>35 días</strong>. Puedes restaurarla a cualquier momento de ese periodo (hasta unos 5 minutos antes de ahora); RDS la restaura en una base nueva.</td><td><strong>Recuperar</strong> errores</td></tr>
                       <tr><th scope="row">Snapshots manuales</th><td>Una foto de la base que guardas el tiempo que quieras.</td><td>Respaldos de largo plazo</td></tr>
                     </tbody>
                   </table>
@@ -271,11 +271,11 @@ export const SESION_5 = {
               html: `
                 <div class="rejilla rejilla--3 roles">
                   <article class="rol">${icono('flecha')}<h3>AWS DMS</h3><p><strong>Database Migration Service</strong> copia los datos y los cambios que siguen llegando, <strong>mientras la base original sigue funcionando</strong>. El corte final dura minutos.</p></article>
-                  <article class="rol">${icono('engrane')}<h3>Conversión de esquema</h3><p>Si cambias de motor (Oracle a PostgreSQL, por ejemplo), la herramienta de conversión de esquemas (SCT) traduce tablas y código.</p></article>
+                  <article class="rol">${icono('engrane')}<h3>Conversión de esquema</h3><p>Si cambias de motor (Oracle a PostgreSQL, por ejemplo), la herramienta de conversión de esquemas, <strong>AWS SCT</strong> (o su versión en la consola, DMS Schema Conversion), traduce tablas y código.</p></article>
                   <article class="rol">${icono('base-datos')}<h3>Mismo motor</h3><p>Si no cambias de motor, la migración es directa: de MySQL a RDS for MySQL o a Aurora MySQL.</p></article>
                 </div>
                 ${recuadro('examen', '<em>“Migrar con el menor tiempo de inactividad”</em> → <strong>DMS</strong>. <em>“Cambiar de Oracle a Aurora PostgreSQL”</em> → <strong>DMS + conversión de esquema (SCT)</strong>.')}`,
-              notas: 'Si los datos son demasiados para la red, se combinan con Snowball (sesión 4).'
+              notas: 'Si los datos son demasiados para la red, se combinan con un traslado físico de discos (la familia Snow de la sesión 4). Ojo: desde el 7 de noviembre de 2025 Snowball Edge solo está disponible para clientes que ya lo usaban; para clientes nuevos AWS recomienda DataSync o AWS Data Transfer Terminal. El examen todavía puede nombrar Snowball.'
             }
           ]
         },
@@ -304,7 +304,7 @@ export const SESION_5 = {
       numero: 2,
       titulo: 'Laboratorio guiado en AWS',
       descripcion:
-        'Enciendes el sandbox y comparas tres caminos: una base MariaDB instalada a mano en un servidor EC2, el intento de crear una base Aurora administrada (y la regla que lo impide) y una tabla de DynamoDB que llenas y consultas sin ningún servidor. Al final limpias todo.',
+        'Enciendes el sandbox y comparas tres caminos: una base MariaDB instalada a mano en un servidor EC2, el intento de crear una base Aurora administrada (y la regla que lo impide) y una tabla de DynamoDB que llenas y consultas sin ningún servidor. Al final limpias todo. Si lo prefieres, haces el laboratorio en el simulador AWS, donde sí te deja crear la base RDS.',
       actividades: [
         {
           id: 's5-lab-bases',
@@ -312,6 +312,21 @@ export const SESION_5 = {
           titulo: 'Laboratorio: tres maneras de guardar datos',
           xp: 300,
           minutos: 45,
+          simulador: {
+            lab: 'lab-s5',
+            objetivo:
+              'Montar en el simulador la base del control escolar: una base RDS MySQL privada y Multi-AZ a la que solo entra el servidor de la aplicación, con sus respaldos, un snapshot y una réplica de lectura, y una tabla de DynamoDB que consultas con Query. Al final no borras nada: el simulador revisa lo que dejaste.',
+            minutos: 50,
+            nota: 'Aquí sí puedes crear la base RDS que en DataCamp sale negada: con copia en espera en otra zona, respaldos, un snapshot y una réplica de lectura.',
+            tareas: [
+              'Crear una base RDS MySQL Multi-AZ, privada, en la VPC por omisión.',
+              'Dejar que solo el servidor de la aplicación entre a la base: un grupo de seguridad con el puerto 3306 abierto solo para el grupo app-sg.',
+              'Ajustar los días de respaldos automáticos y tomar un snapshot manual.',
+              'Crear una réplica de lectura en otra zona de disponibilidad.',
+              'Crear la tabla de puntajes en DynamoDB con ítems de forma distinta y buscar una calificación con Query.',
+              'Bono opcional: una caché serverless de ElastiCache.'
+            ]
+          },
           objetivo:
             'Instalar una base MariaDB en una instancia EC2 y leer su resultado en el registro de arranque, intentar crear una base Aurora y entender la negación, crear y consultar una tabla de DynamoDB, y borrar todo.',
           necesitas: [
@@ -724,7 +739,7 @@ export const SESION_5 = {
                   <div class="repaso__capitulo"><span class="repaso__numero">3</span>${lista([
                     '<strong>ElastiCache</strong>: caché en memoria. <strong>Redshift</strong>: almacén de datos. <strong>Athena</strong>: SQL sobre S3.',
                     '<strong>Neptune</strong>: grafos. <strong>DocumentDB</strong>: MongoDB. <strong>Keyspaces</strong>: Cassandra.',
-                    '<strong>DMS</strong>: migrar sin apagar; con conversión de esquema si cambias de motor.'
+                    '<strong>DMS</strong>: migrar sin apagar; con conversión de esquema (<strong>AWS SCT</strong>) si cambias de motor.'
                   ])}</div>
                 </div>`,
               notas: 'Pide que alguien explique en voz alta la diferencia entre Multi-AZ y réplica de lectura antes de abrir el examen.'
@@ -792,6 +807,7 @@ export const SESION_5 = {
       capitulo: 2,
       pasos: [
         'Proyecta el laboratorio y avanza paso a paso; que cada quien marque “Ya lo hice”.',
+        'Quien elija el simulador hace allá sus tareas, que se califican solas: no enciende el sandbox ni toma capturas. Su calificación sale en el panel de Evaluación.',
         'El paso 3 lanza el servidor con MariaDB: mientras se instala, siguen con RDS y DynamoDB.',
         'En el paso 5 lean juntos el “explicit deny”: es la SCP de la sesión 2 en vivo.',
         'En el paso 9 pide que alguien explique por qué la tabla aceptó elementos con atributos distintos.',

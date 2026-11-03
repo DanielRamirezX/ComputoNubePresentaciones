@@ -14,6 +14,8 @@ import { paginaEtiquetas } from './comun.js';
 import { rutasInstancias } from './ec2-instancias.js';
 import { rutasSnapshots, rutasVolumenes } from './ec2-almacen.js';
 import { rutasEips, rutasGrupos, rutasLlaves } from './ec2-red.js';
+import { ayudasEscalar, busquedaEscalar, rutasEscalar } from './ec2-escalar.js';
+import { ayudasBalanceo, busquedaBalanceo, rutasBalanceo } from './ec2-balanceo.js';
 
 const { h } = ui;
 
@@ -22,6 +24,12 @@ const { h } = ui;
 function panel(cx) {
   cx.migas([{ texto: 'EC2', ruta: 'ec2' }, { texto: 'Dashboard' }]);
   const e = cx.estado;
+  // Las colecciones de Auto Scaling, ELB y CloudWatch pueden faltar en una cuenta vieja.
+  const gruposAsg = () => (e.autoscaling?.grupos ?? []).length;
+  const balanceadores = () => (e.elb?.balanceadores ?? []).length;
+  const alarmasEc2 = () => (e.cloudwatch?.alarmas ?? []).filter((a) => (a.metrica?.namespace ?? a.namespace) === 'AWS/EC2');
+  const cuentaAlarmas = (estado) => alarmasEc2().filter((a) => a.estado === estado).length;
+  const hayCloudWatch = Boolean(cx.servicioDe('cloudwatch')) && !cx.servicioDe('cloudwatch').proximamente;
   const recurso = (texto, cuenta, ruta) =>
     h('div', { class: 'cx-resumen-recursos__item' }, ruta ? ui.enlace(texto, ruta, { cx }) : h('span', { class: 'cx-texto-sec' }, texto), h('span', {}, String(cuenta)));
   const recursos = cx.vivo(() =>
@@ -33,13 +41,13 @@ function panel(cx) {
         'div',
         { class: 'cx-resumen-recursos' },
         recurso('Instances (running)', e.instancias.filter((i) => i.estado === 'running').length, 'ec2/instancias'),
-        recurso('Auto Scaling Groups', 0),
+        recurso('Auto Scaling Groups', gruposAsg(), 'ec2/autoscaling'),
         recurso('Capacity Reservations', 0),
         recurso('Dedicated Hosts', 0),
         recurso('Elastic IPs', e.eips.length, 'ec2/eips'),
         recurso('Instances', vivas(e).length, 'ec2/instancias'),
         recurso('Key pairs', e.llaves.length, 'ec2/llaves'),
-        recurso('Load balancers', 0),
+        recurso('Load balancers', balanceadores(), 'ec2/balanceadores'),
         recurso('Placement groups', 0),
         recurso('Security groups', e.gruposSeguridad.length, 'ec2/grupos'),
         recurso('Snapshots', e.snapshots.length, 'ec2/snapshots'),
@@ -64,11 +72,19 @@ function panel(cx) {
           descripcion: 'To get started, launch an Amazon EC2 instance, which is a virtual server in the cloud.',
           cuerpo: h('div', { class: 'cx-form' }, h('div', { class: 'cx-acciones' }, ui.boton('Launch instance', { variante: 'primario', alClic: () => cx.ir('ec2/instancias/lanzar') }), ui.boton('Migrate a server', { icono: 'external', desactivado: true })), h('p', { class: 'cx-texto-sec' }, 'Note: Your instances will launch in the United States (N. Virginia) Region'))
         }),
-        ui.contenedor({
-          titulo: 'Instance alarms',
-          acciones: ui.boton('View in CloudWatch', { icono: 'external', desactivado: true }),
-          cuerpo: h('div', { class: 'cx-acciones', style: { gap: '40px' } }, ui.estado('aviso', '0 in alarm'), ui.estado('exito', '0 OK'), ui.estado('detenido', '0 insufficient data'))
-        })
+        cx.vivo(() =>
+          ui.contenedor({
+            titulo: 'Instance alarms',
+            acciones: ui.boton('View in CloudWatch', { icono: 'external', desactivado: !hayCloudWatch, alClic: () => cx.ir('cloudwatch/alarmas') }),
+            cuerpo: h(
+              'div',
+              { class: 'cx-acciones', style: { gap: '40px' } },
+              ui.estado('aviso', `${cuentaAlarmas('ALARM')} in alarm`),
+              ui.estado('exito', `${cuentaAlarmas('OK')} OK`),
+              ui.estado('detenido', `${cuentaAlarmas('INSUFFICIENT_DATA')} insufficient data`)
+            )
+          })
+        )
       ),
       h(
         'div',
@@ -281,7 +297,7 @@ export default {
     { texto: 'Events', desactivado: true },
     {
       seccion: 'Instances',
-      items: [{ texto: 'Instances', ruta: 'ec2/instancias' }, { texto: 'Instance Types', ruta: 'ec2/tipos' }, des('Launch Templates'), des('Spot Requests'), des('Savings Plans'), des('Reserved Instances'), des('Dedicated Hosts'), des('Capacity Reservations')]
+      items: [{ texto: 'Instances', ruta: 'ec2/instancias' }, { texto: 'Instance Types', ruta: 'ec2/tipos' }, { texto: 'Launch Templates', ruta: 'ec2/plantillas' }, des('Spot Requests'), des('Savings Plans'), des('Reserved Instances'), des('Dedicated Hosts'), des('Capacity Reservations')]
     },
     { seccion: 'Images', items: [des('AMIs'), des('AMI Catalog')] },
     { seccion: 'Elastic Block Store', items: [{ texto: 'Volumes', ruta: 'ec2/volumenes' }, { texto: 'Snapshots', ruta: 'ec2/snapshots' }, des('Lifecycle Manager')] },
@@ -289,8 +305,8 @@ export default {
       seccion: 'Network & Security',
       items: [{ texto: 'Security Groups', ruta: 'ec2/grupos' }, { texto: 'Elastic IPs', ruta: 'ec2/eips' }, des('Placement Groups'), { texto: 'Key Pairs', ruta: 'ec2/llaves' }, des('Network Interfaces')]
     },
-    { seccion: 'Load Balancing', items: [des('Load Balancers'), des('Target Groups')] },
-    { seccion: 'Auto Scaling', items: [des('Auto Scaling Groups')] }
+    { seccion: 'Load Balancing', items: [{ texto: 'Load Balancers', ruta: 'ec2/balanceadores' }, { texto: 'Target Groups', ruta: 'ec2/grupos-destino' }] },
+    { seccion: 'Auto Scaling', items: [{ texto: 'Auto Scaling Groups', ruta: 'ec2/autoscaling' }] }
   ],
   rutas: {
     '': panel,
@@ -300,6 +316,8 @@ export default {
     ...rutasGrupos,
     ...rutasEips,
     ...rutasLlaves,
+    ...rutasEscalar,
+    ...rutasBalanceo,
     'etiquetas/:id': paginaEtiquetas,
     'no-disponible/:que': noDisponible
   },
@@ -311,7 +329,9 @@ export default {
     { texto: 'Snapshots', ruta: 'ec2/snapshots', claves: 'backup' },
     { texto: 'Elastic IPs', ruta: 'ec2/eips' },
     { texto: 'Key pairs', ruta: 'ec2/llaves' },
-    { texto: 'Instance types', ruta: 'ec2/tipos' }
+    { texto: 'Instance types', ruta: 'ec2/tipos' },
+    ...busquedaEscalar,
+    ...busquedaBalanceo
   ],
-  ayudas
+  ayudas: { ...ayudas, ...ayudasEscalar, ...ayudasBalanceo }
 };

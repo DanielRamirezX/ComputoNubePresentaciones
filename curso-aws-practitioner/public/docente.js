@@ -42,8 +42,11 @@ const escribir = (donde, clave, valor) => {
   }
 };
 
-// La sesión que se mira en el panel: la última elegida o la más reciente.
-let S = sesionDe(leer(sesion, PREFIJO + 'sesion-panel')) ?? SESIONES.at(-1);
+// La sesión que se mira en el panel: la última elegida en esta pestaña; si
+// no, la de hoy (la que se empezó con «Empezar la clase» o cuyo examen se
+// abrió, ver entrar) y, mientras tanto, la más reciente.
+const elegidaEnPanel = sesionDe(leer(sesion, PREFIJO + 'sesion-panel'));
+let S = elegidaEnPanel ?? SESIONES.at(-1);
 let ACTIVIDADES = [];
 const usarSesion = (elegida) => {
   S = elegida;
@@ -59,6 +62,11 @@ $('sesion-panel').value = String(S.numero);
 // entrar al otro sin volver a escribir la clave.
 let clave = leer(sesion, 'clave-docente') || '';
 let datos = null;
+// Lo que el simulador (evaluacion-aws, al lado en la plataforma) sabe de cada
+// laboratorio: { 'lab-s6': { activos, conteos } }. Con la misma clave: si no
+// contesta, el panel sigue sin ese dato.
+let enSimulador = null;
+const EN_PLATAFORMA = location.pathname.includes('/m/');
 let pestana = leer(sesion, PREFIJO + 'pestana') || 'plan';
 
 /* ------------------------------------------------------------------ entrar */
@@ -76,6 +84,16 @@ async function entrar(valor) {
   $('aviso-clave').hidden = !info.claveInsegura;
   $('pantalla-clave').hidden = true;
   $('pantalla-panel').hidden = false;
+  if (!elegidaEnPanel) {
+    const hoy = await fetch('api/estado')
+      .then((r) => r.json())
+      .then((d) => sesionDe(d.hoy))
+      .catch(() => null);
+    if (hoy && hoy !== S) {
+      usarSesion(hoy);
+      $('sesion-panel').value = String(S.numero);
+    }
+  }
   mostrarPestana(pestana);
   pintarPlan();
   await cargar();
@@ -131,12 +149,34 @@ async function cargar() {
     // Si el docente cambió de sesión mientras llegaba la respuesta, ya no sirve.
     if (pedida !== S.numero) return;
     datos = nuevos;
+    enSimulador = await resumenSimulador();
+    if (pedida !== S.numero) return;
     $('error-panel').textContent = '';
     pintarTodo();
   } catch (e) {
     $('error-panel').textContent =
       e.estado === 401 ? 'La clave cambió o expiró. Recarga la página y vuelve a entrar.' : 'Se perdió la conexión con el servidor. Reintento en unos segundos.';
   }
+}
+
+// Solo si esta sesión tiene algo en el simulador y el curso está en la plataforma.
+async function resumenSimulador() {
+  if (!EN_PLATAFORMA || !ACTIVIDADES.some((a) => a.simulador || a.tipo === 'simulador')) return null;
+  try {
+    const d = await llamar(`../evaluacion/api/docente/simulador?grupo=${encodeURIComponent($('grupo').value)}`);
+    return Object.fromEntries((d.evaluaciones ?? []).map((ev) => [ev.id, ev]));
+  } catch {
+    return null;
+  }
+}
+
+/** «En el simulador: 3 trabajando ahora · 5 entregaron (promedio 82 %)», o '' sin datos. */
+function textoSimulador(lab) {
+  const ev = enSimulador?.[lab];
+  if (!ev) return '';
+  const p = ev.conteos?.practica;
+  const promedio = p?.promedio !== null && p?.promedio !== undefined ? ` (promedio ${Math.round(p.promedio)} %)` : '';
+  return `En el simulador: <strong>${ev.activos ?? 0}</strong> trabajando ahora · <strong>${p?.entregaron ?? 0}</strong> entregaron${promedio}`;
 }
 
 $('grupo').addEventListener('change', cargar);
@@ -247,6 +287,13 @@ function actualizarCronometro() {
 $('btn-cronometro').addEventListener('click', () => {
   escribir(local, CLAVE_INICIO, String(Date.now()));
   pintarPlan();
+  // Empezar la clase dice qué sesión es la de hoy: la Ruta de cada alumno abre
+  // en ella (si falla, solo se pierde esa comodidad).
+  llamar('api/docente/hoy', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sesion: S.numero })
+  }).catch(() => {});
 });
 
 $('btn-reiniciar').addEventListener('click', () => {
@@ -292,20 +339,28 @@ function pintarVivo() {
     : '<p class="sutil">Todavía no se registra nadie. Proyecta el QR de la plataforma para que entren.</p>';
 
   // En qué paso va cada quien: si muchos se juntan en el mismo, ahí hay un problema.
+  // Quien eligió hacerlo en el simulador no marca pasos aquí: se cuenta aparte
+  // (su avance real está en el panel de Evaluación).
   const laboratorios = ACTIVIDADES.filter((a) => a.tipo === 'laboratorio');
-  $('laboratorio-vivo').innerHTML = n
-    ? laboratorios
-        .map((lab) => {
-          const total = datos.pasosLaboratorio[lab.id] ?? lab.pasos.length;
-          const enPaso = lab.pasos.map(() => 0);
-          let terminaron = 0;
-          for (const a of alumnos) {
-            const hechos = a.pasos?.[lab.id] ?? 0;
-            if (a.completados[lab.id] !== undefined || hechos >= total) terminaron += 1;
-            else if (hechos > 0 || a.completados[ACTIVIDADES[ACTIVIDADES.indexOf(lab) - 1]?.id] !== undefined) enPaso[hechos] += 1;
-          }
-          const maximo = Math.max(1, ...enPaso);
-          return `<h3 style="margin:6px 0 10px">${escapar(lab.titulo)} · ${terminaron} de ${n} terminaron</h3>
+  const practicasSimulador = ACTIVIDADES.filter((a) => a.tipo === 'simulador');
+  const htmlLaboratorios = laboratorios
+    .map((lab) => {
+      const total = datos.pasosLaboratorio[lab.id] ?? lab.pasos.length;
+      const enPaso = lab.pasos.map(() => 0);
+      let terminaron = 0;
+      let eligieron = 0;
+      for (const a of alumnos) {
+        const hechos = a.pasos?.[lab.id] ?? 0;
+        if (a.completados[lab.id] !== undefined || hechos >= total) terminaron += 1;
+        else if (a.lugares?.[lab.id] === 'simulador') eligieron += 1;
+        else if (hechos > 0 || a.completados[ACTIVIDADES[ACTIVIDADES.indexOf(lab) - 1]?.id] !== undefined) enPaso[hechos] += 1;
+      }
+      const maximo = Math.max(1, ...enPaso);
+      const lugares = lab.simulador ? reparto(lab) : '';
+      const vivo = lab.simulador ? textoSimulador(lab.simulador.lab) : '';
+      return `<h3 style="margin:6px 0 10px">${escapar(lab.titulo)} · ${terminaron} de ${n} terminaron</h3>
+            ${lugares ? `<p class="lugares-lab">${lugares}${eligieron ? ` · <strong>${eligieron}</strong> lo hacen en el simulador (sin marcar «Ya lo terminé»)` : ''}</p>` : ''}
+            ${vivo ? `<p class="lugares-lab">${vivo}</p>` : ''}
             ${lab.pasos
               .map(
                 (paso, j) => `<div class="avance-actividad">
@@ -316,8 +371,20 @@ function pintarVivo() {
                 </div>`
               )
               .join('')}`;
-        })
-        .join('')
+    })
+    .join('');
+  // Las prácticas que se hacen solo en el simulador (sesiones 9 a 13).
+  const htmlPracticas = practicasSimulador
+    .map((act) => {
+      const terminaron = alumnos.filter((a) => a.completados[act.id] !== undefined).length;
+      const vivo = textoSimulador(act.lab);
+      return `<h3 style="margin:6px 0 4px">${icono('t-simulador')} ${escapar(act.titulo)} · ${terminaron} de ${n} la marcaron como hecha en la Ruta</h3>
+        <p class="lugares-lab">Se hace en el simulador (<code>${escapar(act.lab)}</code>): al entregar allá se marca sola aquí. El avance por tarea y la calificación están en el panel de Evaluación.</p>
+        ${vivo ? `<p class="lugares-lab">${vivo}</p>` : ''}`;
+    })
+    .join('');
+  $('laboratorio-vivo').innerHTML = n
+    ? htmlLaboratorios + htmlPracticas || '<p class="sutil">Esta sesión no tiene laboratorio.</p>'
     : '<p class="sutil">Todavía no se registra nadie.</p>';
 
   // Solo cuenta lo hecho en la sesión que se mira.
@@ -341,9 +408,13 @@ function pintarVivo() {
             <td>${
               siguiente
                 ? `${siguiente.capitulo}. ${escapar(siguiente.titulo)}${
-                    siguiente.tipo === 'laboratorio' && a.pasos?.[siguiente.id]
-                      ? ` · paso ${Math.min(a.pasos[siguiente.id] + 1, siguiente.pasos.length)} de ${siguiente.pasos.length}`
-                      : ''
+                    siguiente.tipo === 'laboratorio' && a.lugares?.[siguiente.id] === 'simulador'
+                      ? ' · en el simulador'
+                      : siguiente.tipo === 'laboratorio' && a.pasos?.[siguiente.id]
+                        ? ` · paso ${Math.min(a.pasos[siguiente.id] + 1, siguiente.pasos.length)} de ${siguiente.pasos.length}${
+                            a.lugares?.[siguiente.id] === 'datacamp' ? ' (DataCamp)' : ''
+                          }`
+                        : ''
                   }`
                 : a.entrega
                   ? 'Entregó el examen'
@@ -353,6 +424,16 @@ function pintarVivo() {
         })
         .join('')
     : '<tr><td colspan="6">Sin alumnos por ahora.</td></tr>';
+}
+
+// «DataCamp 12 · Simulador 9 · sin elegir 4»: dónde decidió hacer el laboratorio cada quien.
+function reparto(lab) {
+  const cuenta = { datacamp: 0, simulador: 0, nada: 0 };
+  for (const a of datos.alumnos) {
+    const lugar = a.lugares?.[lab.id];
+    cuenta[lugar === 'datacamp' || lugar === 'simulador' ? lugar : 'nada'] += 1;
+  }
+  return `DataCamp <strong>${cuenta.datacamp}</strong> · Simulador <strong>${cuenta.simulador}</strong> · sin elegir <strong>${cuenta.nada}</strong>`;
 }
 
 /* ---------------------------------------------------------------- práctica */
@@ -376,17 +457,21 @@ function pintarPractica() {
   $('btn-practica').textContent = `${abierta ? 'Cerrar' : 'Abrir'} el examen de la sesión ${S.numero}`;
   $('btn-practica').className = abierta ? 'boton boton--peligro' : 'boton boton--primario';
 
+  // Con ESCALA (el simulacro CLF-C02) se aprueba como en el examen real: 700 de 1000 = 70 %.
   $('metricas-practica').innerHTML = `
     <div class="metrica"><b>${p.entregadas}</b><span>entregadas de ${alumnos.length} registrados</span></div>
-    <div class="metrica"><b>${p.promedio}%</b><span>promedio</span></div>
+    <div class="metrica"><b>${p.promedio}%</b><span>promedio${p.escala ? ` · ≈ ${Math.round((p.promedio / 100) * p.escala.maximo)} de ${p.escala.maximo}` : ''}</span></div>
     <div class="metrica"><b>${p.mediana}%</b><span>mediana</span></div>
-    <div class="metrica"><b>${p.aprobados}</b><span>con ${p.aprobatorio}% o más</span></div>
+    <div class="metrica"><b>${p.aprobados}</b><span>con ${p.aprobatorio}% o más${p.escala ? ` (aprobarían con ${p.escala.aprueba})` : ''}</span></div>
     <div class="metrica"><b>${p.entregadas ? `${p.minimo}–${p.maximo}` : '—'}</b><span>rango (%)</span></div>`;
+  $('th-calificacion').textContent = p.escala ? `Puntaje (de ${p.escala.maximo})` : 'Calif.';
 
   const maximo = Math.max(1, ...p.distribucion.map((x) => x.alumnos));
+  // Un rango es débil si queda debajo del aprobatorio (60 %, o 70 % con escala).
+  const debajo = (etiqueta) => Number(etiqueta.split(' a ')[1]) < p.aprobatorio;
   $('distribucion').innerHTML = p.distribucion
     .map(
-      (x) => `<div class="barra-panel ${x.etiqueta.startsWith('0 ') || x.etiqueta.startsWith('40') ? 'barra-panel--debil' : ''}">
+      (x) => `<div class="barra-panel ${debajo(x.etiqueta) ? 'barra-panel--debil' : ''}">
         <span>${x.etiqueta}% de aciertos</span><b>${x.alumnos}</b>
         <div class="progreso"><span style="width:${(x.alumnos / maximo) * 100}%"></span></div>
       </div>`
@@ -399,6 +484,20 @@ function pintarPractica() {
           (t) => `<div class="barra-panel ${t.porcentaje < p.aprobatorio ? 'barra-panel--debil' : ''}">
             <span>${escapar(t.tema)}</span><b>${t.porcentaje}%</b>
             <div class="progreso"><span style="width:${t.porcentaje}%"></span></div>
+          </div>`
+        )
+        .join('')
+    : '<p class="sutil">Aparece en cuanto llegue la primera entrega.</p>';
+
+  // «Por sesión de la Ruta»: solo en los exámenes que mezclan sesiones (el simulacro y las prácticas).
+  const porSesion = p.porSesion ?? [];
+  $('bloque-sesiones').hidden = porSesion.length === 0;
+  $('sesiones-practica').innerHTML = p.entregadas
+    ? porSesion
+        .map(
+          (s) => `<div class="barra-panel ${s.porcentaje < p.aprobatorio ? 'barra-panel--debil' : ''}">
+            <span>${escapar(s.titulo)} <small>(${s.preguntas} ${s.preguntas === 1 ? 'pregunta' : 'preguntas'})</small></span><b>${s.porcentaje}%</b>
+            <div class="progreso"><span style="width:${s.porcentaje}%"></span></div>
           </div>`
         )
         .join('')
@@ -428,7 +527,9 @@ function pintarPractica() {
         const minutos = e.inicio && e.fin ? Math.max(1, Math.round((new Date(e.fin) - new Date(e.inicio)) / 60000)) : '';
         return `<tr class="${e.porcentaje < p.aprobatorio ? 'debil' : ''}">
           <td>${escapar(a.nombre)}</td><td>${escapar(a.matricula)}</td><td>${escapar(a.grupo)}</td>
-          <td class="num">${e.aciertos}/${e.total}</td><td class="num">${e.porcentaje}</td><td class="num">${(Math.round(e.porcentaje) / 10).toFixed(1)}</td>
+          <td class="num">${e.aciertos}/${e.total}</td><td class="num">${e.porcentaje}</td><td class="num">${
+            p.escala && e.puntaje !== undefined ? e.puntaje : (Math.round(e.porcentaje) / 10).toFixed(1)
+          }</td>
           <td class="mono">${escapar(e.folio)}</td><td>${hora(e.fin)}</td><td class="num">${minutos}</td>
           <td><button class="boton boton--sutil boton--chico" type="button" data-reintento="${escapar(e.alumnoId)}" data-nombre="${escapar(a.nombre)}">Permitir reintento</button></td>
         </tr>`;
@@ -440,19 +541,28 @@ function pintarPractica() {
     ].join('') || '<tr><td colspan="10">Sin alumnos por ahora.</td></tr>';
 }
 
+// En una de respuesta múltiple, cada barra es cuántos marcaron esa opción
+// (cada quien marca varias); arriba se dice cuántos acertaron la combinación.
 function opcionesConBarras(q, total) {
-  return q.opciones
-    .map((texto, i) => {
-      const n = q.elegidas[i];
-      const pct = total ? Math.round((n / total) * 100) : 0;
-      return `<div class="opcion-panel ${i === q.correcta ? 'opcion-panel--correcta' : ''}">
-        <span>${i === q.correcta ? icono('i-check') : LETRAS[i]}</span>
+  const esCorrecta = (i) => (Array.isArray(q.correcta) ? q.correcta.includes(i) : i === q.correcta);
+  const nota = Array.isArray(q.correcta)
+    ? `<p class="opcion-panel__nota">Respuesta múltiple (elige ${q.elige}): la combinación completa la acertó el ${q.porcentaje}%. Cada barra es quién marcó esa opción.</p>`
+    : '';
+  return (
+    nota +
+    q.opciones
+      .map((texto, i) => {
+        const n = q.elegidas[i];
+        const pct = total ? Math.round((n / total) * 100) : 0;
+        return `<div class="opcion-panel ${esCorrecta(i) ? 'opcion-panel--correcta' : ''}">
+        <span>${esCorrecta(i) ? icono('i-check') : LETRAS[i]}</span>
         <span>${escapar(texto)}</span>
         <b>${pct}%</b>
         <div class="opcion-panel__barra"><span style="width:${pct}%"></span></div>
       </div>`;
-    })
-    .join('');
+      })
+      .join('')
+  );
 }
 
 $('btn-practica').addEventListener('click', async () => {

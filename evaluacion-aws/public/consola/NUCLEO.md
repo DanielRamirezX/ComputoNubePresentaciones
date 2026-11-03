@@ -241,4 +241,5 @@ abajo que depende de la selección, usa `cx.vivo(() => …t.seleccion()…)`.
 - `servicios/comun.js` tiene ayudas de EC2/VPC reutilizables: `enlaceRecurso(cx, id)`,
   `idBarraNombre(r)`, `idParentesis(r)`, `pestanaEtiquetas(cx, recurso)`, `panelVacio(texto)`,
   `noExiste(cx, tipo, id, rutaLista)`.
+- `ui.tabla({ vacio: { accion } })`: pasa `accion` como **función** `() => ui.boton(…)`; un nodo fijo se pierde con el refresco de cada segundo.
 - El reinicio de estilos usa `.cx :where(button, input…)`: cualquier clase `cx-…` le gana.

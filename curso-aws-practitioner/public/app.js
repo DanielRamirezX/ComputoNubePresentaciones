@@ -6,6 +6,12 @@
 // La ruta tiene varias sesiones; el índice muestra una a la vez y el alumno
 // cambia entre ellas desde arriba o desde "La ruta completa".
 //
+// El simulador AWS (evaluacion-aws, montado al lado en /m/evaluacion/) entra
+// de dos formas: un laboratorio con `simulador` deja elegir dónde hacerlo
+// (DataCamp o simulador), y una actividad 'simulador' es una práctica que se
+// hace solo allá. En ambos casos la Ruta muestra el avance real que reporta
+// el simulador para el mismo perfil.
+//
 // Todo cuelga del hash (#/s1-ruta, #/sesion/2, #/practica/2) y las llamadas al servidor
 // son relativas (api/…): así la misma página sirve suelta en la raíz y montada
 // en /m/aws-practitioner/ dentro de la plataforma.
@@ -28,7 +34,12 @@ import {
 
 const PREFIJO = 'aws-practitioner:';
 const LETRAS = ['A', 'B', 'C', 'D', 'E'];
-const TIPOS = { leccion: 'Lección', opcion: 'Opción múltiple', clasificar: 'Clasificar', laboratorio: 'Laboratorio' };
+const TIPOS = { leccion: 'Lección', opcion: 'Opción múltiple', clasificar: 'Clasificar', laboratorio: 'Laboratorio', simulador: 'Simulador AWS' };
+
+// El simulador AWS es otro módulo de la plataforma (evaluacion-aws), montado al
+// lado en /m/evaluacion/. Suelto (node server.js) no existe: se ocultan sus ligas.
+const SIMULADOR = '../evaluacion/';
+const EN_PLATAFORMA = location.pathname.includes('/m/');
 
 const app = document.getElementById('app');
 
@@ -81,13 +92,27 @@ const INDICE = new Map(ACTIVIDADES.map((a, i) => [a.id, i]));
 const actividadesDe = (sesionCurso) => ACTIVIDADES.filter((a) => a.sesion === sesionCurso);
 const xpTotalDe = (sesionCurso) => actividadesDe(sesionCurso).reduce((suma, a) => suma + a.xp, 0);
 
-// La sesión que se ve en el índice: la última que eligió el alumno o, si es
-// nuevo, la más reciente de la ruta (la que se da en clase esta semana).
-let sesionActual = sesionDe(leer('sesion', 0)) ?? SESIONES.at(-1);
+// La sesión que se ve en el índice: la última que eligió el alumno. Si es
+// nuevo, la de hoy según el servidor (ver seguirHoy) y, mientras contesta o
+// si el docente no ha dicho cuál, la más reciente de la ruta.
+let sesionActual = sesionDe(leer('sesion', 0)) ?? sesionDe(leer('hoy-visto', 0)) ?? SESIONES.at(-1);
 
 function elegirSesion(sesionCurso) {
   sesionActual = sesionCurso;
   guardar('sesion', sesionCurso.numero);
+}
+
+// La sesión que se da hoy: el docente la marca al empezar la clase o al abrir
+// su examen. Cuando cambia, la Ruta abre una vez en ella (así el QR de la
+// sesión 9 deja al grupo en la 9 aunque ya estén publicadas hasta la 13);
+// después cada quien navega a donde quiera.
+function seguirHoy(numero) {
+  const hoy = sesionDe(numero);
+  if (!hoy || leer('hoy-visto', 0) === hoy.numero) return;
+  guardar('hoy-visto', hoy.numero);
+  if (hoy === sesionActual) return;
+  elegirSesion(hoy);
+  if (ruta()[0] === '' && (perfil || PROYECTOR)) pintar();
 }
 
 let perfil = leer('perfil', null);
@@ -96,6 +121,14 @@ let avance = leer('avance', { completados: {} });
 const pasosLab = () =>
   Object.fromEntries(
     ACTIVIDADES.filter((a) => a.tipo === 'laboratorio').map((a) => [a.id, leer(`lab-${a.id}`, { hechos: [] }).hechos.length])
+  );
+
+// Dónde hace cada laboratorio que ofrece el simulador: 'datacamp' o 'simulador'.
+const lugaresLab = () =>
+  Object.fromEntries(
+    ACTIVIDADES.filter((a) => a.tipo === 'laboratorio' && a.simulador)
+      .map((a) => [a.id, leer(`lab-${a.id}`, {}).donde])
+      .filter(([, donde]) => donde)
   );
 
 const hecha = (id) => avance.completados[id] !== undefined;
@@ -114,6 +147,7 @@ const escapar = (t) =>
 
 const icono = (id, clase = 'icono') => `<svg class="${clase}" aria-hidden="true"><use href="#${id}"></use></svg>`;
 const numero = (n) => Number(n).toLocaleString('es-MX');
+const nActividades = (n) => `${n} ${n === 1 ? 'actividad' : 'actividades'}`;
 const nombreCorto = (nombre) => String(nombre ?? '').trim().split(/\s+/)[0];
 const fechaHora = (iso) =>
   new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -185,8 +219,11 @@ function sincronizar(inmediato = false) {
   if (PROYECTOR || !perfil) return;
   clearTimeout(esperaCopia);
   esperaCopia = setTimeout(() => {
-    api('api/progreso', { alumno: perfil, completados: avance.completados, pasos: pasosLab() })
-      .then((d) => cambiarEstadoPracticas(d.practicas))
+    api('api/progreso', { alumno: perfil, completados: avance.completados, pasos: pasosLab(), lugares: lugaresLab() })
+      .then((d) => {
+        cambiarEstadoPracticas(d.practicas);
+        seguirHoy(d.hoy);
+      })
       .catch(() => {}); // se reintenta con el siguiente movimiento o el latido
   }, inmediato ? 0 : 400);
 }
@@ -195,6 +232,7 @@ async function latido() {
   try {
     const d = await api(`api/estado${perfil && !PROYECTOR ? `?a=${perfil.id}` : ''}`);
     cambiarEstadoPracticas(d.practicas);
+    seguirHoy(d.hoy);
   } catch {
     /* sin servidor por ahora */
   }
@@ -211,16 +249,20 @@ function cambiarEstadoPracticas(nuevas) {
 
 setInterval(latido, 15000);
 
-function completar(actividad, xp) {
-  if (PROYECTOR || hecha(actividad.id)) return;
+// Con `subir`, una actividad ya hecha con XP parcial recibe la diferencia (lo
+// que pasa cuando el alumno entrega en el simulador algo que había marcado
+// como terminado sin entregar).
+function completar(actividad, xp, { subir = false } = {}) {
+  const antes = avance.completados[actividad.id];
+  if (PROYECTOR || (antes !== undefined && !(subir && xp > antes))) return;
   avance.completados[actividad.id] = xp;
   guardar('avance', avance);
   sincronizar(true);
-  aviso(`+${xp} XP`);
+  aviso(`+${xp - (antes ?? 0)} XP`);
   const barraXp = document.querySelector('.barra__xp');
   if (barraXp) barraXp.textContent = `${numero(xpGanada())} XP`;
   const capitulo = actividad.capitulo;
-  if (capitulo.actividades.every((a) => hecha(a.id))) {
+  if (antes === undefined && capitulo.actividades.every((a) => hecha(a.id))) {
     setTimeout(() => aviso(`¡Capítulo ${capitulo.numero} completo!`, 'capitulo'), 1000);
   }
 }
@@ -279,6 +321,7 @@ function pintar() {
   if (actividad.sesion !== sesionActual) elegirSesion(actividad.sesion);
   if (actividad.tipo === 'leccion') return vistaLeccion(actividad, Number(segunda) || 1);
   if (actividad.tipo === 'laboratorio') return vistaLaboratorio(actividad, Number(segunda) || 0);
+  if (actividad.tipo === 'simulador') return vistaSimulador(actividad);
   return vistaEjercicio(actividad);
 }
 
@@ -302,6 +345,8 @@ const avisoProyector = () =>
 /* ------------------------------------------------------------- registro */
 
 function vistaRegistro() {
+  // Quien ya se registró en el simulador encuentra sus datos puestos.
+  const base = perfil ?? perfilSimulador();
   app.innerHTML = `
     <main class="pagina pagina--angosta">
       <p class="etiqueta">Cómputo en la Nube · Curso</p>
@@ -309,11 +354,11 @@ function vistaRegistro() {
       <p class="registro__intro">Antes de empezar, dinos quién eres para que tu docente vea tu avance. Toma 20 segundos.</p>
       <form class="hoja formulario" id="form-registro" novalidate>
         <label for="nombre">Nombre completo</label>
-        <input id="nombre" name="nombre" autocomplete="name" maxlength="80" placeholder="Como aparece en la lista" value="${escapar(perfil?.nombre)}">
+        <input id="nombre" name="nombre" autocomplete="name" maxlength="80" placeholder="Como aparece en la lista" value="${escapar(base?.nombre)}">
         <label for="matricula">Matrícula <span class="opcional">(opcional)</span></label>
-        <input id="matricula" name="matricula" inputmode="numeric" autocomplete="off" maxlength="30" value="${escapar(perfil?.matricula)}">
+        <input id="matricula" name="matricula" inputmode="numeric" autocomplete="off" maxlength="30" value="${escapar(base?.matricula)}">
         <label for="grupo">Grupo</label>
-        <input id="grupo" name="grupo" autocomplete="off" maxlength="30" placeholder="Por ejemplo, SC03S" value="${escapar(perfil?.grupo)}">
+        <input id="grupo" name="grupo" autocomplete="off" maxlength="30" placeholder="Por ejemplo, SC03S" value="${escapar(base?.grupo)}">
         <details class="aviso-privacidad" open>
           <summary>Aviso de privacidad</summary>
           <p>Usamos tu nombre, tu matrícula y tu grupo <strong>solo</strong> para que tu docente vea tu avance en este curso y la calificación de tu práctica final. No se comparten con nadie ni se usan para otra cosa. Se guardan en el servidor de la materia y tu docente los borra al cerrar el ciclo escolar.</p>
@@ -340,7 +385,13 @@ function vistaRegistro() {
       form.grupo.focus();
       return;
     }
-    perfil = { id: perfil?.id ?? nuevoId(), nombre, matricula: form.matricula.value.trim(), grupo };
+    // Si en este navegador ya hay perfil del simulador (Evaluación) y es la
+    // misma persona, se reusa su id: así las dos apps hablan del mismo alumno
+    // y la Ruta ve su avance real en el simulador.
+    const matricula = form.matricula.value.trim();
+    const delSimulador = perfilSimulador();
+    const idPrevio = perfil?.id ?? (mismaPersona(delSimulador, { nombre, matricula }) ? delSimulador.id : null);
+    perfil = { id: idPrevio ?? nuevoId(), nombre, matricula, grupo };
     guardar('perfil', perfil);
     sincronizar(true);
     if (ruta()[0] === 'registro') ir('');
@@ -376,7 +427,7 @@ function vistaCurso() {
         <ul class="portada__datos">
           <li>${icono('i-reloj')} ${escapar(S.duracion)}</li>
           <li>${icono('i-libro')} ${S.capitulos.length} capítulos</li>
-          <li>${icono('i-check')} ${actividades.length} actividades</li>
+          <li>${icono('i-check')} ${nActividades(actividades.length)}</li>
           <li>${icono('i-estrella')} ${numero(xpTotal)} XP</li>
         </ul>
         ${
@@ -384,7 +435,7 @@ function vistaCurso() {
             ? ''
             : `<div class="portada__avance">
                 <div class="progreso progreso--grande" role="progressbar" aria-label="Avance de la sesión ${S.numero}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
-                <p>${hechas} de ${actividades.length} actividades · ${numero(xpGanadaEn(S))} de ${numero(xpTotal)} XP</p>
+                <p>${hechas} de ${nActividades(actividades.length)} · ${numero(xpGanadaEn(S))} de ${numero(xpTotal)} XP</p>
               </div>`
         }
         <a class="boton boton--primario" href="#/${siguiente ? siguiente.id : `practica/${S.numero}`}">
@@ -392,7 +443,7 @@ function vistaCurso() {
         </a>
       </header>
 
-      ${PROYECTOR ? '' : contadorSandbox(false)}
+      ${PROYECTOR || S.minutosSandbox === 0 ? '' : contadorSandbox(false)}
 
       ${S.capitulos.map((c) => tarjetaCapitulo(c, siguiente, abierto)).join('')}
 
@@ -444,7 +495,7 @@ function tarjetaCapitulo(capitulo, siguiente, abierto) {
         }
       </header>
       <p class="capitulo__descripcion">${escapar(capitulo.descripcion)}</p>
-      <p class="capitulo__meta">≈ ${minutos} min · ${actividades.length} actividades · ${numero(xp)} XP</p>
+      <p class="capitulo__meta">≈ ${minutos} min · ${nActividades(actividades.length)} · ${numero(xp)} XP</p>
       <ol class="actividades" id="lista-${capitulo.numero}" ${plegado ? 'hidden' : ''}>
         ${actividades.map((a) => filaActividad(a, siguiente)).join('')}
       </ol>
@@ -1065,7 +1116,7 @@ function rutaCompleta() {
   return `
     <section class="ruta" aria-labelledby="titulo-ruta">
       <h2 class="ruta__titulo" id="titulo-ruta">La ruta completa hacia la certificación</h2>
-      <p class="ruta__intro">Ocho sesiones que cubren los cuatro dominios del examen AWS Certified Cloud Practitioner. Cada una trae su laboratorio en el sandbox.</p>
+      <p class="ruta__intro">${RUTA.length} sesiones que cubren los cuatro dominios del examen AWS Certified Cloud Practitioner: siete con su laboratorio (en el sandbox de DataCamp o en el simulador AWS), un simulacro completo del examen y cinco prácticas integradoras en el simulador.</p>
       <ol class="ruta__sesiones">
         ${RUTA.map(
           (r) => `
@@ -1154,26 +1205,282 @@ function activarCapturas(raiz) {
   );
 }
 
+/* --------------------------------------------------------- simulador AWS */
+
+// Quién es quién entre la Ruta y el simulador: la matrícula si las dos la
+// tienen; si no, el nombre sin acentos ni mayúsculas.
+const normal = (t) =>
+  String(t ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+const mismaPersona = (a, b) =>
+  Boolean(a && b) && (a.matricula && b.matricula ? normal(a.matricula) === normal(b.matricula) : normal(a.nombre) === normal(b.nombre));
+
+// El perfil que guardó el simulador (evaluacion-aws) en este navegador. En la
+// plataforma las dos apps comparten origen, así que se puede leer.
+function perfilSimulador() {
+  try {
+    const p = JSON.parse(local?.getItem('evaluacion-aws:perfil') ?? 'null');
+    return p && typeof p.id === 'string' && /^[a-f0-9]{16,40}$/.test(p.id) ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+// Con qué id preguntarle al simulador. El simulador adopta el perfil de la
+// Ruta solo si todavía no tiene uno: quien entró primero al simulador tiene
+// otro id allá, y es ese el que guarda su avance.
+function idEnSimulador() {
+  const p = perfilSimulador();
+  return p && mismaPersona(p, perfil) ? p.id : perfil.id;
+}
+
+// El avance real del alumno en el simulador. Si no contesta (suelto, sin
+// conexión o con otra versión), la Ruta sigue igual: solo no muestra el avance.
+async function estadoSimulador(lab) {
+  if (!EN_PLATAFORMA || !perfil || PROYECTOR) return null;
+  try {
+    const d = await api(`${SIMULADOR}api/estado?a=${encodeURIComponent(idEnSimulador())}`);
+    if (!Array.isArray(d.evaluaciones)) return null;
+    return { evaluacion: d.evaluaciones.find((ev) => ev.id === lab || ev.lab === lab) ?? null };
+  } catch {
+    return null;
+  }
+}
+
+const parteSimulador = (datos) => datos?.evaluacion?.partes?.practica ?? null;
+
+/** Una línea con cómo va: { texto, tono: 'hecho' | 'curso' | 'espera' | 'nada' }. */
+function avanceSimulador(datos) {
+  const parte = parteSimulador(datos);
+  if (!parte || parte.estado === 'preparacion') return { tono: 'espera', texto: 'Tu docente todavía lo está preparando en el simulador.' };
+  if (parte.entrega) {
+    const pct = Number(parte.entrega.porcentaje);
+    return { tono: 'hecho', texto: `Ya lo entregaste${Number.isFinite(pct) ? ` con ${Math.round(pct)} de 100` : ''}. Folio ${parte.entrega.folio ?? '—'}.` };
+  }
+  if (parte.empezada) {
+    const a = parte.avance;
+    return {
+      tono: 'curso',
+      texto: a?.tareasTotal ? `En curso: llevas ${a.tareasLogradas} de ${a.tareasTotal} tareas.` : 'En curso: ya lo abriste en el simulador.'
+    };
+  }
+  if (parte.estado === 'cerrada') return { tono: 'espera', texto: 'Cerrado por ahora: tu docente lo abre en clase.' };
+  return { tono: 'nada', texto: 'Todavía no lo empiezas.' };
+}
+
+/**
+ * La caja del simulador: qué se hace allá, el botón para abrirlo y el avance
+ * real. `tareas` es HTML de la sesión (como las láminas).
+ */
+function cajaSimulador({ lab, minutos, nota, tareas, boton }) {
+  return `
+    <section class="simulador-caja" aria-labelledby="simulador-titulo">
+      <p class="simulador-caja__etiqueta">${icono('t-simulador', 'icono')} Simulador AWS · se califica solo</p>
+      <h2 class="simulador-caja__titulo" id="simulador-titulo">Lo haces en la consola simulada${minutos ? `, en unos ${minutos} minutos` : ''}</h2>
+      ${nota ? `<p>${escapar(nota)}</p>` : ''}
+      ${
+        tareas?.length
+          ? `<p><strong>Lo que te va a pedir:</strong></p><ul class="simulador-caja__tareas">${tareas.map((t) => `<li>${t}</li>`).join('')}</ul>`
+          : '<p>Allá ves la lista de tareas con tus propios datos (tu sufijo, tus nombres) y el simulador revisa tu cuenta solo. No necesitas capturas ni el sandbox de DataCamp.</p>'
+      }
+      ${
+        EN_PLATAFORMA
+          ? `<p class="simulador-caja__avance" data-avance-simulador role="status" aria-live="polite">Buscando tu avance en el simulador…</p>
+             <a class="boton boton--primario" href="${SIMULADOR}#/${encodeURIComponent(lab)}" target="_blank" rel="noopener">${boton} →</a>`
+          : '<p class="sutil">El simulador se abre desde la plataforma de la materia (Simulador AWS). Aquí, con el curso suelto, no hay liga.</p>'
+      }
+    </section>`;
+}
+
+/**
+ * Pregunta el avance real cada 15 s mientras la vista esté abierta: lo pinta
+ * en la caja (si está a la vista) y se lo pasa a `alAvance`. Regresa
+ * { parar, repintar }: `repintar` pone el último avance en una caja recién
+ * pintada, sin esperar la siguiente vuelta.
+ */
+function vigilarSimulador(lab, alAvance) {
+  if (!EN_PLATAFORMA || PROYECTOR) return { parar() {}, repintar() {} };
+  let ultimo;
+  let vigente = true;
+  const repintar = () => {
+    const caja = app.querySelector('[data-avance-simulador]');
+    if (!caja || ultimo === undefined) return;
+    const { texto, tono } = avanceSimulador(ultimo);
+    caja.textContent = texto;
+    caja.dataset.tono = tono;
+  };
+  const revisar = async () => {
+    const datos = await estadoSimulador(lab);
+    if (!vigente) return;
+    ultimo = datos;
+    repintar();
+    alAvance?.(datos);
+  };
+  const espera = setInterval(revisar, 15000);
+  const parar = () => {
+    vigente = false;
+    clearInterval(espera);
+  };
+  alSalir.push(parar);
+  revisar();
+  return { parar, repintar };
+}
+
+// El botón que cierra algo del simulador dice lo que va a pasar: en la
+// plataforma, mientras no haya entrega, no promete el XP completo.
+function textoTerminarSimulador(actividad, datos) {
+  if (PROYECTOR || hecha(actividad.id)) return 'Siguiente actividad →';
+  if (datos && !parteSimulador(datos)?.entrega) return 'Seguir sin entregarlo →';
+  return `Ya lo terminé en el simulador · +${actividad.xp} XP`;
+}
+
+/**
+ * «Ya lo terminé» de algo que se hace en el simulador. Con entrega (o sin
+ * conexión con el simulador, para no trabar a nadie) da el XP completo; sin
+ * entrega pregunta y da XP según las tareas logradas (mínimo 10 %), como el
+ * laboratorio de DataCamp. Regresa false si el alumno se arrepiente.
+ */
+async function terminarEnElSimulador(actividad, lab) {
+  if (PROYECTOR) return true;
+  const datos = await estadoSimulador(lab);
+  const parte = parteSimulador(datos);
+  if (!datos || parte?.entrega) {
+    completar(actividad, actividad.xp, { subir: true });
+    return true;
+  }
+  if (hecha(actividad.id)) return true;
+  const a = parte?.avance;
+  const xp = Math.max(Math.round(actividad.xp * 0.1), a?.tareasTotal ? Math.round((actividad.xp * a.tareasLogradas) / a.tareasTotal) : 0);
+  const seguir = confirm(
+    `Todavía no lo entregas en el simulador, así que tu docente no tiene tu calificación. ¿Lo marcas como terminado con ${xp} de ${actividad.xp} XP? Si después lo entregas, vuelve aquí y la Ruta te da el resto.`
+  );
+  if (seguir) completar(actividad, xp);
+  return seguir;
+}
+
+// Una práctica integradora (sesiones 9 a 13): el caso, la arquitectura y las
+// tareas aquí; el trabajo, en el simulador. Al entregar allá, la actividad se
+// completa sola con su XP; la calificación real la pone el simulador.
+function vistaSimulador(actividad) {
+  app.innerHTML = `
+    ${barraActividad(actividad)}
+    <main class="leccion laboratorio">
+      <div class="lab-intro">
+        <p><strong>Objetivo:</strong> ${escapar(actividad.objetivo)}</p>
+        <p><strong>Necesitas:</strong></p>
+        <ul>${actividad.necesitas.map((n) => `<li>${escapar(n)}</li>`).join('')}</ul>
+      </div>
+      <article class="lamina">
+        <p class="lamina__contador">Práctica en el simulador AWS · ≈ ${actividad.minutos} min
+          <span class="pildora-hecho" data-hecha ${hecha(actividad.id) && !PROYECTOR ? '' : 'hidden'}>Hecha</span>
+        </p>
+        <h1 class="lamina__titulo" id="titulo-lamina" tabindex="-1">${escapar(actividad.titulo)}</h1>
+        <div class="lamina__cuerpo">
+          <section class="simulador-caso" aria-label="El caso">${actividad.caso}</section>
+          ${actividad.arquitectura ? `<section class="simulador-arquitectura" aria-label="La arquitectura">${actividad.arquitectura}</section>` : ''}
+          <section aria-labelledby="titulo-tareas">
+            <h2 class="simulador-subtitulo" id="titulo-tareas">Tus tareas en el simulador</h2>
+            <ol class="simulador-tareas">${actividad.tareas.map((t) => `<li><span>${t}</span></li>`).join('')}</ol>
+          </section>
+          ${cajaSimulador({ lab: actividad.lab, boton: 'Abrir la práctica en el simulador' })}
+        </div>
+      </article>
+    </main>
+    <nav class="navegacion" aria-label="Práctica">
+      <a class="boton" href="#/">← Curso</a>
+      <button class="boton boton--primario" type="button" data-accion="terminar">${textoTerminarSimulador(actividad, EN_PLATAFORMA ? {} : null)}</button>
+    </nav>`;
+
+  activarLamina(app);
+  activarCodigo(app);
+  activarCapturas(app);
+  const boton = app.querySelector('[data-accion="terminar"]');
+  vigilarSimulador(actividad.lab, (datos) => {
+    if (parteSimulador(datos)?.entrega) completar(actividad, actividad.xp, { subir: true });
+    boton.textContent = textoTerminarSimulador(actividad, datos);
+    app.querySelector('[data-hecha]')?.toggleAttribute('hidden', !hecha(actividad.id) || PROYECTOR);
+  });
+  boton.addEventListener('click', async () => {
+    boton.disabled = true;
+    const seguir = await terminarEnElSimulador(actividad, actividad.lab).finally(() => {
+      boton.disabled = false;
+    });
+    if (seguir) ir(siguienteDe(actividad));
+  });
+}
+
 /* ------------------------------------------------------------ laboratorios */
 
 function vistaLaboratorio(actividad, numeroPaso) {
   const clave = `lab-${actividad.id}`;
-  const hechos = new Set(leer(clave, { hechos: [] }).hechos);
+  const guardado = leer(clave, { hechos: [] });
+  const hechos = new Set(guardado.hechos ?? []);
   const total = actividad.pasos.length;
+  // Si el laboratorio también está en el simulador, el alumno elige dónde lo
+  // hace. En el simulador no corre el contador del sandbox ni se piden las
+  // capturas de DataCamp: la guía queda solo de referencia.
+  let donde = actividad.simulador && ['datacamp', 'simulador'].includes(guardado.donde) ? guardado.donde : null;
+  const enSimulador = () => donde === 'simulador';
   const conEvidencia = actividad.pasos.map((paso, j) => ({ paso, j })).filter(({ paso }) => paso.evidencia);
+  const pideEvidencias = () => !enSimulador() && conEvidencia.length > 0;
   // Sin paso en la dirección, abre el primero que falte. Si ya terminó y el
-  // laboratorio pide evidencias, abre el último: ahí se descarga el PDF.
+  // laboratorio pide evidencias, abre el último: ahí se descarga el PDF. En el
+  // simulador abre el primero, que es donde está su caja.
   const primeroQueFalta = actividad.pasos.findIndex((_, j) => !hechos.has(j));
   let i = numeroPaso
     ? Math.min(Math.max(numeroPaso, 1), total) - 1
-    : primeroQueFalta < 0 && conEvidencia.length
-      ? total - 1
-      : Math.max(0, primeroQueFalta);
+    : enSimulador()
+      ? 0
+      : primeroQueFalta < 0 && conEvidencia.length
+        ? total - 1
+        : Math.max(0, primeroQueFalta);
 
   const recordar = () => {
-    guardar(clave, { hechos: [...hechos].sort((a, b) => a - b) });
+    guardar(clave, { hechos: [...hechos].sort((a, b) => a - b), ...(donde ? { donde } : {}) });
     sincronizar();
   };
+
+  // En el simulador se vigila el avance real mientras la vista esté abierta:
+  // pinta la caja del paso 1, ajusta el botón y, al entregar allá, completa
+  // el laboratorio solo. Un solo vigilante por vista, aunque cambie de paso.
+  let vigilante = null;
+  let datosSimulador = EN_PLATAFORMA ? {} : null; // {} = todavía no contesta: se supone sin entrega
+  const alAvanceSimulador = (datos) => {
+    datosSimulador = datos;
+    if (parteSimulador(datos)?.entrega && !PROYECTOR && (avance.completados[actividad.id] ?? -1) < actividad.xp) {
+      actividad.pasos.forEach((_, j) => hechos.add(j));
+      recordar();
+      completar(actividad, actividad.xp, { subir: true });
+    }
+    const boton = app.querySelector('[data-accion="terminar-simulador"]');
+    if (boton) boton.textContent = textoTerminarSimulador(actividad, datosSimulador);
+  };
+  const vigilarSiToca = () => {
+    if (enSimulador() && actividad.simulador) {
+      vigilante ??= vigilarSimulador(actividad.simulador.lab, alAvanceSimulador);
+      vigilante.repintar();
+    } else if (vigilante) {
+      vigilante.parar();
+      vigilante = null;
+    }
+  };
+
+  // Quien todavía no elige pero ya empezó o entregó en el simulador (desde
+  // otro navegador, por ejemplo) lo hace en el simulador: se elige solo.
+  if (actividad.simulador && !donde && EN_PLATAFORMA && !PROYECTOR) {
+    let vigente = true;
+    alSalir.push(() => {
+      vigente = false;
+    });
+    estadoSimulador(actividad.simulador.lab).then((datos) => {
+      const parte = parteSimulador(datos);
+      if (vigente && !donde && (parte?.empezada || parte?.entrega)) elegirLugar('simulador');
+    });
+  }
 
   // Las capturas de cada alumno van aparte: en el salón la computadora se comparte.
   const claveDe = (paso) => claveEvidencia(perfil?.id ?? 'proyector', actividad.id, paso.evidencia.id);
@@ -1193,7 +1500,7 @@ function vistaLaboratorio(actividad, numeroPaso) {
   // Pegar con Ctrl + V en cualquier parte del paso: es lo que hace quien usa Win + Shift + S.
   const alPegar = (e) => {
     const paso = actividad.pasos[i];
-    if (!paso.evidencia) return;
+    if (!paso.evidencia || enSimulador()) return;
     const archivo = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
     if (!archivo) return;
     e.preventDefault();
@@ -1368,38 +1675,68 @@ function vistaLaboratorio(actividad, numeroPaso) {
     }
   }
 
+  // «¿Dónde harás este laboratorio?»: solo en el paso 1 de los que ofrecen el simulador.
+  function eleccion() {
+    if (!actividad.simulador) return '';
+    const s = actividad.simulador;
+    const boton = (valor, texto, detalle) =>
+      `<button type="button" class="eleccion__boton" data-donde="${valor}" aria-pressed="${donde === valor}">
+        <strong>${texto}</strong><span>${detalle}</span>
+      </button>`;
+    return `
+      <section class="eleccion" aria-labelledby="eleccion-titulo">
+        <h2 class="eleccion__titulo" id="eleccion-titulo">¿Dónde harás este laboratorio?</h2>
+        <div class="eleccion__botones">
+          ${boton('datacamp', 'DataCamp', 'El sandbox de AWS, con esta guía paso a paso y tus capturas para Blackboard.')}
+          ${boton('simulador', 'Simulador', `La consola simulada: aquí sí se puede crear todo y se califica sola${s.minutos ? ` (≈ ${s.minutos} min)` : ''}.`)}
+        </div>
+        <p class="eleccion__nota">${donde ? 'Puedes cambiar de opinión cuando quieras.' : 'Elige una para empezar. Puedes cambiar después.'}</p>
+      </section>
+      ${enSimulador() ? cajaSimulador({ lab: s.lab, minutos: s.minutos, nota: s.nota, tareas: s.tareas, boton: 'Abrir el simulador' }) : ''}`;
+  }
+
   function mostrar(enfocar = false) {
     const paso = actividad.pasos[i];
     const ultimo = i === total - 1;
-    if (paso.sandbox) encenderSandbox();
+    if (paso.sandbox && !enSimulador()) encenderSandbox();
     soltarMiniaturas();
 
     app.innerHTML = `
       ${barraActividad(actividad)}
       <main class="leccion laboratorio">
-        ${contadorSandbox()}
+        ${enSimulador() ? '' : contadorSandbox()}
         <div class="leccion__puntos leccion__puntos--pasos" aria-hidden="true">${actividad.pasos
           .map((_, j) => `<span class="${j === i ? 'actual' : hechos.has(j) ? 'visto' : ''}"></span>`)
           .join('')}</div>
         ${
           i === 0
             ? `<div class="lab-intro">
-                <p><strong>Objetivo:</strong> ${escapar(actividad.objetivo)}</p>
-                <p><strong>Necesitas:</strong></p>
-                <ul>${actividad.necesitas.map((n) => `<li>${escapar(n)}</li>`).join('')}</ul>
-              </div>`
+                <p><strong>Objetivo:</strong> ${escapar(enSimulador() ? actividad.simulador.objetivo : actividad.objetivo)}</p>
+                ${
+                  // Lo que se necesita es para DataCamp (sesión, sandbox, capturas): en el simulador no aplica.
+                  enSimulador()
+                    ? ''
+                    : `<p><strong>Necesitas:</strong></p>
+                       <ul>${actividad.necesitas.map((n) => `<li>${escapar(n)}</li>`).join('')}</ul>`
+                }
+              </div>
+              ${eleccion()}`
             : ''
         }
         <article class="lamina">
           <p class="lamina__contador">Paso ${i + 1} de ${total}
-            <span class="pildora-sandbox ${paso.sandbox ? '' : 'pildora-sandbox--apagado'}">${paso.sandbox ? 'Con el sandbox encendido' : 'Con el sandbox apagado'}</span>
+            ${
+              enSimulador()
+                ? '<span class="pildora-sandbox pildora-sandbox--apagado">Guía de DataCamp · solo de referencia</span>'
+                : `<span class="pildora-sandbox ${paso.sandbox ? '' : 'pildora-sandbox--apagado'}">${paso.sandbox ? 'Con el sandbox encendido' : 'Con el sandbox apagado'}</span>`
+            }
             ${hechos.has(i) ? '<span class="pildora-hecho">Hecho</span>' : ''}
           </p>
           <h1 class="lamina__titulo" id="titulo-lamina" tabindex="-1">${paso.titulo}</h1>
           <div class="lamina__cuerpo">
             ${paso.html}
             <div class="deberias-ver"><span class="deberias-ver__etiqueta">Deberías ver</span><p>${paso.ver}</p></div>
-            ${paso.evidencia ? cajaEvidencia(paso) : ''}
+            ${paso.evidencia && !enSimulador() ? cajaEvidencia(paso) : ''}
             ${
               paso.problemas
                 ? `<details class="problemas"><summary>¿Algo salió mal?</summary><dl>${paso.problemas
@@ -1407,35 +1744,51 @@ function vistaLaboratorio(actividad, numeroPaso) {
                     .join('')}</dl></details>`
                 : ''
             }
-            ${ultimo && conEvidencia.length ? cajaEntrega() : ''}
+            ${ultimo && pideEvidencias() ? cajaEntrega() : ''}
+            ${
+              enSimulador() && !ultimo
+                ? `<button class="boton boton--sutil boton--chico lab-referencia" type="button">${i === 0 ? 'Ver la guía de DataCamp como referencia' : 'Siguiente paso de la guía'} →</button>`
+                : ''
+            }
           </div>
         </article>
       </main>
       <nav class="navegacion" aria-label="Pasos del laboratorio">
         <button class="boton" type="button" data-accion="anterior" ${i === 0 ? 'disabled' : ''}>← Anterior</button>
-        <button class="boton boton--primario" type="button" data-accion="${ultimo ? 'terminar' : 'hecho'}">${
-          ultimo
-            ? hecha(actividad.id) || PROYECTOR
-              ? 'Terminar laboratorio'
-              : `Terminar laboratorio · +${actividad.xp} XP`
-            : 'Ya lo hice →'
-        }</button>
+        ${
+          enSimulador()
+            ? `<button class="boton boton--primario" type="button" data-accion="terminar-simulador">${textoTerminarSimulador(actividad, datosSimulador)}</button>`
+            : `<button class="boton boton--primario" type="button" data-accion="${ultimo ? 'terminar' : 'hecho'}">${
+                ultimo
+                  ? hecha(actividad.id) || PROYECTOR
+                    ? 'Terminar laboratorio'
+                    : `Terminar laboratorio · +${actividad.xp} XP`
+                  : 'Ya lo hice →'
+              }</button>`
+        }
       </nav>`;
 
     history.replaceState(null, '', `#/${actividad.id}/${i + 1}`);
     activarLamina(app);
     activarCodigo(app);
     activarCapturas(app);
-    if (paso.evidencia) activarEvidencia(paso);
-    if (ultimo && conEvidencia.length) {
+    if (paso.evidencia && !enSimulador()) activarEvidencia(paso);
+    if (ultimo && pideEvidencias()) {
       app.querySelector('[data-descargar]').addEventListener('click', (e) => descargarPdf(e.currentTarget));
       pintarEntrega();
     }
+    vigilarSiToca();
+    app.querySelector('.eleccion')?.addEventListener('click', (e) => {
+      const boton = e.target.closest('[data-donde]');
+      if (boton && boton.dataset.donde !== donde) elegirLugar(boton.dataset.donde);
+    });
+    app.querySelector('.lab-referencia')?.addEventListener('click', () => irAlPaso(i + 1));
     app.querySelector('.navegacion').addEventListener('click', (e) => {
       const accion = e.target.closest('[data-accion]')?.dataset.accion;
       if (accion === 'anterior') irAlPaso(i - 1);
       if (accion === 'hecho') marcar();
       if (accion === 'terminar') terminar();
+      if (accion === 'terminar-simulador') terminarEnSimulador(e.target.closest('[data-accion]'));
     });
     if (enfocar) document.getElementById('titulo-lamina').focus({ preventScroll: true });
   }
@@ -1445,6 +1798,32 @@ function vistaLaboratorio(actividad, numeroPaso) {
     i = j;
     window.scrollTo(0, 0);
     mostrar(true);
+  }
+
+  // Elegir dónde se hace cuenta como avance: el docente lo ve en el panel.
+  // Al pasarse al simulador se detiene el contador si estaba corriendo.
+  function elegirLugar(lugar) {
+    donde = lugar;
+    if (!PROYECTOR) {
+      if (enSimulador()) apagarSandbox();
+      recordar();
+      sincronizar(true);
+    }
+    mostrar();
+  }
+
+  // En el simulador los pasos de la guía no se marcan: «Ya lo terminé» completa
+  // el laboratorio con XP según su avance real allá (todo, si ya lo entregó).
+  // La calificación de verdad la pone el simulador.
+  async function terminarEnSimulador(boton) {
+    boton.disabled = true;
+    const seguir = await terminarEnElSimulador(actividad, actividad.simulador.lab).finally(() => {
+      if (boton.isConnected) boton.disabled = false;
+    });
+    if (!seguir) return;
+    actividad.pasos.forEach((_, j) => hechos.add(j));
+    recordar();
+    ir(siguienteDe(actividad));
   }
 
   // Nunca se bloquea el avance. Si falta la captura solo se avisa: al cerrar
@@ -1586,20 +1965,69 @@ async function practicaProyector() {
 }
 
 function practicaAbiertaVista(datos) {
-  const { preguntas, caso } = datos;
+  const { preguntas, caso, minutos, escala } = datos;
   const n = sesionActual.numero;
   const clave = claveRespuestas(n);
   const estado = leer(clave, { respuestas: {}, actual: 0, fase: 'inicio' });
-  // Si cambió el banco de preguntas, se descartan respuestas que ya no existen.
-  const ids = new Set(preguntas.map((p) => p.id));
-  for (const id of Object.keys(estado.respuestas)) if (!ids.has(id)) delete estado.respuestas[id];
+  // Si cambió el banco de preguntas, se descartan respuestas que ya no existen
+  // (o que cambiaron de una sola respuesta a respuesta múltiple, o al revés).
+  const porId = new Map(preguntas.map((p) => [p.id, p]));
+  for (const [id, valor] of Object.entries(estado.respuestas)) {
+    const p = porId.get(id);
+    if (!p || Array.isArray(valor) !== Boolean(p.elige)) delete estado.respuestas[id];
+  }
   estado.actual = Math.min(estado.actual, preguntas.length - 1);
 
   const ordenes = Object.fromEntries(
     preguntas.map((p) => [p.id, p.fijo ? p.opciones.map((_, i) => i) : barajar(p.opciones.length, `${perfil.id}:${p.id}`)])
   );
-  const contestadas = () => preguntas.filter((p) => Number.isInteger(estado.respuestas[p.id])).length;
+  // Las de respuesta múltiple («Elige DOS») cuentan como contestadas solo con
+  // todas sus opciones marcadas: con una de dos, el examen real la da por mala.
+  const marcadas = (p) => (Array.isArray(estado.respuestas[p.id]) ? estado.respuestas[p.id] : []);
+  const contestada = (p) => (p.elige ? marcadas(p).length === p.elige : Number.isInteger(estado.respuestas[p.id]));
+  const contestadas = () => preguntas.filter(contestada).length;
   const recordar = () => guardar(clave, estado);
+
+  // El reloj (solo si el banco trae MINUTOS): cuenta desde que el servidor
+  // abrió el examen para este alumno. Avisa a los 10 minutos y al llegar a 0,
+  // pero nunca corta: el alumno entrega cuando termina.
+  const inicioReloj = Date.parse(datos.inicio) || (estado.inicio ??= Date.now());
+  const quedan = () => minutos * 60000 - (Date.now() - inicioReloj);
+  estado.avisos ??= {};
+  function textoReloj() {
+    const ms = quedan();
+    if (ms <= 0) return { texto: 'Se acabó el tiempo: revisa y entrega', tono: 'fin' };
+    const min = Math.floor(ms / 60000);
+    const seg = Math.floor((ms % 60000) / 1000);
+    return { texto: `Quedan ${min}:${String(seg).padStart(2, '0')}`, tono: ms <= 10 * 60000 ? 'poco' : '' };
+  }
+  const reloj = () => {
+    if (!minutos) return '';
+    const { texto, tono } = textoReloj();
+    return `<p class="reloj-practica ${tono ? `reloj-practica--${tono}` : ''}" id="reloj-practica" role="timer">${icono('i-reloj')} <span>${texto}</span></p>`;
+  };
+  if (minutos) {
+    const tic = setInterval(() => {
+      const el = document.getElementById('reloj-practica');
+      const { texto, tono } = textoReloj();
+      if (el) {
+        el.querySelector('span').textContent = texto;
+        el.className = `reloj-practica ${tono ? `reloj-practica--${tono}` : ''}`;
+      }
+      const ms = quedan();
+      if (ms <= 10 * 60000 && ms > 0 && !estado.avisos.diez) {
+        estado.avisos.diez = true;
+        recordar();
+        aviso('Quedan 10 minutos', 'reloj');
+      }
+      if (ms <= 0 && !estado.avisos.cero) {
+        estado.avisos.cero = true;
+        recordar();
+        aviso('Se acabó el tiempo. Revisa y entrega', 'reloj');
+      }
+    }, 1000);
+    alSalir.push(() => clearInterval(tic));
+  }
 
   function mostrar() {
     recordar();
@@ -1608,6 +2036,9 @@ function practicaAbiertaVista(datos) {
     if (estado.fase === 'revision') return revision();
     return pregunta();
   }
+
+  const multiples = preguntas.filter((p) => p.elige).length;
+  const textoFaltan = (faltan) => (faltan ? `Faltan ${faltan}` : 'Ya contestaste todas');
 
   function inicio() {
     alTeclado = null;
@@ -1618,7 +2049,18 @@ function practicaAbiertaVista(datos) {
         <h1>${escapar(sesionActual.practica.titulo)}</h1>
         <div class="hoja caso">${caso}</div>
         <ul class="reglas">
-          <li><strong>${preguntas.length} preguntas</strong> de opción múltiple sobre ${escapar(sesionActual.practica.sobre ?? `la sesión ${n}`)}, en unos 20 minutos.</li>
+          <li><strong>${preguntas.length} preguntas</strong> de opción múltiple sobre ${escapar(sesionActual.practica.sobre ?? `la sesión ${n}`)}, en unos ${minutos ?? 20} minutos.</li>
+          ${
+            multiples
+              ? `<li><strong>${multiples === 1 ? 'Una pregunta es' : `${multiples} preguntas son`} de respuesta múltiple</strong>, como en el examen real: dicen cuántas elegir («Elige DOS») y solo cuentan si marcas todas las correctas.</li>`
+              : ''
+          }
+          ${minutos ? `<li>Arriba verás un <strong>reloj de ${minutos} minutos</strong>. Te avisa cuando queden 10, pero no te corta: entregas cuando termines.</li>` : ''}
+          ${
+            escala
+              ? `<li>Al entregar verás un <strong>puntaje estimado de ${escala.maximo}</strong>. El examen real se aprueba con ${escala.aprueba}.</li>`
+              : ''
+          }
           <li>Las instrucciones siempre están a un toque de distancia, arriba de cada pregunta.</li>
           <li>Tus respuestas se guardan en este celular mientras contestas.</li>
           <li><strong>Solo puedes entregar una vez.</strong> Revisa antes de enviar.</li>
@@ -1634,10 +2076,10 @@ function practicaAbiertaVista(datos) {
   function regla() {
     return `<div class="regla" role="group" aria-label="Ir a una pregunta">${preguntas
       .map((p, i) => {
-        const clases = ['marca', Number.isInteger(estado.respuestas[p.id]) && 'marca--contestada', estado.fase === 'pregunta' && i === estado.actual && 'marca--actual']
+        const clases = ['marca', contestada(p) && 'marca--contestada', estado.fase === 'pregunta' && i === estado.actual && 'marca--actual']
           .filter(Boolean)
           .join(' ');
-        return `<button type="button" class="${clases}" data-ir="${i}" aria-label="Pregunta ${i + 1}${Number.isInteger(estado.respuestas[p.id]) ? ', contestada' : ', sin contestar'}"></button>`;
+        return `<button type="button" class="${clases}" data-ir="${i}" aria-label="Pregunta ${i + 1}${contestada(p) ? ', contestada' : ', sin contestar'}"></button>`;
       })
       .join('')}</div>`;
   }
@@ -1648,20 +2090,29 @@ function practicaAbiertaVista(datos) {
     const orden = ordenes[p.id];
     const ultima = estado.actual === preguntas.length - 1;
 
+    const elegida = (original) => (p.elige ? marcadas(p).includes(original) : estado.respuestas[p.id] === original);
+    // Con respuesta múltiple a medias (una de dos) no se avanza: así nadie la
+    // deja incompleta sin darse cuenta. Sin ninguna marcada sí, como las demás.
+    const aMedias = () => p.elige && marcadas(p).length > 0 && marcadas(p).length < p.elige;
+    const textoElige = () =>
+      `Elige ${p.elige}. ${marcadas(p).length === p.elige ? `Ya marcaste ${p.elige}: para cambiar una, primero quítala.` : `Llevas ${marcadas(p).length}.`}`;
+
     app.innerHTML = `
       ${barraPractica(`${contestadas()}/${preguntas.length}`)}
       <main class="pagina pagina--angosta practica">
         <details class="caso-plegable"><summary>${escapar(sesionActual.practica.plegable)}</summary><div class="caso">${caso}</div></details>
+        ${reloj()}
         ${regla()}
-        <p class="practica__conteo"><span>Pregunta ${estado.actual + 1} de ${preguntas.length}</span><span>${faltan ? `Faltan ${faltan}` : 'Ya contestaste todas'}</span></p>
+        <p class="practica__conteo"><span>Pregunta ${estado.actual + 1} de ${preguntas.length}</span><span id="faltan">${textoFaltan(faltan)}</span></p>
         <div class="hoja">
-          <p class="pregunta__tema">${escapar(p.tema)}</p>
+          <p class="pregunta__tema">${escapar(p.tema)}${p.elige ? ' · respuesta múltiple' : ''}</p>
           <h1 class="pregunta__texto" tabindex="-1" id="texto-pregunta">${escapar(p.texto)}</h1>
-          <div class="opciones">
+          ${p.elige ? `<p class="pregunta__elige" id="elige" aria-live="polite">${textoElige()}</p>` : ''}
+          <div class="opciones ${p.elige ? 'opciones--multiples' : ''}" ${p.elige ? 'role="group" aria-describedby="elige"' : ''}>
             ${orden
               .map(
                 (original, posicion) => `
-              <button type="button" class="opcion" data-opcion="${original}" aria-pressed="${estado.respuestas[p.id] === original}">
+              <button type="button" class="opcion" data-opcion="${original}" aria-pressed="${elegida(original)}">
                 <span class="opcion__letra">${LETRAS[posicion]}</span><span class="opcion__texto">${escapar(p.opciones[original])}</span>
               </button>`
               )
@@ -1670,13 +2121,35 @@ function practicaAbiertaVista(datos) {
         </div>
         <nav class="navegacion navegacion--practica" aria-label="Preguntas">
           <button class="boton" type="button" data-accion="anterior" ${estado.actual === 0 ? 'disabled' : ''}>← Anterior</button>
-          <button class="boton boton--primario" type="button" data-accion="siguiente">${ultima ? 'Revisar y entregar' : 'Siguiente →'}</button>
+          <button class="boton boton--primario" type="button" data-accion="siguiente" ${aMedias() ? 'disabled' : ''}>${ultima ? 'Revisar y entregar' : 'Siguiente →'}</button>
         </nav>
       </main>`;
+
+    // Respuesta múltiple: cada toque marca o quita una opción, hasta `elige`.
+    // No avanza sola: el alumno decide cuándo pasar.
+    function alternar(boton) {
+      const original = Number(boton.dataset.opcion);
+      const actuales = marcadas(p);
+      if (actuales.includes(original)) estado.respuestas[p.id] = actuales.filter((i) => i !== original);
+      else if (actuales.length < p.elige) estado.respuestas[p.id] = [...actuales, original].sort((a, b) => a - b);
+      else {
+        aviso(`Ya marcaste ${p.elige}: quita una para cambiarla`, 'reloj');
+        return;
+      }
+      if (!estado.respuestas[p.id].length) delete estado.respuestas[p.id];
+      recordar();
+      boton.setAttribute('aria-pressed', String(marcadas(p).includes(original)));
+      document.getElementById('elige').textContent = textoElige();
+      app.querySelector('[data-accion="siguiente"]').disabled = aMedias();
+      document.getElementById('barra-detalle').textContent = `${contestadas()}/${preguntas.length}`;
+      document.getElementById('faltan').textContent = textoFaltan(preguntas.length - contestadas());
+      app.querySelector(`[data-ir="${estado.actual}"]`)?.classList.toggle('marca--contestada', contestada(p));
+    }
 
     app.querySelector('.opciones').addEventListener('click', (e) => {
       const boton = e.target.closest('[data-opcion]');
       if (!boton) return;
+      if (p.elige) return alternar(boton);
       estado.respuestas[p.id] = Number(boton.dataset.opcion);
       recordar();
       app.querySelectorAll('[data-opcion]').forEach((b) => b.setAttribute('aria-pressed', String(b === boton)));
@@ -1699,6 +2172,7 @@ function practicaAbiertaVista(datos) {
         mostrar();
       }
       if (accion === 'siguiente') {
+        if (aMedias()) return;
         if (ultima) estado.fase = 'revision';
         else estado.actual += 1;
         mostrar();
@@ -1726,15 +2200,21 @@ function practicaAbiertaVista(datos) {
         <p class="etiqueta">Antes de entregar</p>
         <h1>Revisa tus respuestas</h1>
         <p>${faltan === 0 ? `Contestaste las ${preguntas.length} preguntas.` : `Te ${faltan === 1 ? 'falta 1 pregunta' : `faltan ${faltan} preguntas`}. Puedes entregar así, pero cuentan como error.`} Una vez que entregues ya no podrás cambiar nada.</p>
+        ${reloj()}
         ${regla()}
         <ol class="revision">
           ${preguntas
             .map((p, i) => {
-              const lista = Number.isInteger(estado.respuestas[p.id]);
+              const lista = contestada(p);
+              // La letra que vio el alumno (las opciones van barajadas); en las múltiples, todas las que marcó.
+              const letras = p.elige
+                ? marcadas(p).map((o) => LETRAS[ordenes[p.id].indexOf(o)]).sort().join(', ')
+                : LETRAS[ordenes[p.id].indexOf(estado.respuestas[p.id])];
+              const estadoTexto = lista ? letras : p.elige && marcadas(p).length ? `${marcadas(p).length} de ${p.elige}` : 'Falta';
               return `<li><button type="button" data-ir="${i}">
                 <span class="revision__num">${i + 1}</span>
                 <span class="revision__texto">${escapar(p.texto)}</span>
-                <span class="revision__estado ${lista ? '' : 'revision__estado--falta'}">${lista ? LETRAS[ordenes[p.id].indexOf(estado.respuestas[p.id])] : 'Falta'}</span>
+                <span class="revision__estado ${lista ? '' : 'revision__estado--falta'}">${estadoTexto}</span>
               </button></li>`;
             })
             .join('')}
@@ -1755,7 +2235,7 @@ function practicaAbiertaVista(datos) {
       mostrar();
     });
     document.getElementById('btn-volver').addEventListener('click', () => {
-      const pendiente = preguntas.findIndex((p) => !Number.isInteger(estado.respuestas[p.id]));
+      const pendiente = preguntas.findIndex((p) => !contestada(p));
       estado.actual = pendiente === -1 ? preguntas.length - 1 : pendiente;
       estado.fase = 'pregunta';
       mostrar();
@@ -1792,15 +2272,17 @@ function practicaResultado(r) {
   alTeclado = null;
   const n = r.sesion ?? sesionActual.numero;
   const conCalificacion = r.aciertos !== undefined;
-  const temas = (r.porTema ?? [])
-    .map((t) => {
-      const pct = Math.round((t.aciertos / t.total) * 100);
-      return `<div class="barra-tema ${pct < 60 ? 'barra-tema--debil' : ''}">
-          <span class="barra-tema__nombre">${escapar(t.tema)}</span><span class="barra-tema__valor">${t.aciertos}/${t.total}</span>
-          <div class="progreso"><span style="width:${pct}%"></span></div>
-        </div>`;
-    })
-    .join('');
+  // Con escala (el simulacro CLF-C02), «débil» es lo que no llega al 70 % del examen real.
+  const corte = r.escala ? Math.round((r.escala.aprueba / r.escala.maximo) * 100) : 60;
+  const barra = (nombre, aciertos, total) => {
+    const pct = total ? Math.round((aciertos / total) * 100) : 0;
+    return `<div class="barra-tema ${pct < corte ? 'barra-tema--debil' : ''}">
+        <span class="barra-tema__nombre">${escapar(nombre)}</span><span class="barra-tema__valor">${aciertos}/${total}</span>
+        <div class="progreso"><span style="width:${pct}%"></span></div>
+      </div>`;
+  };
+  const temas = (r.porTema ?? []).map((t) => barra(t.tema, t.aciertos, t.total)).join('');
+  const sesiones = (r.porSesion ?? []).map((s) => barra(s.titulo, s.aciertos, s.total)).join('');
   const detalle = (r.detalle ?? [])
     .map(
       (d, i) => `<li class="${d.correcta ? 'detalle--bien' : 'detalle--mal'}">
@@ -1822,8 +2304,18 @@ function practicaResultado(r) {
               <div class="resultado__cifra">${r.aciertos}<span> de ${r.total} aciertos</span></div>
               <p>${r.porcentaje}&nbsp;% · calificación ${r.calificacion.toFixed(1)}</p>
             </div>
+            ${
+              r.escala
+                ? `<div class="hoja escala ${r.escala.aprobado ? 'escala--aprueba' : 'escala--no'}">
+                    <p class="escala__cifra">${r.escala.puntaje}<span> de ${r.escala.maximo} · puntaje estimado</span></p>
+                    <p><strong>${r.escala.aprobado ? 'Con este puntaje aprobarías el examen real.' : `Todavía no aprobarías: el examen real pide ${r.escala.aprueba}.`}</strong></p>
+                    <p class="sutil">Es una estimación: AWS no publica cómo convierte los aciertos en puntaje. Aquí ${corte}&nbsp;% de aciertos equivale a ${r.escala.aprueba}.</p>
+                  </div>`
+                : ''
+            }
             <h2>Cómo te fue por tema</h2>
-            ${temas}`
+            ${temas}
+            ${sesiones ? `<h2>Por sesión de la Ruta</h2><p class="sutil">Si una sesión salió baja, vuelve a abrir sus lecciones: siguen en el curso.</p>${sesiones}` : ''}`
           : '<p>Tu práctica quedó registrada. Los resultados los revisamos en clase.</p>'
       }
       ${detalle ? `<h2>Pregunta por pregunta</h2><ol class="detalle-resultado">${detalle}</ol>` : ''}
@@ -1842,7 +2334,11 @@ function practicaResultado(r) {
         ${conCalificacion ? `<a class="boton boton--primario" href="api/practica/reporte.pdf?a=${perfil.id}&s=${n}" download>${icono('i-libro')} Descargar mi reporte en PDF</a>` : ''}
         <a class="boton" href="#/">Volver a la sesión</a>
       </div>
-      ${conCalificacion ? '<p class="sutil">El reporte trae tu dominio por tema y por concepto, comparado con tu grupo, y qué lecciones repasar.</p>' : ''}
+      ${
+        conCalificacion
+          ? `<p class="sutil">El reporte trae tu dominio por tema${sesiones ? ', por sesión de la Ruta' : ''} y por concepto, comparado con tu grupo, y qué lecciones repasar.</p>`
+          : ''
+      }
     </main>`;
 }
 

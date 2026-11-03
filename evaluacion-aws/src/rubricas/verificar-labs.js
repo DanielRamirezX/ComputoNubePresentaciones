@@ -1,7 +1,11 @@
-// Audita los tres laboratorios y sus rúbricas.
+// Audita los laboratorios y sus rúbricas.
 //
 //   node src/rubricas/verificar-labs.js     (imprime y sale con 1 si hay problemas)
 //   import { verificarLabs } from './rubricas/verificar-labs.js'   → [problemas]
+//
+// Los topes de minutos y de tareas requeridas dependen del tipo de la
+// evaluación que usa el laboratorio (TIPOS en src/evaluaciones.js): un
+// simulacro, 4 a 6 tareas en 60 min; una práctica integradora, 5 a 9 en 100…
 //
 // Para 5 alumnos de ejemplo (uno sin matrícula) comprueba que:
 //  - la solución da 100 y la cuenta inicial menos de 20;
@@ -50,6 +54,7 @@ import { LABS } from '../../public/labs/index.js';
 import { datosLab as datos1 } from '../../public/labs/simulacro-1.js';
 import { datosLab as datos2 } from '../../public/labs/simulacro-2.js';
 import { datosLab as datosB } from '../../public/labs/bimestral.js';
+import { EVALUACIONES, TIPOS, tipoDe } from '../evaluaciones.js';
 import { RUBRICAS } from './index.js';
 
 export const ALUMNOS = [
@@ -363,7 +368,9 @@ export function verificarLabs({ registrar = () => {} } = {}) {
       problemas.push(`${id}: hay rúbrica pero no laboratorio público`);
       continue;
     }
-    if (!(LAB.minutos > 0 && LAB.minutos <= 60)) problemas.push(`${id}: dura ${LAB.minutos} minutos`);
+    const tipo = TIPOS[tipoDe(EVALUACIONES.find((ev) => ev.lab === id))];
+    const [minTareas, maxTareas] = tipo.tareas;
+    if (!(LAB.minutos > 0 && LAB.minutos <= tipo.minutos)) problemas.push(`${id}: dura ${LAB.minutos} minutos (máximo ${tipo.minutos})`);
     if (!LAB.titulo || !LAB.historia) problemas.push(`${id}: falta título o historia`);
     const iniciales = [];
 
@@ -377,7 +384,7 @@ export function verificarLabs({ registrar = () => {} } = {}) {
         const requeridas = tareas.filter((t) => !t.bono);
         const suma = requeridas.reduce((s, t) => s + t.puntos, 0);
         if (suma !== 100) problemas.push(`${id}/${quien}: las tareas públicas (sin bono) suman ${suma}`);
-        if (requeridas.length < 4 || requeridas.length > 6) problemas.push(`${id}: tiene ${requeridas.length} tareas requeridas (se piden 4 a 6)`);
+        if (requeridas.length < minTareas || requeridas.length > maxTareas) problemas.push(`${id}: tiene ${requeridas.length} tareas requeridas (se piden ${minTareas} a ${maxTareas})`);
         for (const t of tareas.filter((x) => x.bono)) if (!(t.puntos > 0 && t.puntos <= 10)) problemas.push(`${id}/${t.id}: el bono vale ${t.puntos} (se espera de 1 a 10)`);
         const html = tareas.map((t) => t.html).join(' ');
         if (!html.includes(d.vpcCidr) && !html.includes(d.sufijo)) problemas.push(`${id}/${quien}: las tareas no traen sus datos (VPC o sufijo)`);

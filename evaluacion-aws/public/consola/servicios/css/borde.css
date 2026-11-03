@@ -1,0 +1,85 @@
+/* Estilos de borde: CloudFront y Route 53 (ver evaluacion-aws/SIMULADOR.md). Todo bajo .cx con clases cx-… */
+
+/* Un paso anterior del asistente de CloudFront se puede elegir con clic. */
+.cx .cx-cf-paso--clic {
+  cursor: pointer;
+}
+
+.cx .cx-cf-paso--clic:hover span {
+  text-decoration: underline;
+}
+
+/* Filas «valor + Remove» (Alternate domain names, VPCs de una zona privada). */
+.cx .cx-cf-fila,
+.cx .cx-r53-fila {
+  align-items: flex-end;
+}
+
+.cx .cx-cf-fila > .cx-entrada {
+  flex: 1 1 auto;
+}
+
+/* El tablero de Route 53: cuatro tarjetas en rejilla. */
+.cx .cx-r53-tablero {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.cx .cx-r53-cifra strong {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-r53-cifra span {
+  color: var(--cx-sec);
+}
+
+.cx .cx-r53-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+/* «Value/Route traffic to»: un valor por línea, sin partir los nombres. */
+.cx .cx-r53-valor {
+  margin: 0;
+  white-space: pre;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Campos en fila alineados por arriba (Record name y Record type; HTTP port y HTTPS port). */
+.cx .cx-r53-arriba,
+.cx .cx-cf-arriba {
+  align-items: flex-start;
+}
+
+/* Register domain: la caja y el botón en una fila. */
+.cx .cx-r53-dominio {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cx .cx-r53-dominio > .cx-entrada {
+  flex: 1 1 auto;
+}
+
+/* TTL con los botones 1m 1h 1d. */
+.cx .cx-r53-ttl {
+  align-items: center;
+  gap: 8px;
+}
+
+.cx .cx-r53-ttl > .cx-entrada {
+  max-width: 160px;
+}
+
+@container cx (max-width: 720px) {
+  .cx .cx-r53-tablero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

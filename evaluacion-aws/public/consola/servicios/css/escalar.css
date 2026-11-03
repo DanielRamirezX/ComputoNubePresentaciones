@@ -1,0 +1,160 @@
+/* ---------------------------------------------------------------------------
+   EC2 · LAUNCH TEMPLATES Y AUTO SCALING (servicios/ec2-escalar.js)
+   El subtítulo «Launch template contents», los Next Steps de la plantilla
+   creada, la tabla de actividad, los pasos de una política step y las
+   gráficas SVG de Monitoring. Todo bajo .cx con clases cx-escalar-…; los
+   ajustes por ancho con @container cx.
+   --------------------------------------------------------------------------- */
+
+/* «Launch template contents» entre el nombre y las secciones del asistente */
+.cx .cx-escalar-subtitulo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.cx .cx-escalar-subtitulo small {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* El user data dentro de los pares de una versión */
+.cx .cx-escalar-ud {
+  max-height: 160px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Next Steps de «Successfully created …» */
+.cx .cx-escalar-pasos {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cx .cx-escalar-pasos p {
+  margin: 4px 0 6px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Notificaciones del asistente del grupo */
+.cx .cx-escalar-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cx .cx-escalar-casillas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+/* Activity history: la causa es larga y se lee mejor en párrafo */
+.cx .cx-escalar-desc {
+  display: inline-block;
+  min-width: 170px;
+  max-width: 230px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.cx .cx-escalar-causa {
+  display: inline-block;
+  min-width: 320px;
+  max-width: 560px;
+  white-space: normal;
+  line-height: 1.45;
+}
+
+/* Un paso de una política Step scaling */
+.cx .cx-escalar-paso {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Monitoring: las gráficas */
+.cx .cx-escalar-graficas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cx .cx-escalar-grafica {
+  position: relative;
+  padding: 12px 14px 8px;
+  border: 1px solid var(--cx-borde-suave);
+  border-radius: 12px;
+  background: var(--cx-fondo-2);
+}
+
+.cx .cx-escalar-grafica__titulo {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.cx .cx-escalar-grafica__valor {
+  margin-left: auto;
+  color: var(--cx-fuerte);
+  font-weight: 700;
+}
+
+.cx .cx-escalar-grafica__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.cx .cx-escalar-grafica__rejilla {
+  stroke: var(--cx-borde-suave);
+  stroke-width: 1;
+}
+
+.cx .cx-escalar-grafica__eje {
+  fill: var(--cx-sec);
+  font-size: 10px;
+  font-family: var(--cx-fuente);
+}
+
+.cx .cx-escalar-grafica__linea {
+  fill: none;
+  stroke: var(--cx-enlace);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.cx .cx-escalar-grafica__punto {
+  fill: var(--cx-enlace);
+}
+
+.cx .cx-escalar-grafica__vacia {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  left: 56px;
+  transform: translateY(-50%);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--cx-fondo-2);
+  font-size: 13px;
+  text-align: center;
+}
+
+@container cx (max-width: 900px) {
+  .cx .cx-escalar-graficas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cx .cx-escalar-causa {
+    min-width: 240px;
+  }
+}

@@ -1,0 +1,158 @@
+/* ---------------------------------------------------------------------------
+   DYNAMODB · Explore items (lista de tablas a la izquierda), el banner de
+   Scan/Query, los filtros y el editor de atributos de Create / Edit item.
+   Todo bajo .cx con clases cx-dyn-…
+   --------------------------------------------------------------------------- */
+
+/* Explore items: la lista de tablas y la zona principal. */
+.cx .cx-dyn-explorar {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.cx .cx-dyn-explorar__lado {
+  position: sticky;
+  top: 0;
+}
+
+.cx .cx-dyn-explorar__principal {
+  min-width: 0;
+}
+
+.cx .cx-dyn-lista {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 8px;
+}
+
+.cx .cx-dyn-lista__filtro {
+  padding: 0 16px 10px;
+}
+
+.cx .cx-dyn-lista__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 16px;
+  border: 0;
+  border-top: 1px solid var(--cx-borde-suave);
+  background: transparent;
+  color: var(--cx-texto);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cx .cx-dyn-lista__item:hover {
+  background: var(--cx-hover);
+}
+
+.cx .cx-dyn-lista__item--activo {
+  background: var(--cx-elegido);
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-dyn-lista__radio {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--cx-borde-input);
+  border-radius: 50%;
+}
+
+.cx .cx-dyn-lista__radio--si {
+  border: 4px solid var(--cx-enlace);
+}
+
+.cx .cx-dyn-lista__nombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* «Items returned: 2 · Items scanned: 2 · Efficiency: 100% · RCUs consumed: 0.5» */
+.cx .cx-dyn-banner {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.cx .cx-dyn-banner__sep {
+  color: var(--cx-sec);
+}
+
+/* Filtros de Scan/Query: Attribute name · Type · Condition · Value · Remove. */
+.cx .cx-dyn-filtros {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.2fr) minmax(110px, 0.8fr) minmax(150px, 1fr) minmax(140px, 1.2fr) auto;
+  gap: 8px 10px;
+  align-items: start;
+}
+
+.cx .cx-dyn-entre {
+  display: flex;
+  gap: 6px;
+}
+
+.cx .cx-dyn-entre > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* El editor de atributos (vista Form). */
+.cx .cx-dyn-atr {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cx .cx-dyn-atr__fila {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(200px, 1.5fr) 110px 90px;
+  gap: 10px;
+  align-items: center;
+}
+
+.cx .cx-dyn-atr__cabeza {
+  font-weight: 700;
+  color: var(--cx-fuerte);
+}
+
+.cx .cx-dyn-atr__fila--hija > :first-child {
+  box-shadow: inset 2px 0 0 var(--cx-borde-suave);
+}
+
+.cx .cx-dyn-atr__nombre {
+  overflow-wrap: anywhere;
+}
+
+.cx .cx-dyn-atr__tipo {
+  color: var(--cx-sec);
+}
+
+@container cx (max-width: 900px) {
+  .cx .cx-dyn-explorar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cx .cx-dyn-explorar__lado {
+    position: static;
+  }
+
+  .cx .cx-dyn-filtros {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .cx .cx-dyn-atr__fila {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .cx .cx-dyn-atr__cabeza {
+    display: none;
+  }
+}

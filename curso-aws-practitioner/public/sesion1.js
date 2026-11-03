@@ -15,8 +15,8 @@
 //                   ahí mismo y al final descarga un PDF para Blackboard.
 //
 // Los nombres de botones de la consola van en inglés, como los ve el alumno, y
-// su traducción entre paréntesis. Datos del examen verificados en septiembre de
-// 2026 (guía oficial del CLF-C02).
+// su traducción entre paréntesis. Datos del examen verificados en noviembre de
+// 2026 (guía oficial del CLF-C02, versión 1.3 del 29 de octubre de 2026).
 // ---------------------------------------------------------------------------
 
 import { SANDBOX } from './sandbox.js';
@@ -60,8 +60,8 @@ export const SESION_1 = {
               html: `
                 <p class="entrada">Es la certificación de entrada de AWS. Demuestra que entiendes qué es la nube de AWS, para qué sirve cada servicio importante y cómo se cobra. <strong>No necesitas saber programar.</strong></p>
                 <div class="rejilla rejilla--3 valores">
-                  <div>${icono('reloj')}<strong>65 preguntas en 90 minutos</strong><p>Opción múltiple (una correcta) y respuesta múltiple (dos o más correctas).</p></div>
-                  <div>${icono('estrella')}<strong>700 de 1000 para aprobar</strong><p>15 preguntas no cuentan, pero no sabes cuáles: contesta todas.</p></div>
+                  <div>${icono('reloj')}<strong>65 preguntas en 90 minutos</strong><p>Opción múltiple (una correcta entre cuatro) y respuesta múltiple (dos o más correctas entre cinco o más).</p></div>
+                  <div>${icono('estrella')}<strong>700 de 1000 para aprobar</strong><p>15 preguntas no cuentan, pero no sabes cuáles: contesta todas. Se aprueba con el total; no hace falta aprobar cada tema.</p></div>
                   <div>${icono('dinero')}<strong>US$100</strong><p>Clave del examen: CLF-C02. Se presenta en un centro de pruebas o en línea.</p></div>
                 </div>
                 ${recuadro('recuerda', 'Una pregunta sin contestar cuenta como error y no se castiga adivinar. <strong>Nunca dejes una en blanco.</strong>')}`,
@@ -70,7 +70,7 @@ export const SESION_1 = {
             {
               titulo: 'Los cuatro temas del examen',
               html: `
-                <p class="entrada">El examen está dividido en cuatro dominios. Esta ruta de 8 sesiones los cubre todos, con práctica real en AWS.</p>
+                <p class="entrada">El examen está dividido en cuatro dominios. Esta ruta los cubre todos: siete sesiones con práctica real en AWS, un simulacro completo y cinco prácticas con casos de empresa en el simulador.</p>
                 <div class="cuotas" role="img" aria-label="Peso de cada dominio: Tecnología y servicios 34 %, Seguridad y cumplimiento 30 %, Conceptos de la nube 24 %, Facturación, precios y soporte 12 %">
                   <div class="cuota cuota--aws" style="--v:34"><span class="cuota__nombre">Tecnología y servicios de la nube</span><span class="cuota__pista"><span class="cuota__barra"></span></span><span class="cuota__valor">34&nbsp;%</span></div>
                   <div class="cuota cuota--azure" style="--v:30"><span class="cuota__nombre">Seguridad y cumplimiento</span><span class="cuota__pista"><span class="cuota__barra"></span></span><span class="cuota__valor">30&nbsp;%</span></div>
@@ -78,7 +78,7 @@ export const SESION_1 = {
                   <div class="cuota cuota--otros" style="--v:12"><span class="cuota__nombre">Facturación, precios y soporte</span><span class="cuota__pista"><span class="cuota__barra"></span></span><span class="cuota__valor">12&nbsp;%</span></div>
                 </div>
                 ${recuadro('consejo', 'Casi dos terceras partes del examen son servicios y seguridad. Por eso cada sesión combina teoría con un laboratorio en la consola: lo que haces con tus manos se te olvida menos.')}`,
-              notas: 'Pesos de la guía oficial CLF-C02. En el índice del curso aparece la ruta completa de 8 sesiones.'
+              notas: 'Pesos de la guía oficial CLF-C02. En el índice del curso aparece la ruta completa: 7 sesiones, el simulacro (sesión 8) y 5 prácticas (sesiones 9 a 13).'
             },
             {
               titulo: 'Tu sandbox: un AWS de verdad, con reloj',
@@ -111,13 +111,13 @@ export const SESION_1 = {
                   <article class="modelo modelo--paas"><span class="modelo__sigla">Zona de disponibilidad</span><h3>Centros de datos separados</h3><p>Uno o más centros de datos con su propia energía, red y conectividad, dentro de una región. Normalmente hay tres o más por región.</p><p class="modelo__ejemplos">us-east-1a · us-east-1b · us-east-1c</p></article>
                   <article class="modelo modelo--saas"><span class="modelo__sigla">Ubicación de borde</span><h3>Cerca de tus usuarios</h3><p>Sitios más pequeños y mucho más numerosos que las regiones. Guardan copias de contenido (Amazon CloudFront) y responden consultas de DNS (Route 53).</p><p class="modelo__ejemplos">Más que regiones, en muchas ciudades</p></article>
                 </div>
-                ${recuadro('examen', 'Si la pregunta dice <em>“alta disponibilidad”</em> o <em>“si falla un centro de datos”</em>, la respuesta casi siempre es <strong>usar varias zonas de disponibilidad</strong>.')}`,
+                ${recuadro('examen', 'Si la pregunta dice <em>“alta disponibilidad”</em> o <em>“si falla un centro de datos”</em>, la respuesta casi siempre es <strong>usar varias zonas de disponibilidad</strong>: no comparten puntos únicos de falla. <strong>Varias regiones</strong> son para otra cosa: recuperarte si cae una región entera (recuperación ante desastres), atender usuarios en otros continentes con poca latencia o cumplir leyes que piden guardar los datos en cierto país.')}`,
               notas: 'Conecta con la clase de Comprender la nube: ahí vieron regiones y zonas en general; aquí se nombran como en AWS.'
             },
             {
               titulo: '¿Cómo se elige una región?',
               html: `
-                <p class="entrada">Cuatro preguntas, en este orden de importancia:</p>
+                <p class="entrada">Cuatro preguntas. La primera manda; las otras tres las equilibras según tu caso:</p>
                 <ol class="cinco">
                   <li><strong>Cumplimiento.</strong> ¿Alguna ley o contrato obliga a que los datos vivan en cierto país? Eso manda sobre todo lo demás.</li>
                   <li><strong>Cercanía.</strong> Entre más cerca de tus usuarios, menos latencia: la página responde más rápido.</li>
@@ -165,9 +165,9 @@ export const SESION_1 = {
             { texto: 'Donde Amazon CloudFront guarda copias del contenido', grupo: 'borde', retro: 'CloudFront entrega contenido desde ubicaciones de borde.' },
             { texto: 'us-east-1b', grupo: 'az', retro: 'La letra al final indica una zona dentro de la región us-east-1.' },
             { texto: 'La eliges por leyes, cercanía, servicios y precio', grupo: 'region', retro: 'Esos cuatro factores sirven para elegir región.' },
-            { texto: 'Hay muchas más de estas que regiones', grupo: 'borde', retro: 'Las ubicaciones de borde son muchísimas más que las regiones.' },
+            { texto: 'Hay cientos, en muchas más ciudades que las regiones', grupo: 'borde', retro: 'Las ubicaciones de borde son cientos: muchas más que las regiones y que las zonas de disponibilidad.' },
             { texto: 'Repartir tu app en varias te protege si falla un centro de datos', grupo: 'az', retro: 'Varias zonas de disponibilidad = alta disponibilidad.' },
-            { texto: 'Es independiente de las demás de su tipo', grupo: 'region', retro: 'Las regiones están aisladas entre sí.' }
+            { texto: 'Si la cambias en el selector de la consola, ya no ves lo que creaste', grupo: 'region', retro: 'Cada región es independiente: lo que creas en una no aparece en otra.' }
           ],
           cierre: 'Región: un lugar del mundo (us-east-1). Zona de disponibilidad: centros de datos separados dentro de ella (us-east-1b). Ubicación de borde: sitios cerca de los usuarios para CloudFront y Route 53.',
           pista: 'Si trae una letra al final (us-east-1b) es una zona; si solo tiene número (us-east-1), es una región.'
@@ -226,7 +226,7 @@ export const SESION_1 = {
                   <div class="carrera__fila carrera__fila--propio"><span class="carrera__quien">Terminated (eliminada)</span><ol><li>Se borra la instancia</li><li>Por omisión, también su disco raíz</li></ol><span class="carrera__tiempo">no hay vuelta atrás</span></div>
                 </div>
                 ${recuadro('cuidado', '<em>Stop</em> es apagar; <em>Terminate</em> es tirar la computadora a la basura. En la consola, <strong>Terminate</strong> dice “(delete)” por algo.')}
-                ${recuadro('sabias', 'Las instancias con Linux se cobran por segundo, con un mínimo de 60 segundos.')}`,
+                ${recuadro('sabias', 'Las instancias con Linux o Windows se cobran por segundo, con un mínimo de 60 segundos.')}`,
               notas: 'En el laboratorio harán las dos cosas: primero Stop, luego Terminate.'
             }
           ]
@@ -273,14 +273,15 @@ export const SESION_1 = {
                     <thead><tr><th scope="col">Opción</th><th scope="col">Cómo funciona</th><th scope="col">Ahorro</th><th scope="col">Úsala para</th></tr></thead>
                     <tbody>
                       <tr><th scope="row">On-Demand</th><td>Pagas por segundo, sin compromiso</td><td>Ninguno</td><td>Pruebas cortas y cargas impredecibles</td></tr>
-                      <tr><th scope="row">Savings Plans</th><td>Te comprometes a gastar cierto monto por hora durante 1 o 3 años</td><td>Hasta 72&nbsp;%</td><td>Uso constante, con flexibilidad de tipo y región</td></tr>
+                      <tr><th scope="row">Savings Plans</th><td>Te comprometes a gastar cierto monto por hora durante 1 o 3 años</td><td>Hasta 72&nbsp;%</td><td>Uso constante; la versión Compute te deja cambiar de tipo, región y hasta usar Lambda o Fargate</td></tr>
                       <tr><th scope="row">Instancias reservadas</th><td>Reservas un tipo de instancia por 1 o 3 años</td><td>Hasta 72&nbsp;%</td><td>Servidores que corren siempre, como una base de datos</td></tr>
                       <tr><th scope="row">Instancias Spot</th><td>Usas capacidad sobrante; AWS puede recuperarla con 2 minutos de aviso</td><td>Hasta 90&nbsp;%</td><td>Trabajos que se pueden interrumpir y reanudar</td></tr>
                       <tr><th scope="row">Dedicated Hosts</th><td>Un servidor físico solo para ti</td><td>—</td><td>Licencias ligadas al hardware y reglas de cumplimiento</td></tr>
                     </tbody>
                   </table>
                 </div>
-                ${recuadro('examen', 'Palabras clave: <em>“puede interrumpirse”</em> → Spot. <em>“24/7 durante años”</em> → Savings Plans o reservadas. <em>“corto e impredecible”</em> → On-Demand. <em>“licencias por servidor” o “hardware exclusivo”</em> → Dedicated Hosts.')}`,
+                ${recuadro('examen', 'Palabras clave: <em>“puede interrumpirse”</em> → Spot. <em>“24/7 durante años”</em> → Savings Plans o reservadas. <em>“corto e impredecible”</em> → On-Demand. <em>“licencias por servidor” o “hardware exclusivo”</em> → Dedicated Hosts.')}
+                ${recuadro('sabias', 'La guía del examen nombra dos opciones más. <strong>Dedicated Instances</strong>: tus instancias corren en hardware que no compartes con otros clientes, pero no eliges ni ves el servidor físico (para licencias por servidor necesitas Dedicated Hosts). <strong>Capacity Reservations</strong>: apartas capacidad en una zona de disponibilidad para tenerla segura cuando la necesites; pagas como On-Demand aunque no la uses, así que no es un descuento.')}`,
               notas: 'Conecta con la clase de IaaS: el taxi (On-Demand), el contrato de renta (compromiso) y el vuelo de última hora (Spot).'
             }
           ]
@@ -751,11 +752,11 @@ systemctl enable --now httpd`)}
                   <div class="repaso__capitulo"><span class="repaso__numero">2</span>${lista([
                     '<strong>EC2</strong> = servidores virtuales (IaaS). Piezas: AMI, tipo, par de llaves, grupo de seguridad, EBS y datos de usuario.',
                     '<strong>Grupo de seguridad</strong>: firewall de la instancia, solo reglas para permitir.',
-                    '<strong>Stop</strong> conserva el disco; <strong>Terminate</strong> borra todo.'
+                    '<strong>Stop</strong> conserva el disco; <strong>Terminate</strong> elimina la instancia y, por omisión, también su disco raíz.'
                   ])}</div>
                   <div class="repaso__capitulo"><span class="repaso__numero">3</span>${lista([
                     '<strong>On-Demand</strong>: corto e impredecible. <strong>Savings Plans / reservadas</strong>: estable por 1 o 3 años (hasta 72&nbsp;%).',
-                    '<strong>Spot</strong>: puede interrumpirse (hasta 90&nbsp;%). <strong>Dedicated Hosts</strong>: licencias y hardware exclusivo.',
+                    '<strong>Spot</strong>: puede interrumpirse (hasta 90&nbsp;%). <strong>Dedicated Hosts</strong>: licencias por servidor y hardware exclusivo. <strong>Capacity Reservations</strong>: capacidad apartada, sin descuento.',
                     '<strong>Responsabilidad compartida</strong>: en EC2, el sistema operativo es tuyo.'
                   ])}</div>
                 </div>`,

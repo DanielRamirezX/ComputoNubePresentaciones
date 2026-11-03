@@ -1,10 +1,12 @@
 # Ruta AWS Cloud Practitioner
 
-Una ruta de 8 sesiones para que el grupo termine la materia listo para la
+Una ruta de 13 sesiones para que el grupo termine la materia listo para la
 certificación **AWS Certified Cloud Practitioner (CLF-C02)**, aprovechando el
-sandbox de AWS de DataCamp. Cada sesión combina lecciones cortas, ejercicios con
-XP, un **laboratorio guiado paso a paso en la consola de AWS** y un examen de
-práctica al estilo de la certificación.
+sandbox de AWS de DataCamp y el **simulador AWS** de la materia
+(`../evaluacion-aws`). Las sesiones 1 a 7 combinan lecciones cortas, ejercicios
+con XP, un **laboratorio guiado paso a paso en la consola de AWS** y un examen
+de práctica al estilo de la certificación. La 8 es el simulacro completo y las
+9 a 13 son prácticas integradoras en el simulador.
 
 Es el mismo motor, diseño e interacción del curso *Comprender la computación en
 la nube* (`../curso-comprender-nube`), con piezas nuevas:
@@ -26,6 +28,25 @@ la nube* (`../curso-comprender-nube`), con piezas nuevas:
 - **Varias sesiones.** El alumno cambia de sesión desde arriba del índice; el
   panel docente tiene un selector de sesión y cada sesión tiene su propio
   examen de práctica (abrir, cerrar, entregas, CSV y reporte PDF).
+- **DataCamp o simulador.** Un laboratorio con `simulador: { lab, minutos, nota }`
+  pregunta en el paso 1 «¿Dónde harás este laboratorio?». Con **Simulador**, el
+  contador del sandbox no corre, no se piden capturas, la guía queda de
+  referencia y aparece «Abrir el simulador» (`../evaluacion/#/<lab>`, solo
+  dentro de la plataforma) con el avance real que reporta el simulador
+  (`../evaluacion/api/estado`, mismo perfil). «Ya lo terminé en el simulador»
+  completa la actividad; la calificación la pone el simulador. La elección se
+  guarda en `lab-<id>` (`donde`), viaja en `api/progreso` (`lugares`) y el
+  panel muestra «DataCamp X · Simulador Y · sin elegir Z». El CSV trae la
+  columna `laboratorio_en`.
+- **Prácticas en el simulador.** La actividad `tipo: 'simulador'` (sesiones 9 a
+  13) pinta el caso, la arquitectura y las tareas, con «Abrir la práctica en el
+  simulador», el avance real y «Ya terminé».
+- **Examen tipo CLF-C02.** Un banco puede traer `MINUTOS` (reloj que avisa a los
+  10 y a los 0 minutos, sin cortar), `ESCALA` (puntaje estimado de 1000 y
+  aprobatorio de 70 % en el resultado, el panel y el PDF), `OBJETIVO`
+  (preguntas por tema, lo revisa `verificar`), `sesion` en cada pregunta
+  (reporte «Por sesión de la Ruta») y preguntas de **respuesta múltiple**
+  (`correcta: [1, 3]`, `elige: 2`, 5 opciones; todo o nada).
 
 Dentro de la plataforma vive en `/m/aws-practitioner/`; el panel del docente, en
 `/m/aws-practitioner/docente` (misma `CLAVE_DOCENTE` que los demás paneles).
@@ -41,7 +62,12 @@ Dentro de la plataforma vive en `/m/aws-practitioner/`; el panel del docente, en
 | 5 | Bases de datos: RDS y Aurora, Multi-AZ y réplicas, DynamoDB, ElastiCache, Redshift, migración | ≈ 25 min | **Lista** |
 | 6 | Escalar y automatizar: ELB, Auto Scaling, CloudWatch, Lambda, SNS y SQS | ≈ 35 min | **Lista** |
 | 7 | Costos, soporte y buenas prácticas: calculadora, Budgets, Organizations, Well-Architected | ≈ 15 min | **Lista** |
-| 8 | Simulacro completo de 65 preguntas | — | Pendiente |
+| 8 | Simulacro completo: 65 preguntas en 90 minutos, con repaso por dominio y por sesión | — | En preparación |
+| 9 | Práctica 1 · La tienda en línea: VPC de dos capas, ALB y Auto Scaling, RDS Multi-AZ | Simulador | En preparación |
+| 10 | Práctica 2 · La clínica y sus expedientes: IAM, KMS, S3 cifrado, Secrets Manager, CloudTrail | Simulador | En preparación |
+| 11 | Práctica 3 · El festival y sus boletos: S3 + CloudFront, DynamoDB, SQS, Lambda, SNS, EventBridge | Simulador | En preparación |
+| 12 | Práctica 4 · Cuentas y factura bajo control: Organizations, Budgets, etiquetas, Trusted Advisor | Simulador | En preparación |
+| 13 | Práctica 5 · La universidad migra (ensayo del final, 60 min y sin pistas) | Simulador | En preparación |
 
 Con 330 minutos de sandbox a la semana, cada sesión deja tiempo de sobra para
 repetir el laboratorio en casa.
@@ -209,10 +235,17 @@ npm run verificar    # revisa ejercicios, laboratorios, examen y tiempos
   `public/capturas/s1`, `s2`…, con su tamaño registrado en `TAMANOS`.
 - Exámenes de práctica: `src/practica.js` (sesión 1) y `src/practica2.js` a
   `src/practica7.js`, juntos en `src/practicas.js`. Misma estructura del otro
-  curso: `correcta`, `explicacion`, `concepto` y el mapa `REPASO`.
-- **Para agregar una sesión:** escribe `public/sesionN.js` y `src/practicaN.js`,
-  agrégalos a `public/contenido.js` y `src/practicas.js`, y corre
-  `npm run verificar`.
+  curso: `correcta`, `explicacion`, `concepto` y el mapa `REPASO`. Un banco
+  solo exporta datos: `src/banco.js` le pone a todos el mismo
+  `practicaPublica` y el mismo `calificar` (que ya entiende respuesta múltiple).
+- **Para agregar una sesión:** escribe `public/sesionN.js` y `src/practicaN.js`;
+  en `public/contenido.js` impórtala y ponla al final de `SESIONES`; en
+  `src/practicas.js` impórtalo y agrega `[N, sesionN]` a `MODULOS`. Luego
+  `npm run verificar`. La fila de `RUTA` ya existe para las 13 sesiones.
+- `verificar` revisa además que ningún texto de pregunta se repita entre
+  bancos, el conteo de `OBJETIVO`, las preguntas de respuesta múltiple (aparte
+  del balance de letras) y avisa si un laboratorio del simulador todavía no
+  está en `EVALUACIONES` de evaluacion-aws.
 - Los datos se guardan en `data/aws-practitioner.json`. En Render el disco es
   efímero: descarga el CSV antes de salir del salón.
 

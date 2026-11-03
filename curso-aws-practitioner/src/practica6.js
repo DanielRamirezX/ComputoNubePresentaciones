@@ -32,13 +32,13 @@ export const PREGUNTAS = [
     tema: 'Elasticidad y Auto Scaling',
     texto: '¿Qué describe mejor la elasticidad de la nube?',
     opciones: [
-      'Guardar los datos en varias regiones al mismo tiempo',
+      'Guardar copias de los datos en varias regiones para que nunca se pierdan',
       'Comprar servidores por adelantado para el pico del año',
       'Aumentar y reducir los recursos automáticamente según la demanda',
       'Cifrar todos los datos con llaves administradas'
     ],
     correcta: 2,
-    explicacion: 'Elasticidad es crecer cuando la demanda sube y encogerse cuando baja, de forma automática, pagando solo por lo que se usa.'
+    explicacion: 'Elasticidad es crecer cuando la demanda sube y encogerse cuando baja, de forma automática, pagando solo por lo que se usa. Copiar datos entre regiones es durabilidad y recuperación ante desastres, no elasticidad.'
   },
   {
     id: 'p02',
@@ -74,7 +74,7 @@ export const PREGUNTAS = [
     tema: 'Elasticidad y Auto Scaling',
     texto: 'Una instancia de un grupo de Auto Scaling deja de pasar sus revisiones de salud. ¿Qué hace el grupo?',
     opciones: [
-      'Manda un correo y espera a que alguien la repare',
+      'Manda un correo al administrador y espera a que alguien la reinicie a mano',
       'La termina y lanza otra para mantener la capacidad deseada',
       'Cambia la instancia por una de mayor tamaño',
       'Mueve el grupo completo a otra región'
@@ -201,12 +201,12 @@ export const PREGUNTAS = [
     texto: 'Un equipo quiere juntar en un solo lugar los registros de errores de sus aplicaciones para buscarlos y conservarlos. ¿Qué usa?',
     opciones: [
       'Amazon CloudWatch Logs',
-      'AWS CloudTrail Lake',
+      'AWS CloudTrail',
       'Amazon S3 Glacier Deep Archive',
       'Elastic Load Balancing'
     ],
     correcta: 0,
-    explicacion: 'CloudWatch Logs recibe, guarda y permite buscar los registros de las aplicaciones y de los servicios de AWS.'
+    explicacion: 'CloudWatch Logs recibe, guarda y permite buscar los registros de las aplicaciones y de los servicios de AWS. CloudTrail registra las llamadas a la API de la cuenta (quién hizo qué), no los errores de tu aplicación.'
   },
   {
     id: 'p14',
@@ -245,10 +245,10 @@ export const PREGUNTAS = [
       'Porque Lambda solo acepta código en Java',
       'Porque Lambda solo corre en la región us-east-1',
       'Porque cada ejecución de Lambda dura como máximo 15 minutos',
-      'Porque Lambda cobra una cuota fija de inicio'
+      'Porque Lambda cobra una cuota mensual fija aunque la función no se use'
     ],
     correcta: 2,
-    explicacion: 'Una ejecución de Lambda dura como máximo 15 minutos. Un proceso de horas va mejor en EC2, en contenedores con Fargate o en AWS Batch.'
+    explicacion: 'Una ejecución de Lambda dura como máximo 15 minutos. Un proceso de horas va mejor en EC2, en contenedores con Fargate o en AWS Batch. Lambda acepta varios lenguajes (Python, Node.js, Java…), corre en casi todas las regiones y cobra solo por invocación y por tiempo de ejecución, sin cuota fija.'
   },
   {
     id: 'p17',
@@ -268,7 +268,7 @@ export const PREGUNTAS = [
     id: 'p18',
     concepto: 'Amazon SQS',
     tema: 'Desacoplar aplicaciones',
-    texto: 'El sitio de una tienda manda los pedidos directo al sistema de envíos, y cuando éste se satura los pedidos se pierden. ¿Qué servicio los desacopla?',
+    texto: 'El sitio de una tienda manda los pedidos directo al sistema de envíos, y cuando este se satura los pedidos se pierden. ¿Qué servicio los desacopla?',
     opciones: [
       'Amazon CloudWatch',
       'AWS CloudTrail',

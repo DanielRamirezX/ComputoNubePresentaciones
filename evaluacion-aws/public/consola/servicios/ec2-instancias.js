@@ -457,56 +457,136 @@ function siguienteLaunchWizard(estado) {
   return n;
 }
 
-function lanzar(cx) {
-  cx.migas([{ texto: 'EC2', ruta: 'ec2' }, { texto: 'Instances', ruta: 'ec2/instancias' }, { texto: 'Launch an instance' }]);
+// El valor del selector para «Don't include in launch template» (modo plantilla).
+const NO_INCLUIR = '__no-incluir__';
+
+/** Los datos de una versión de plantilla (modelo/autoscaling.js) → el formulario del asistente. */
+function formularioDeDatos(e, datos, { plantilla, vpcDef, grupo, reglas }) {
+  const a = amiDe(datos.ami) ?? amiDe('al2023');
+  const sub = datos.subredId ? e.subredes.find((s) => s.id === datos.subredId) : null;
+  const etiquetas = (datos.etiquetas ?? []).map((t) => ({ llave: t.llave, valor: t.valor }));
+  return {
+    nombre: etiquetas.find((t) => t.llave === 'Name')?.valor ?? '',
+    familia: a.familia,
+    ami: a.clave,
+    tipo: datos.tipo ?? 't2.micro',
+    llave: datos.llave ?? (plantilla ? NO_INCLUIR : ''),
+    red: { editar: plantilla || Boolean(sub), vpcId: sub?.vpcId ?? e.gruposSeguridad.find((g) => g.id === datos.gruposSeguridad?.[0])?.vpcId ?? vpcDef?.id ?? null, subredId: sub?.id ?? null, ipPublica: null },
+    firewall: 'existente',
+    grupo,
+    reglas,
+    existentes: [...(datos.gruposSeguridad ?? [])],
+    discos: (datos.volumenes?.length ? datos.volumenes : [{ tamano: a.discoMinimo, tipo: 'gp3' }]).map((v) => ({ tamano: String(v.tamano), tipo: v.tipo ?? 'gp3' })),
+    userData: datos.userData ?? '',
+    base64: false,
+    perfil: datos.perfilIam ?? '',
+    cantidad: '1',
+    etiquetas,
+    errores: {}
+  };
+}
+
+/** El asistente «Launch an instance» (la ruta instancias/lanzar). */
+const lanzar = (cx) => asistenteLanzar(cx);
+
+/**
+ * El asistente de Launch instance. Lo reusan las plantillas de lanzamiento
+ * (servicios/ec2-escalar.js) con `modo`:
+ *   tipo: 'instancia' (por omisión) | 'plantilla' (Create launch template / nueva versión) |
+ *         'desdePlantilla' (Launch instance from template)
+ *   inicial: los datos de una versión de plantilla para llenar el formulario
+ *   titulo, descripcion, migas, arriba: [nodos] (las secciones de hasta arriba)
+ *   guia: () => bool (Auto Scaling guidance), validar: () => bool (las secciones de arriba)
+ *   textoEnviar, cancelar: ruta, alEnviar({ datos, nuevoGrupo }) (solo en modo plantilla)
+ * En modo plantilla el par de llaves y la subred aceptan «Don't include in launch
+ * template», no hay Number of instances y el botón final llama alEnviar.
+ */
+export function asistenteLanzar(cx, modo = {}) {
+  const tipoModo = modo.tipo ?? 'instancia';
+  const esPlantilla = tipoModo === 'plantilla';
+  cx.migas(modo.migas ?? [{ texto: 'EC2', ruta: 'ec2' }, { texto: 'Instances', ruta: 'ec2/instancias' }, { texto: 'Launch an instance' }]);
   const e = cx.estado;
   const vpcDef = e.vpcs.find((v) => v.porDefecto) ?? e.vpcs[0];
   const n = siguienteLaunchWizard(e);
   const ahora = new Date();
+  const grupoNuevo = { nombre: `launch-wizard-${n}`, descripcion: `launch-wizard-${n} created ${ahora.toISOString().replace(/\.\d+Z$/, '.000Z')}` };
+  const reglasNuevas = [{ tipo: 'SSH', puertos: '', origenTipo: 'anywhere', origen: '0.0.0.0/0', descripcion: '' }];
   // Si el alumno salió a crear una subred desde aquí («Create new subnet»), se
   // le devuelve lo que llevaba, como la pestaña del asistente que AWS deja abierta.
-  const borrador = cx.memoria.borradorLanzar;
-  cx.memoria.borradorLanzar = null;
+  const borrador = tipoModo === 'instancia' ? cx.memoria.borradorLanzar : null;
+  if (tipoModo === 'instancia') cx.memoria.borradorLanzar = null;
   if (borrador) cx.flash({ tipo: 'info', texto: 'Your launch settings were restored. Select the new subnet in Network settings.' });
-  const f = borrador ? { ...borrador, red: { ...borrador.red, editar: true }, errores: {} } : {
-    nombre: '',
-    familia: 'Amazon Linux',
-    ami: 'al2023',
-    tipo: 't3.micro',
-    llave: null, // null = no eligió; '' = sin par de llaves
-    red: { editar: false, vpcId: vpcDef?.id ?? null, subredId: null, ipPublica: null },
-    firewall: 'crear',
-    grupo: { nombre: `launch-wizard-${n}`, descripcion: `launch-wizard-${n} created ${ahora.toISOString().replace(/\.\d+Z$/, '.000Z')}` },
-    reglas: [{ tipo: 'SSH', puertos: '', origenTipo: 'anywhere', origen: '0.0.0.0/0', descripcion: '' }],
-    existentes: [],
-    discos: [{ tamano: '8', tipo: 'gp3' }],
-    userData: '',
-    base64: false,
-    perfil: '',
-    cantidad: '1',
-    errores: {}
-  };
+  const f = borrador
+    ? { ...borrador, red: { ...borrador.red, editar: true }, errores: {} }
+    : modo.inicial
+      ? formularioDeDatos(e, modo.inicial, { plantilla: esPlantilla, vpcDef, grupo: grupoNuevo, reglas: reglasNuevas })
+      : {
+          nombre: '',
+          familia: 'Amazon Linux',
+          ami: 'al2023',
+          tipo: esPlantilla ? 't2.micro' : 't3.micro',
+          llave: esPlantilla ? NO_INCLUIR : null, // null = no eligió; '' = sin par de llaves
+          red: { editar: esPlantilla, vpcId: vpcDef?.id ?? null, subredId: null, ipPublica: null },
+          firewall: esPlantilla ? 'existente' : 'crear',
+          grupo: grupoNuevo,
+          reglas: reglasNuevas,
+          existentes: [],
+          discos: [{ tamano: '8', tipo: 'gp3' }],
+          userData: '',
+          base64: false,
+          perfil: '',
+          cantidad: '1',
+          etiquetas: [],
+          errores: {}
+        };
 
   const vpcActual = () => e.vpcs.find((v) => v.id === f.red.vpcId);
   const subredActual = () => e.subredes.find((s) => s.id === f.red.subredId);
   const ipPublicaEfectiva = () => (f.red.ipPublica !== null ? f.red.ipPublica : f.red.subredId ? Boolean(subredActual()?.ipPublicaAuto) : true);
+  const guia = () => Boolean(modo.guia?.());
 
   const repintarTodo = () => {
-    [secAmi, secTipo, secLlave, secRed, secDisco, secAvanzado].forEach((s) => s.repintar());
+    [secAmi, secTipo, secLlave, secRed, secDisco, secEtiquetas, secAvanzado].forEach((s) => s?.repintar());
     resumen.repintar();
   };
   const cambio = () => resumen.repintar();
 
   /* ---------- Name and tags */
-  const secNombre = ui.contenedor({
-    titulo: 'Name and tags',
-    info: 'instancia',
-    cx,
-    cuerpo: ui.campo({
-      etiqueta: 'Name',
-      control: h('div', { class: 'cx-fila-campos' }, h('div', { style: { flex: '1 1 300px' } }, ui.entrada({ valor: f.nombre, placeholder: 'e.g. My Web Server', alCambiar: (v) => ((f.nombre = v), cambio()) })), ui.enlace('Add additional tags', () => cx.flash({ tipo: 'info', texto: 'En el simulador solo se usa la etiqueta Name.' })))
+  // «Add additional tags» cambia el campo Name por la tabla Key / Value (Name es la primera fila).
+  const filasDeEtiquetas = () => [{ llave: 'Name', valor: f.nombre ?? '' }, ...(f.etiquetas ?? []).filter((t) => t.llave !== 'Name').map((t) => ({ llave: t.llave, valor: t.valor ?? '' }))];
+  const secNombre = ui.region(() =>
+    ui.contenedor({
+      titulo: 'Name and tags',
+      info: 'instancia',
+      cx,
+      cuerpo: f.filasEtiquetas
+        ? h(
+            'div',
+            { class: 'cx-form' },
+            ui.editorEtiquetas({
+              filas: f.filasEtiquetas,
+              alCambiar: (filas) => {
+                f.nombre = ui.nombreDeEtiquetas(filas);
+                f.etiquetas = filas.filter((t) => t.llave.trim() && t.llave.trim() !== 'Name').map((t) => ({ llave: t.llave.trim(), valor: t.valor }));
+                cambio();
+              }
+            }),
+            h('div', { class: 'cx-campo__restriccion' }, 'Tags are applied to the instances and their volumes. The Name tag is shown in the Name column of the console.')
+          )
+        : ui.campo({
+            etiqueta: 'Name',
+            control: h(
+              'div',
+              { class: 'cx-fila-campos' },
+              h('div', { style: { flex: '1 1 300px' } }, ui.entrada({ valor: f.nombre, placeholder: 'e.g. My Web Server', alCambiar: (v) => ((f.nombre = v), cambio()) })),
+              ui.enlace('Add additional tags', () => {
+                f.filasEtiquetas = filasDeEtiquetas();
+                secNombre.repintar();
+              })
+            )
+          })
     })
-  });
+  );
 
   /* ---------- AMI */
   const secAmi = ui.region(() => {
@@ -622,7 +702,11 @@ function lanzar(cx) {
           etiqueta: 'Key pair name',
           requerido: true,
           control: ui.selector({
-            opciones: [{ valor: '', etiqueta: 'Proceed without a key pair (Not recommended)', etiquetaDerecha: 'Default value' }, ...e.llaves.map((k) => ({ valor: k.nombre, etiqueta: k.nombre, descripcion: `Type: ${k.tipo}` }))],
+            opciones: [
+              ...(esPlantilla ? [{ valor: NO_INCLUIR, etiqueta: "Don't include in launch template", etiquetaDerecha: 'Default value' }] : []),
+              { valor: '', etiqueta: 'Proceed without a key pair (Not recommended)', etiquetaDerecha: esPlantilla ? undefined : 'Default value' },
+              ...e.llaves.map((k) => ({ valor: k.nombre, etiqueta: k.nombre, descripcion: `Type: ${k.tipo}` }))
+            ],
             valor: f.llave,
             filtrar: true,
             placeholder: 'Select',
@@ -715,7 +799,8 @@ function lanzar(cx) {
   }
 
   function firewall(contenidoCrear) {
-    const grupos = e.gruposSeguridad.filter((g) => g.vpcId === f.red.vpcId);
+    // Una plantilla sin subred puede usar grupos de cualquier VPC (la subred la pone quien la use).
+    const grupos = esPlantilla && !f.red.subredId ? e.gruposSeguridad : e.gruposSeguridad.filter((g) => g.vpcId === f.red.vpcId);
     return h(
       'div',
       { class: 'cx-form' },
@@ -840,6 +925,63 @@ function lanzar(cx) {
     ];
   }
 
+  /** Network settings de una plantilla: la subred (o «Don't include»), la zona y el firewall con su VPC. */
+  function vistaRedPlantilla() {
+    const sub = subredActual();
+    return [
+      guia() ? ui.alerta({ tipo: 'info', contenido: 'Auto Scaling guidance: no incluyas la subred en la plantilla. El grupo de Auto Scaling elige las subredes (y las zonas) donde lanza cada instancia.' }) : null,
+      ui.campo({
+        etiqueta: 'Subnet',
+        info: 'subred',
+        cx,
+        descripcion: 'When you specify a subnet, a network interface is automatically added to your template.',
+        control: ui.selector({
+          opciones: [{ valor: '', etiqueta: "Don't include in launch template" }, ...e.subredes.map((s) => opcionSubred(e, s))],
+          valor: f.red.subredId ?? '',
+          filtrar: true,
+          alCambiar: (v) => {
+            f.red.subredId = v || null;
+            const s = e.subredes.find((x) => x.id === v);
+            if (s && s.vpcId !== f.red.vpcId) {
+              f.red.vpcId = s.vpcId;
+              f.existentes = f.existentes.filter((id) => e.gruposSeguridad.find((g) => g.id === id)?.vpcId === s.vpcId);
+            }
+            secRed.repintar();
+            cambio();
+          }
+        })
+      }),
+      ui.campo({
+        etiqueta: 'Availability Zone',
+        info: 'zona',
+        cx,
+        control: ui.selector({ opciones: [], placeholder: sub ? sub.az : "Don't include in launch template", desactivado: true }),
+        restriccion: guia() ? 'Not applicable for EC2 Auto Scaling' : null
+      }),
+      firewall(() => [
+        ui.campo({ etiqueta: 'Security group name', requerido: true, control: ui.entrada({ valor: f.grupo.nombre, alCambiar: (v) => ((f.grupo.nombre = v), cambio()) }), error: f.errores.grupoNombre, restriccion: 'This security group will be added to all network interfaces. The name can’t be edited after the security group is created. Max length is 255 characters. Valid characters: a-z, A-Z, 0-9, spaces, and ._-:/()#,@[]+=&;{}!$*' }),
+        ui.campo({ etiqueta: 'Description', requerido: true, info: 'grupo-seguridad', cx, control: ui.entrada({ valor: f.grupo.descripcion, alCambiar: (v) => (f.grupo.descripcion = v) }), error: f.errores.grupoDesc }),
+        ui.campo({
+          etiqueta: 'VPC',
+          info: 'vpc',
+          cx,
+          control: ui.selector({
+            opciones: opcionesVpc(e),
+            valor: f.red.vpcId,
+            desactivado: Boolean(sub),
+            alCambiar: (v) => {
+              f.red.vpcId = v;
+              f.reglas.forEach((r) => String(r.origen).startsWith('sg-') && (r.origen = ''));
+              secRed.repintar();
+              cambio();
+            }
+          })
+        }),
+        ui.campo({ etiqueta: 'Inbound Security Group Rules', info: 'reglas-sg', cx, control: editorReglasSg(cx, { filas: f.reglas, vpcId: f.red.vpcId, sentido: 'entrada', alCambiar: cambio }) })
+      ])
+    ];
+  }
+
   const secRed = ui.region(() =>
     ui.contenedor({
       titulo: 'Network settings',
@@ -847,9 +989,23 @@ function lanzar(cx) {
       cx,
       plegable: true,
       acciones: f.red.editar ? null : ui.boton('Edit', { alClic: () => ((f.red.editar = true), secRed.repintar()) }),
-      cuerpo: h('div', { class: 'cx-form' }, f.red.editar ? vistaRedEditar() : vistaRedSimple())
+      cuerpo: h('div', { class: 'cx-form' }, esPlantilla ? vistaRedPlantilla() : f.red.editar ? vistaRedEditar() : vistaRedSimple())
     })
   );
+
+  /* ---------- Resource tags (solo plantillas: van a las instancias que se lancen) */
+  const secEtiquetas = esPlantilla
+    ? ui.region(() =>
+        ui.contenedor({
+          titulo: 'Resource tags',
+          info: 'etiquetas-plantilla',
+          cx,
+          plegable: true,
+          descripcion: 'Resource tags are applied to the instances and volumes launched from this template. The Name tag becomes the name of each instance.',
+          cuerpo: ui.editorEtiquetas({ filas: f.etiquetas, alCambiar: cambio })
+        })
+      )
+    : null;
 
   /* ---------- Storage */
   const secDisco = ui.region(() => {
@@ -945,7 +1101,7 @@ function lanzar(cx) {
       h(
         'div',
         { class: 'cx-contenedor__cuerpo' },
-        ui.campo({ etiqueta: 'Number of instances', info: 'instancia', cx, control: ui.entrada({ tipo: 'number', valor: f.cantidad, min: 1, max: 5, alCambiar: (v) => (f.cantidad = v) }) }),
+        esPlantilla ? null : ui.campo({ etiqueta: 'Number of instances', info: 'instancia', cx, control: ui.entrada({ tipo: 'number', valor: f.cantidad, min: 1, max: 5, alCambiar: (v) => (f.cantidad = v) }) }),
         h(
           'dl',
           { class: 'cx-resumen' },
@@ -965,14 +1121,55 @@ function lanzar(cx) {
       h(
         'div',
         { class: 'cx-contenedor__pie', style: { display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' } },
-        ui.boton('Cancel', { variante: 'texto', alClic: () => cx.ir('ec2/instancias') }),
-        ui.boton('Launch instance', { variante: 'primario', alClic: lanzarYa }),
+        ui.boton('Cancel', { variante: 'texto', alClic: () => cx.ir(modo.cancelar ?? 'ec2/instancias') }),
+        ui.boton(modo.textoEnviar ?? 'Launch instance', { variante: 'primario', alClic: lanzarYa }),
         h('div', { style: { width: '100%', textAlign: 'right' } }, ui.boton('Preview code', { variante: 'texto', desactivado: true }))
       )
     );
   });
 
+  /** El user data tal como lo guardará AWS (si venía en base64, decodificado). */
+  function userDataFinal() {
+    let userData = f.userData;
+    if (f.base64 && userData.trim()) {
+      try {
+        userData = decodeURIComponent(escape(atob(userData.replace(/\s+/g, ''))));
+      } catch {
+        userData = '(invalid base64 user data)';
+      }
+    }
+    return userData;
+  }
+
+  /** Modo plantilla: arma los datos de la versión y se los pasa a quien abrió el asistente. */
+  function crearPlantillaYa() {
+    f.errores = {};
+    if (f.firewall === 'crear' && !f.grupo.nombre.trim()) f.errores.grupoNombre = 'Security group name is required';
+    if (f.firewall === 'crear' && !f.grupo.descripcion.trim()) f.errores.grupoDesc = 'Description is required';
+    const arribaBien = modo.validar ? modo.validar() !== false : true;
+    if (Object.values(f.errores).some(Boolean) || !arribaBien) {
+      repintarTodo();
+      setTimeout(() => cx.raiz.querySelector('.cx-campo--error')?.scrollIntoView({ block: 'center' }), 0);
+      return;
+    }
+    modo.alEnviar?.({
+      datos: {
+        ami: f.ami,
+        tipo: f.tipo,
+        llave: f.llave && f.llave !== NO_INCLUIR ? f.llave : null,
+        subredId: f.red.subredId,
+        gruposSeguridad: f.firewall === 'existente' ? f.existentes : [],
+        volumenes: f.discos.map((d, i) => ({ tamano: Number(d.tamano), tipo: d.tipo, eliminarAlTerminar: i === 0 })),
+        userData: userDataFinal(),
+        perfilIam: f.perfil || null,
+        etiquetas: f.etiquetas.filter((t) => t.llave.trim())
+      },
+      nuevoGrupo: f.firewall === 'crear' ? { nombre: f.grupo.nombre.trim(), descripcion: f.grupo.descripcion, vpcId: f.red.vpcId, entrada: f.reglas.map(reglaDeFila) } : null
+    });
+  }
+
   function lanzarYa() {
+    if (esPlantilla) return crearPlantillaYa();
     // Lo que la consola revisa en el navegador antes de llamar a AWS.
     f.errores = {};
     if (f.llave === null) f.errores.llave = 'Key pair name is required. Select a key pair, create a new one, or choose «Proceed without a key pair».';
@@ -995,14 +1192,7 @@ function lanzar(cx) {
       setTimeout(() => cx.raiz.querySelector('.cx-campo--error')?.scrollIntoView({ block: 'center' }), 0);
       return;
     }
-    let userData = f.userData;
-    if (f.base64 && userData.trim()) {
-      try {
-        userData = decodeURIComponent(escape(atob(userData.replace(/\s+/g, ''))));
-      } catch {
-        userData = '(invalid base64 user data)';
-      }
-    }
+    const userData = userDataFinal();
     const r = cx.hacer(
       { servicio: 'EC2', accion: 'RunInstances', error: 'Instance launch failed' },
       (est) =>
@@ -1018,7 +1208,8 @@ function lanzar(cx) {
           volumenes: f.discos.map((d, i) => ({ tamano: Number(d.tamano), tipo: d.tipo, eliminarAlTerminar: i === 0 })),
           userData,
           perfilIam: f.perfil || null,
-          cantidad: Number(f.cantidad) || 1
+          cantidad: Number(f.cantidad) || 1,
+          etiquetas: (f.etiquetas ?? []).filter((t) => String(t.llave ?? '').trim() && t.llave !== 'Name')
         }),
       { atomico: true }
     );
@@ -1031,8 +1222,30 @@ function lanzar(cx) {
   return h(
     'div',
     { class: 'cx-pagina' },
-    ui.encabezado({ titulo: 'Launch an instance', info: 'instancia', cx, descripcion: 'Amazon EC2 allows you to create virtual machines, or instances, that run on the AWS Cloud. Quickly get started by following the simple steps below.' }),
-    h('div', { class: 'cx-dos-columnas' }, h('div', { class: 'cx-pagina' }, secNombre, secAmi, secTipo, secLlave, secRed, secDisco, secAvanzado), h('div', { class: 'cx-lado' }, resumen))
+    ui.encabezado({
+      titulo: modo.titulo ?? 'Launch an instance',
+      info: esPlantilla ? 'plantilla-lanzamiento' : 'instancia',
+      cx,
+      descripcion: modo.descripcion ?? 'Amazon EC2 allows you to create virtual machines, or instances, that run on the AWS Cloud. Quickly get started by following the simple steps below.'
+    }),
+    h(
+      'div',
+      { class: 'cx-dos-columnas' },
+      h(
+        'div',
+        { class: 'cx-pagina' },
+        modo.arriba ?? null,
+        esPlantilla ? h('h2', { class: 'cx-h2 cx-escalar-subtitulo' }, 'Launch template contents', h('small', { class: 'cx-texto-sec' }, 'Specify the details of your launch template version below. Leaving a field blank will result in the field not being included in the launch template.')) : secNombre,
+        secAmi,
+        secTipo,
+        secLlave,
+        secRed,
+        secDisco,
+        secEtiquetas,
+        secAvanzado
+      ),
+      h('div', { class: 'cx-lado' }, resumen)
+    )
   );
 }
 

@@ -25,7 +25,18 @@ const MOVIMIENTOS = 25;
 
 export const hayLlave = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
-const REGLAS = `Eres el asistente del laboratorio de una evaluación práctica (un simulacro o un examen) de la materia Cómputo en la Nube, en una universidad de México. El alumno trabaja en una consola de AWS simulada que imita la real (los menús están en inglés, como en AWS). Tu papel es el de un compañero de trabajo con más experiencia: el alumno te consulta cuando se atora, como lo haría en un trabajo real, y tú lo ayudas a encontrar dónde está el problema y a razonar el siguiente paso. Si le resuelves la tarea, no aprende; y si es un examen, además dejaría de medir lo que sabe.
+// El primer párrafo cambia según qué está haciendo el alumno (el `tipo` de la
+// evaluación, ver src/evaluaciones.js); las reglas de abajo son las mismas.
+const SITUACION = {
+  evaluacion: 'Eres el asistente del laboratorio de una evaluación práctica (un simulacro o un examen) de la materia Cómputo en la Nube, en una universidad de México.',
+  laboratorio: 'Eres el asistente de un laboratorio de práctica de la materia Cómputo en la Nube, en una universidad de México: la versión en simulador del laboratorio de una sesión de la Ruta AWS. Se califica solo y su entrega es la evidencia de que lo hizo.',
+  practica: 'Eres el asistente de una práctica integradora de la materia Cómputo en la Nube, en una universidad de México: un caso real completo que el alumno monta en el simulador y que se califica.',
+  final: 'Eres el asistente del laboratorio del examen final de la materia Cómputo en la Nube, en una universidad de México. Es un examen: cuida todavía más no dar respuestas, solo ayuda a ubicar la pieza.'
+};
+
+const reglas = (tipo) => `${SITUACION[tipo] ?? SITUACION.evaluacion} El alumno trabaja en una consola de AWS simulada que imita la real (los menús están en inglés, como en AWS). Tu papel es el de un compañero de trabajo con más experiencia: el alumno te consulta cuando se atora, como lo haría en un trabajo real, y tú lo ayudas a encontrar dónde está el problema y a razonar el siguiente paso. ${
+  tipo === 'laboratorio' || tipo === 'practica' ? 'Si le resuelves la tarea, no aprende, y lo va a necesitar en el examen final.' : 'Si le resuelves la tarea, no aprende; y si es un examen, además dejaría de medir lo que sabe.'
+}
 
 Cómo ayudas:
 - Primero ubica en qué tarea y en qué pieza está atorado. Si no queda claro, pregúntale qué intentó y qué ve en la pantalla.
@@ -105,10 +116,11 @@ const delAlumno = (t) => `<mensaje_del_alumno>\n${t}\n</mensaje_del_alumno>`;
 
 /**
  * La respuesta del asistente a la pregunta del alumno.
+ * `tipo` es el de la evaluación ('evaluacion', 'laboratorio', 'practica' o 'final').
  * `historial` son las preguntas y respuestas anteriores: [{ rol, texto }].
  * Devuelve { texto, rechazo } (rechazo: el modelo declinó la pregunta).
  */
-export async function responder({ lab, datos, resultado, bitacora, historial, pregunta }) {
+export async function responder({ tipo = 'evaluacion', lab, datos, resultado, bitacora, historial, pregunta }) {
   const messages = historial.map((m) => ({ role: m.rol === 'alumno' ? 'user' : 'assistant', content: m.rol === 'alumno' ? delAlumno(m.texto) : m.texto }));
   messages.push({ role: 'user', content: `${diagnostico(resultado, bitacora)}\n\n${delAlumno(pregunta)}` });
 
@@ -131,7 +143,7 @@ export async function responder({ lab, datos, resultado, bitacora, historial, pr
         fallbacks: 'default',
         // Las reglas y el laboratorio no cambian entre preguntas del mismo alumno: se guardan en caché.
         system: [
-          { type: 'text', text: REGLAS },
+          { type: 'text', text: reglas(tipo) },
           { type: 'text', text: contextoLab(lab, datos), cache_control: { type: 'ephemeral' } }
         ],
         messages

@@ -167,14 +167,16 @@ export const almacen = {
 
   /** Abierta/cerrada, retroalimentación, autorrevisión y asistente, con sus valores de arranque. */
   config(evId) {
+    // Un id que ya no está en el registro (una evaluación que se quitó) no
+    // truena: se trata como cerrada y con la retro completa.
     const ev = evaluacionDe(evId);
     const e = estado.evaluaciones[evId];
     return {
-      teoria: { abierta: e?.teoria?.abierta ?? Boolean(ev.abierta?.teoria) },
-      practica: { abierta: e?.practica?.abierta ?? Boolean(ev.abierta?.practica) },
-      retro: e?.retro ?? ev.retro,
-      autorrevision: e?.autorrevision ?? ev.autorrevision,
-      asistente: e?.asistente?.activo ?? Boolean(ev.asistente)
+      teoria: { abierta: e?.teoria?.abierta ?? Boolean(ev?.abierta?.teoria) },
+      practica: { abierta: e?.practica?.abierta ?? Boolean(ev?.abierta?.practica) },
+      retro: e?.retro ?? ev?.retro ?? 'completa',
+      autorrevision: e?.autorrevision ?? Boolean(ev?.autorrevision),
+      asistente: e?.asistente?.activo ?? Boolean(ev?.asistente)
     };
   },
 

@@ -1,0 +1,177 @@
+/* ---------------------------------------------------------------------------
+   AURORA AND RDS · ELASTICACHE
+   Lo propio de servicios/rds.js y servicios/elasticache.js. Todo bajo .cx con
+   clases cx-rds-…; primero se usan las piezas que ya existen en consola.css.
+   --------------------------------------------------------------------------- */
+
+/* La columna CPU de Databases: barrita y porcentaje. */
+.cx .cx-rds-cpu {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.cx .cx-rds-cpu__barra {
+  position: relative;
+  width: 48px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--cx-borde-suave);
+  overflow: hidden;
+}
+
+.cx .cx-rds-cpu__barra > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--cx-info);
+}
+
+/* Databases agrupa clúster → instancias y principal → réplicas. */
+.cx .cx-rds-arbol {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.cx .cx-rds-arbol--hijo {
+  padding-left: 14px;
+}
+
+.cx .cx-rds-arbol__rama {
+  width: 10px;
+  height: 12px;
+  margin-top: -8px;
+  border-left: 1px solid var(--cx-borde);
+  border-bottom: 1px solid var(--cx-borde);
+  border-bottom-left-radius: 3px;
+}
+
+/* Las dos (o tres) maneras de crear, en el Dashboard. */
+.cx .cx-rds-crear-opciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.cx .cx-rds-crear-opciones > .cx-bloque + .cx-bloque {
+  margin-top: 0;
+}
+
+.cx .cx-rds-crear-opciones > p {
+  grid-column: 1 / -1;
+}
+
+/* Create database: el formulario no pasa del ancho cómodo de lectura. */
+.cx .cx-rds-form {
+  max-width: 920px;
+}
+
+.cx .cx-rds-motores .cx-tarjeta {
+  min-height: 64px;
+}
+
+/* Estimated monthly costs. */
+.cx .cx-rds-costo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cx .cx-rds-costo hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--cx-borde-suave);
+  margin: 4px 0;
+}
+
+.cx .cx-rds-costo__fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cx .cx-rds-costo__fila--total {
+  color: var(--cx-fuerte);
+  font-weight: 700;
+}
+
+/* Connectivity & security / Configuration: tres columnas que se apilan. */
+.cx .cx-rds-columnas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px 28px;
+}
+
+.cx .cx-rds-columnas > div + div {
+  border-left: 1px solid var(--cx-borde-suave);
+  padding-left: 28px;
+}
+
+/* Monitoring: gráficas de CloudWatch hechas con SVG. */
+.cx .cx-rds-graficas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.cx .cx-rds-graficas > .cx-bloque + .cx-bloque {
+  margin-top: 0;
+}
+
+.cx .cx-rds-grafica {
+  position: relative;
+  padding-top: 18px;
+}
+
+.cx .cx-rds-grafica__tope {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 12px;
+  color: var(--cx-sec);
+}
+
+.cx .cx-rds-grafica__svg {
+  display: block;
+  width: 100%;
+  height: 90px;
+  border-left: 1px solid var(--cx-borde);
+  border-bottom: 1px solid var(--cx-borde);
+}
+
+.cx .cx-rds-grafica__rejilla {
+  stroke: var(--cx-borde-suave);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.cx .cx-rds-grafica__linea {
+  fill: none;
+  stroke: var(--cx-info);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+@container cx (max-width: 900px) {
+  .cx .cx-rds-columnas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cx .cx-rds-columnas > div + div {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--cx-borde-suave);
+    padding-top: 16px;
+  }
+}
+
+/* En angosto, los motores quedan de dos en dos (la rejilla trae 4 columnas en línea). */
+@container cx (max-width: 900px) {
+  .cx .cx-rds-motores .cx-tarjetas {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}

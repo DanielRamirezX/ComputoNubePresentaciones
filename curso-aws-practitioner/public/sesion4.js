@@ -54,7 +54,7 @@ export const SESION_4 = {
                 <p class="entrada"><strong>Amazon S3</strong> (Simple Storage Service) guarda archivos de cualquier tipo, llamados <strong>objetos</strong>, dentro de contenedores llamados <strong>buckets</strong>. No hay que reservar espacio: pagas lo que guardas.</p>
                 <div class="rejilla rejilla--3 roles">
                   <article class="rol">${icono('disco')}<h3>Bucket</h3><p>El contenedor. Su nombre es <strong>único en todo el mundo</strong> y vive en una región.</p></article>
-                  <article class="rol">${icono('imagen')}<h3>Objeto</h3><p>Un archivo y sus datos (metadatos). Cada uno puede pesar hasta <strong>5 TB</strong>.</p></article>
+                  <article class="rol">${icono('imagen')}<h3>Objeto</h3><p>Un archivo y sus datos (metadatos). Cada uno puede pesar hasta <strong>50 TB</strong>.</p></article>
                   <article class="rol">${icono('llave')}<h3>Llave (key)</h3><p>El nombre completo del objeto, como <em>vacaciones/playa.jpg</em>. Las “carpetas” son solo parte del nombre.</p></article>
                 </div>
                 <div class="rejilla rejilla--3 valores">
@@ -62,7 +62,7 @@ export const SESION_4 = {
                   <div>${icono('nube')}<strong>Sin límite</strong><p>Puedes guardar tantos objetos como quieras.</p></div>
                   <div>${icono('cohete')}<strong>Para todo</strong><p>Respaldos, fotos, videos, bitácoras, datos para análisis y hasta sitios web estáticos.</p></div>
                 </div>`,
-              notas: 'Durabilidad (no perder datos) no es lo mismo que disponibilidad (poder leerlos en este momento). S3 Standard: 11 nueves de durabilidad y 99.99 % de disponibilidad.'
+              notas: 'Durabilidad (no perder datos) no es lo mismo que disponibilidad (poder leerlos en este momento). S3 Standard: 11 nueves de durabilidad y 99.99 % de disponibilidad. Desde diciembre de 2025 un objeto puede pesar hasta 50 TB; si una guía o una pregunta vieja dice 5 TB, es el límite anterior. Desde marzo de 2026 también se puede crear el bucket en el “account regional namespace”: S3 le agrega al nombre un sufijo con tu número de cuenta y tu región, así ya no hay que buscar un nombre libre, y el nombre completo sigue siendo único en el mundo.'
             },
             {
               titulo: 'Las clases de almacenamiento',
@@ -75,10 +75,10 @@ export const SESION_4 = {
                       <tr><th scope="row">S3 Standard</th><td>Se usan seguido</td><td>Inmediata</td></tr>
                       <tr><th scope="row">S3 Intelligent-Tiering</th><td>No sabes qué tan seguido se usarán: AWS los mueve solo</td><td>Inmediata</td></tr>
                       <tr><th scope="row">S3 Standard-IA</th><td>Se leen poco (una vez al mes)</td><td>Inmediata, con cobro por lectura</td></tr>
-                      <tr><th scope="row">S3 One Zone-IA</th><td>Se leen poco y se pueden volver a crear (una sola zona)</td><td>Inmediata</td></tr>
+                      <tr><th scope="row">S3 One Zone-IA</th><td>Se leen poco y se pueden volver a crear (una sola zona)</td><td>Inmediata, con cobro por lectura</td></tr>
                       <tr><th scope="row">Glacier Instant Retrieval</th><td>Archivo que se lee una vez al trimestre</td><td>Milisegundos</td></tr>
                       <tr><th scope="row">Glacier Flexible Retrieval</th><td>Archivo que se lee una o dos veces al año</td><td>Minutos a horas</td></tr>
-                      <tr><th scope="row">Glacier Deep Archive</th><td>Se guardan años por ley y casi nunca se leen</td><td>Hasta 12 horas (la más barata)</td></tr>
+                      <tr><th scope="row">Glacier Deep Archive</th><td>Se guardan años por ley y casi nunca se leen</td><td>Hasta 12 horas, o 48 en modo masivo (la más barata)</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -117,7 +117,7 @@ export const SESION_4 = {
             { texto: 'Las fotos del sitio web, que se ven todo el día', grupo: 'standard', retro: 'Acceso frecuente: Standard.' },
             { texto: 'Expedientes que la ley obliga a guardar 10 años y nadie consulta', grupo: 'deep', retro: 'Archivo a largo plazo y casi sin lecturas: la clase más barata.' },
             { texto: 'Archivos de un proyecto nuevo: no se sabe cuánto se usarán', grupo: 'intelligent', retro: 'Patrón de acceso desconocido: Intelligent-Tiering los mueve solo.' },
-            { texto: 'Respaldos semanales que solo se leen si algo falla', grupo: 'ia', retro: 'Pocas lecturas pero, cuando se necesitan, deben estar al instante.' },
+            { texto: 'Respaldos semanales que solo se leen si algo falla, y entonces se necesitan de inmediato', grupo: 'ia', retro: 'Pocas lecturas pero, cuando se necesitan, deben estar al instante.' },
             { texto: 'Los videos de la clase de esta semana', grupo: 'standard', retro: 'Se ven mucho ahora: Standard.' },
             { texto: 'Grabaciones de cámaras de hace 3 años que se guardan por si acaso', grupo: 'deep', retro: 'Casi nunca se leen: Deep Archive.' },
             { texto: 'Datos de una app con picos impredecibles de uso', grupo: 'intelligent', retro: 'Cuando el uso cambia sin aviso, Intelligent-Tiering.' },
@@ -176,7 +176,7 @@ export const SESION_4 = {
                   </table>
                 </div>
                 ${recuadro('examen', '<em>“Varias instancias Linux deben leer y escribir los mismos archivos”</em> → <strong>EFS</strong>. <em>“Disco para la base de datos de una instancia”</em> → <strong>EBS</strong>. <em>“Datos temporales, el más rápido, no importa perderlos”</em> → <strong>instance store</strong>.')}`,
-              notas: 'Un volumen EBS está en una zona y se conecta a instancias de esa misma zona. Por eso en el laboratorio el volumen se crea en us-east-1a.'
+              notas: 'Un volumen EBS está en una zona y se conecta a instancias de esa misma zona. Por eso en el laboratorio el volumen se crea en us-east-1a. Si alguien pregunta: los discos io1 e io2 tienen Multi-Attach (hasta 16 instancias de la misma zona), pero no es una carpeta compartida. En el examen, “muchas instancias comparten archivos” → EFS (Linux) o FSx for Windows File Server (Windows).'
             },
             {
               titulo: 'Los tipos de disco EBS y sus snapshots',
@@ -223,15 +223,16 @@ export const SESION_4 = {
                   <table class="tabla">
                     <thead><tr><th scope="col">Servicio</th><th scope="col">Para qué</th></tr></thead>
                     <tbody>
-                      <tr><th scope="row">AWS Snowball Edge</th><td>Un aparato físico que AWS te envía: lo llenas con decenas de terabytes y lo regresas. Para cuando subirlos por internet tardaría meses.</td></tr>
+                      <tr><th scope="row">AWS Snowball Edge</th><td>Un aparato físico que AWS te envía: lo llenas con decenas de terabytes y lo regresas. Para cuando subirlos por internet tardaría meses. Es parte de la <strong>familia Snow</strong>.</td></tr>
                       <tr><th scope="row">AWS DataSync</th><td>Copia y sincroniza datos por la red, de tu centro de datos a S3, EFS o FSx, de forma automática.</td></tr>
                       <tr><th scope="row">AWS Storage Gateway</th><td>Almacenamiento <strong>híbrido</strong>: tus servidores locales ven una unidad normal, pero los datos viven en S3.</td></tr>
-                      <tr><th scope="row">AWS Transfer Family</th><td>Recibe archivos por SFTP o FTP y los guarda directo en S3.</td></tr>
+                      <tr><th scope="row">AWS Transfer Family</th><td>Recibe archivos por SFTP, FTPS o FTP y los guarda directo en S3 o en EFS.</td></tr>
                     </tbody>
                   </table>
                 </div>
-                ${recuadro('examen', '<em>“Migrar 80 TB con una conexión lenta”</em> → <strong>Snowball</strong>. <em>“Seguir usando el almacenamiento local pero con respaldo en la nube”</em> → <strong>Storage Gateway</strong>.')}`,
-              notas: 'La familia Snow es para mover datos “a pie” cuando la red no alcanza.'
+                ${recuadro('examen', '<em>“Migrar 80 TB con una conexión lenta”</em> → <strong>Snowball</strong>. <em>“Seguir usando el almacenamiento local pero con respaldo en la nube”</em> → <strong>Storage Gateway</strong>.')}
+                ${recuadro('sabias', 'Desde noviembre de 2025, AWS solo vende Snowball Edge a quienes ya lo usaban. A los clientes nuevos les sugiere <strong>DataSync</strong> (por la red) o <strong>AWS Data Transfer Terminal</strong> (llevas tus propios discos a una instalación de AWS y desde ahí los subes). Aun así, la familia Snow sigue en el temario del examen.')}`,
+              notas: 'La familia Snow es para mover datos “a pie” cuando la red no alcanza. En el CLF-C02, “muchos terabytes y conexión lenta” se sigue respondiendo con Snowball.'
             }
           ]
         },
@@ -243,9 +244,9 @@ export const SESION_4 = {
           minutos: 2,
           contexto:
             '<p>Un hospital quiere pasar a S3 <strong>120 TB</strong> de estudios de rayos X. Su conexión a internet es lenta: subirlos tardaría casi un año.</p>',
-          pregunta: '¿Qué le recomiendas?',
+          pregunta: 'Según lo que pide el examen, ¿qué le recomiendas?',
           opciones: [
-            { texto: 'Pedir dispositivos AWS Snowball Edge, llenarlos y enviarlos de regreso a AWS.', correcta: true, retro: '¡Correcto! Snowball mueve grandes volúmenes de datos de forma física cuando la red no alcanza.' },
+            { texto: 'Pedir dispositivos AWS Snowball Edge, llenarlos y enviarlos de regreso a AWS.', correcta: true, retro: '¡Correcto! Snowball mueve grandes volúmenes de datos de forma física cuando la red no alcanza. En la vida real, desde 2025 un cliente nuevo usaría AWS Data Transfer Terminal o DataSync.' },
             { texto: 'Subir los archivos uno por uno desde la consola de S3.', retro: 'Funciona en teoría, pero con esa conexión tardaría meses.' },
             { texto: 'Crear un volumen EBS de 120 TB.', retro: 'EBS es un disco para instancias; no resuelve cómo llegan los datos a AWS.' },
             { texto: 'Configurar una regla de ciclo de vida hacia Glacier.', retro: 'El ciclo de vida mueve datos que ya están en S3; primero hay que llevarlos.' }
@@ -457,7 +458,7 @@ export const SESION_4 = {
                   [22.7, 93.6, 'Status: <strong>Enabled</strong>'],
                   [35.8, 93.6, 'Para todo el bucket']
                 ])}
-                ${recuadro('sabias', 'Mover cada objeto entre clases cuesta un poco. Por eso S3 no mueve objetos de menos de 128 KB: saldría más caro que guardarlos donde están.')}`,
+                ${recuadro('sabias', 'Mover cada objeto entre clases cuesta un poco. Por eso, por omisión, S3 no mueve objetos de menos de 128 KB: saldría más caro que guardarlos donde están.')}`,
               ver: 'La regla fotos-viejas-a-glacier en la lista, con Status Enabled. Tómale captura: es tu segunda evidencia.',
               evidencia: {
                 id: 'regla-glacier',
@@ -698,7 +699,7 @@ export const SESION_4 = {
               html: `
                 <div class="repaso">
                   <div class="repaso__capitulo"><span class="repaso__numero">1</span>${lista([
-                    '<strong>S3</strong>: objetos en buckets con nombre único global; 11 nueves de durabilidad; hasta 5 TB por objeto.',
+                    '<strong>S3</strong>: objetos en buckets con nombre único global; 11 nueves de durabilidad; hasta 50 TB por objeto.',
                     '<strong>Clases</strong>: Standard, Intelligent-Tiering (no se sabe), Standard-IA, One Zone-IA (se puede recrear), Glacier Instant, Flexible y Deep Archive (la más barata).',
                     '<strong>Ciclo de vida</strong>: mueve o borra objetos por edad.'
                   ])}</div>
@@ -710,7 +711,7 @@ export const SESION_4 = {
                   <div class="repaso__capitulo"><span class="repaso__numero">3</span>${lista([
                     '<strong>Snapshots</strong>: respaldos incrementales de EBS, guardados en S3. <strong>AWS Backup</strong>: respaldos centralizados.',
                     '<strong>Snowball</strong>: mover terabytes a pie. <strong>DataSync</strong>: copiar por la red. <strong>Storage Gateway</strong>: almacenamiento híbrido.',
-                    '<strong>Transfer Family</strong>: SFTP directo a S3.'
+                    '<strong>Transfer Family</strong>: SFTP directo a S3 o EFS.'
                   ])}</div>
                 </div>`,
               notas: 'Pide que alguien diga en voz alta la diferencia entre EBS y EFS antes de abrir el examen.'
@@ -734,7 +735,7 @@ export const SESION_4 = {
             { texto: 'Un volumen EBS se puede conectar a una instancia de cualquier zona.', grupo: 'f', retro: 'Falso: solo a instancias de su misma zona.' },
             { texto: 'Glacier Deep Archive es la clase más barata de S3.', grupo: 'v', retro: 'Verdadero, a cambio de tardar horas en recuperar.' },
             { texto: 'Los datos del instance store sobreviven si detienes la instancia.', grupo: 'f', retro: 'Falso: el instance store es temporal.' },
-            { texto: 'Los snapshots de EBS solo guardan los bloques que cambiaron.', grupo: 'v', retro: 'Verdadero: son incrementales.' },
+            { texto: 'Después del primero, los snapshots de EBS solo guardan los bloques que cambiaron.', grupo: 'v', retro: 'Verdadero: son incrementales. El primero guarda todos los bloques con datos.' },
             { texto: 'Block Public Access viene apagado al crear un bucket.', grupo: 'f', retro: 'Falso: viene encendido por omisión.' },
             { texto: 'EFS permite que muchas instancias usen los mismos archivos a la vez.', grupo: 'v', retro: 'Verdadero: es una carpeta compartida.' },
             { texto: 'Snowball se usa para recibir archivos por SFTP.', grupo: 'f', retro: 'Falso: eso es Transfer Family. Snowball es un aparato físico para mover datos.' }

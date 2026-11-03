@@ -259,3 +259,55 @@ body.proyectar {
 @media (max-width: 720px) {
   .bloque--evaluacion { padding-left: 14px; padding-right: 14px; }
 }
+
+/* ============================== sección «Simulador AWS» =================
+   El mismo tono que «Evaluación» (es el mismo módulo), pero con la cuadrícula
+   de una consola y una sola tarjeta ancha: es el lugar para practicar, no un
+   examen. */
+
+.bloque--simulador-aws {
+  margin: 40px 6px 0 0;
+  padding: 6px 20px 26px;
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 8% 100%, rgba(255, 153, 0, .2), transparent 45%),
+    linear-gradient(rgba(255, 255, 255, .04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .04) 1px, transparent 1px),
+    #232f3e;
+  background-size: auto, 22px 22px, 22px 22px, auto;
+  box-shadow: 6px 6px 0 #ff9900;
+  color: #f2f3f3;
+}
+
+.bloque--simulador-aws .seccion { margin-top: 22px; color: #fff; }
+.bloque--simulador-aws .seccion::before {
+  content: ">_";
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: #ff9900;
+  color: #16191f;
+  font-family: var(--mono);
+  font-size: .95rem;
+}
+.bloque--simulador-aws .seccion::after { background: #ff9900; }
+
+.bloque--simulador-aws .rejilla { grid-template-columns: minmax(0, 1fr); }
+.bloque--simulador-aws .tarjeta {
+  border-color: #0b1119;
+  border-left: 10px solid #ff9900;
+  background: #16202c;
+  box-shadow: 4px 4px 0 #0b1119;
+  color: #f2f3f3;
+}
+.bloque--simulador-aws .tarjeta h2 { font-size: 1.7rem; }
+.bloque--simulador-aws .tarjeta p { max-width: 46em; color: #c6ccd4; font-size: 1rem; }
+.bloque--simulador-aws a.tarjeta:hover,
+.bloque--simulador-aws a.tarjeta:focus-visible { box-shadow: 6px 6px 0 #ff9900; border-color: #ff9900; }
+.bloque--simulador-aws .tarjeta__etiqueta { border-color: #ff9900; background: #ff9900; color: #16191f; }
+.bloque--simulador-aws .tarjeta__abrir { align-self: flex-start; color: #ffb84d; }
+.bloque--simulador-aws .tarjeta--error { background: #1b2531; border-color: #5f6b7a; }
+
+@media (max-width: 720px) {
+  .bloque--simulador-aws { padding-left: 14px; padding-right: 14px; }
+}

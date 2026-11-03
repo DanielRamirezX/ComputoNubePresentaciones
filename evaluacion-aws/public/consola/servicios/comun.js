@@ -249,7 +249,10 @@ export function editorReglasSg(cx, { filas, vpcId, sentido = 'entrada', alCambia
             filtroPlaceholder: 'CIDR blocks or security groups',
             placeholder: 'CIDR or security group',
             vacio: 'Type a CIDR block, for example 10.0.0.0/16',
-            opcionLibre: (texto) => ({ valor: texto, etiqueta: texto, descripcion: parsearCidr(texto) ? 'CIDR block' : undefined }),
+            // «Use: "…"» solo con algo que AWS acepte tal cual: un CIDR o un id (sg-…, pl-…).
+            // Si escribe el nombre de un grupo, el filtro ya lista los grupos que coinciden.
+            opcionLibre: (texto) =>
+              parsearCidr(texto) ? { valor: texto, etiqueta: texto, descripcion: 'CIDR block' } : /^(sg|pl)-/i.test(texto) ? { valor: texto, etiqueta: texto } : null,
             mostrarLibre: (v) => ({ valor: v, etiqueta: v }),
             alCambiar: (v) => {
               f.origen = v;
@@ -311,7 +314,10 @@ export function editorReglasSg(cx, { filas, vpcId, sentido = 'entrada', alCambia
   return h('div', {}, el, h('div', { style: { marginTop: '12px' } }, aviso));
 }
 
-/** Tabla de solo lectura con las reglas de un grupo (pestañas Inbound/Outbound rules). */
+/**
+ * Tabla de solo lectura con las reglas de un grupo (pestañas Inbound/Outbound rules).
+ * `acciones`: los botones junto al título, como lista de nodos o como función que los crea.
+ */
 export function tablaReglasSg(cx, grupo, sentido, { titulo, acciones } = {}) {
   const palabra = sentido === 'entrada' ? 'Source' : 'Destination';
   return ui.tabla(cx, {
@@ -332,15 +338,22 @@ export function tablaReglasSg(cx, grupo, sentido, { titulo, acciones } = {}) {
       { titulo: 'Description', valor: (r) => r.descripcion || '–' }
     ],
     vacio: { titulo: `No security group rules found`, texto: `This security group has no ${sentido === 'entrada' ? 'inbound' : 'outbound'} rules.` },
-    acciones: () => acciones ?? []
+    // `acciones` puede ser una fábrica (botones nuevos en cada repintado) o una lista fija.
+    acciones: () => (typeof acciones === 'function' ? acciones() : acciones ?? [])
   });
 }
 
 /* =============================================================== etiquetas */
 
-/** La pestaña «Tags» de cualquier recurso con nombre. */
+/** Las etiquetas de un recurso como filas: Name (su `nombre`) y luego las demás (`etiquetas`). */
+export const filasEtiquetas = (recurso) => [
+  ...(recurso?.nombre ? [{ llave: 'Name', valor: recurso.nombre }] : []),
+  ...(recurso?.etiquetas ?? []).filter((e) => e?.llave && e.llave !== 'Name').map((e) => ({ llave: e.llave, valor: e.valor ?? '' }))
+];
+
+/** La pestaña «Tags» de cualquier recurso con nombre (y sus demás etiquetas, si las tiene). */
 export function pestanaEtiquetas(cx, recurso) {
-  const filas = recurso.nombre ? [{ llave: 'Name', valor: recurso.nombre }] : [];
+  const filas = filasEtiquetas(recurso);
   return ui.contenedor({
     titulo: 'Tags',
     contador: filas.length,
@@ -351,7 +364,7 @@ export function pestanaEtiquetas(cx, recurso) {
           'table',
           { class: 'cx-tabla__tabla' },
           h('thead', {}, h('tr', {}, h('th', {}, h('span', { class: 'cx-tabla__orden' }, 'Key')), h('th', {}, h('span', { class: 'cx-tabla__orden' }, 'Value')))),
-          h('tbody', {}, filas.map((f) => h('tr', {}, h('td', { style: { paddingLeft: '20px' } }, f.llave), h('td', {}, f.valor))))
+          h('tbody', {}, filas.map((f) => h('tr', {}, h('td', { style: { paddingLeft: '20px' } }, f.llave), h('td', {}, f.valor || '–'))))
         )
       : h('div', { class: 'cx-tabla__vacia' }, h('b', {}, 'No tags'), h('div', {}, 'You don’t have any tags.'))
   });
@@ -368,13 +381,17 @@ const EDITORES = [
   ['snap-', editarSnapshot, 'EC2']
 ];
 
-/** «Manage tags»: aquí solo importa la etiqueta Name (es la que se ve en la columna Name). */
+/**
+ * «Manage tags». En las instancias se guardan todas las etiquetas (las usan
+ * Cost Explorer y los presupuestos); en lo demás solo importa Name (la columna Name).
+ */
 export function paginaEtiquetas(cx, { id }) {
   const r = recursoPorId(cx.estado, id);
   const editor = EDITORES.find(([p]) => id.startsWith(p));
   cx.migas([{ texto: cx.servicio === 'vpc' ? 'VPC' : 'EC2', ruta: cx.servicio }, { texto: id, ruta: rutaDe(id, cx.servicio) }, { texto: 'Manage tags' }]);
   if (!r || !editor) return ui.noDisponible('Manage tags', 'Este recurso no admite etiquetas en el simulador.');
-  const filas = r.nombre ? [{ llave: 'Name', valor: r.nombre }] : [];
+  const todas = id.startsWith('i-');
+  const filas = todas ? filasEtiquetas(r) : r.nombre ? [{ llave: 'Name', valor: r.nombre }] : [];
   return h(
     'div',
     { class: 'cx-pagina cx-pagina--form' },
@@ -386,7 +403,8 @@ export function paginaEtiquetas(cx, { id }) {
       textoEnviar: 'Save',
       enviar: () => {
         const n = ui.nombreDeEtiquetas(filas);
-        const res = cx.hacer({ servicio: editor[2], accion: 'CreateTags', error: 'Failed to update tags' }, (e) => editor[1](e, id, { nombre: n }));
+        const otras = filas.filter((f) => f.llave.trim() && f.llave.trim() !== 'Name').map((f) => ({ llave: f.llave.trim(), valor: f.valor }));
+        const res = cx.hacer({ servicio: editor[2], accion: 'CreateTags', error: 'Failed to update tags' }, (e) => editor[1](e, id, todas ? { nombre: n, etiquetas: otras } : { nombre: n }));
         if (res.ok) {
           cx.flash({ tipo: 'exito', texto: `Successfully updated tags for ${id}.` });
           cx.ir(rutaDe(id, cx.servicio));

@@ -48,11 +48,11 @@ export const PREGUNTAS = [
     opciones: [
       '99.9 %, igual que un disco de computadora',
       '99 % durante el primer año',
-      '50 % si el objeto pesa más de 5 GB',
+      '99.99 % (4 nueves)',
       '99.999999999 % (11 nueves)'
     ],
     correcta: 3,
-    explicacion: 'S3 guarda copias en varias zonas y ofrece 11 nueves de durabilidad: perder un objeto es prácticamente imposible.'
+    explicacion: 'S3 guarda copias en varias zonas y ofrece 11 nueves de durabilidad: perder un objeto es prácticamente imposible. El 99.99 % es su disponibilidad (poder leerlo en este momento), no su durabilidad.'
   },
   {
     id: 'p03',
@@ -60,10 +60,10 @@ export const PREGUNTAS = [
     tema: 'Amazon S3',
     texto: 'Un alumno no puede crear el bucket “fotos” aunque nunca lo había usado. ¿Por qué?',
     opciones: [
-      'Los nombres de bucket son únicos en todo el mundo y alguien más ya lo tiene',
+      'Los nombres son únicos en todo el mundo y otra cuenta ya lo usa',
       'Los nombres de bucket deben llevar mayúsculas',
-      'Solo el usuario raíz puede crear buckets',
-      'Cada región admite un solo bucket'
+      'Solo el usuario raíz de la cuenta puede crear buckets nuevos',
+      'Cada región admite un solo bucket por cuenta y ya hay uno creado'
     ],
     correcta: 0,
     explicacion: 'Aunque el bucket vive en una región, su nombre es global: si otra cuenta de AWS ya usa “fotos”, nadie más puede usarlo.'
@@ -147,10 +147,10 @@ export const PREGUNTAS = [
       'Amazon EBS',
       'Amazon S3 Glacier',
       'AWS Snowball',
-      'Amazon CloudFront'
+      'Amazon EFS'
     ],
     correcta: 0,
-    explicacion: 'Amazon EBS da volúmenes de bloque, como discos duros, para las instancias EC2. Persisten aunque se detenga la instancia.'
+    explicacion: 'Amazon EBS da volúmenes de bloque, como discos duros, para las instancias EC2. Persisten aunque se detenga la instancia. EFS es una carpeta compartida por red, no el disco de arranque.'
   },
   {
     id: 'p10',
@@ -187,12 +187,12 @@ export const PREGUNTAS = [
     texto: 'Un volumen EBS creado en us-east-1a debe usarse en una instancia de us-east-1b. ¿Qué se hace?',
     opciones: [
       'Se conecta directo a la instancia, porque ambas están en la misma región',
-      'Se cambia su clase a Intelligent-Tiering',
+      'Se le activa Multi-Attach para usarlo desde las dos zonas',
       'Se le activa el versionado',
       'Se toma un snapshot y se crea un volumen nuevo en us-east-1b'
     ],
     correcta: 3,
-    explicacion: 'Un volumen EBS solo se conecta a instancias de su misma zona. Para moverlo se toma un snapshot y se crea un volumen en la otra zona.'
+    explicacion: 'Un volumen EBS solo se conecta a instancias de su misma zona. Para moverlo se toma un snapshot y se crea un volumen en la otra zona. Multi-Attach (solo io1 e io2) conecta un volumen a varias instancias, pero todas de la misma zona.'
   },
   {
     id: 'p13',
@@ -220,7 +220,7 @@ export const PREGUNTAS = [
       'S3 Transfer Acceleration'
     ],
     correcta: 0,
-    explicacion: 'Snowball Edge es un aparato físico que AWS envía: se llena con los datos y se regresa. Sirve cuando la red tardaría demasiado.'
+    explicacion: 'Snowball Edge, de la familia Snow, es un aparato físico que AWS envía: se llena con los datos y se regresa. Sirve cuando la red tardaría demasiado. Transfer Acceleration solo acelera la subida, pero sigue usando la misma conexión lenta. Ojo: desde noviembre de 2025 AWS solo vende Snowball Edge a quienes ya lo usaban y a los nuevos les sugiere DataSync o AWS Data Transfer Terminal; en el examen CLF-C02, la familia Snow sigue siendo la respuesta para este caso.'
   },
   {
     id: 'p15',
@@ -298,7 +298,7 @@ export const PREGUNTAS = [
     tema: 'Protección de los datos',
     texto: 'Un usuario puede crear buckets pero, al subir un archivo, recibe “Insufficient permission” por s3:PutObject. ¿Qué pasa?',
     opciones: [
-      'Le falta el permiso para guardar objetos: crear buckets y subir archivos son acciones distintas',
+      'Crear buckets y subir archivos son permisos distintos, y le falta el segundo',
       'El bucket está lleno y no admite más objetos',
       'Solo se pueden subir archivos a buckets de Glacier',
       'Hay que activar el versionado del bucket antes de poder subir cualquier archivo'

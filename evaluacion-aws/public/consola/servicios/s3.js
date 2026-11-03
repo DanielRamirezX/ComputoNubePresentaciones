@@ -32,7 +32,8 @@ import {
   crearCarpeta,
   eliminarObjetos,
   vaciarBucket,
-  eliminarBucket
+  eliminarBucket,
+  editarEtiquetasBucket
 } from '../modelo.js';
 
 const { h, icono } = ui;
@@ -378,6 +379,7 @@ function crearBucketPagina(cx) {
     etiquetas: [],
     cifrado: 'SSE-S3',
     bucketKey: true,
+    ...camposLlave(null),
     intento: false
   };
   let errorNombre = null;
@@ -532,7 +534,7 @@ function crearBucketPagina(cx) {
       info: 's3-cifrado',
       cx,
       descripcion: 'Server-side encryption is automatically applied to new objects stored in this bucket.',
-      cuerpo: camposCifrado(f, () => formulario.repintar())
+      cuerpo: camposCifrado(cx, f, () => formulario.repintar())
     }),
     ui.expandible({
       titulo: 'Advanced settings',
@@ -567,6 +569,7 @@ function crearBucketPagina(cx) {
         versionado: f.versionado,
         cifrado: f.cifrado,
         bucketKey: f.cifrado === 'DSSE-KMS' ? false : f.bucketKey,
+        llaveKms: llaveElegida(f),
         etiquetas
       })
     );
@@ -593,8 +596,35 @@ function crearBucketPagina(cx) {
   );
 }
 
-/** «Encryption type» y «Bucket Key» (los usa Create bucket y Edit default encryption). */
-function camposCifrado(f, repintar) {
+/* ---------------------------------------------------- la llave de KMS */
+
+/** Los campos de la llave en el formulario: elegir de la lista o escribir el ARN. */
+const camposLlave = (llaveKms) => ({ llaveModo: 'elegir', llaveKms: llaveKms ?? 'aws/s3', llaveArn: '' });
+
+/** Lo que se le pasa al modelo: 'aws/s3', el id de una llave o el ARN escrito. */
+const llaveElegida = (f) => (f.cifrado === 'SSE-S3' ? null : f.llaveModo === 'arn' ? f.llaveArn.trim() : f.llaveKms);
+
+/** La AWS managed key aws/s3 si ya existe (la pantalla no la crea). */
+const llaveAwsS3 = (estado) => (estado.kms?.llaves ?? []).find((k) => k.administradaPorAws && (k.aliases ?? []).includes('aws/s3')) ?? null;
+
+/** Las llaves que S3 acepta: aws/s3 y las propias habilitadas y simétricas de cifrado. */
+function opcionesLlaveS3(estado) {
+  const aws = llaveAwsS3(estado);
+  const propias = (estado.kms?.llaves ?? []).filter((k) => !k.administradaPorAws && k.estado === 'Enabled' && k.spec === 'SYMMETRIC_DEFAULT' && k.uso === 'ENCRYPT_DECRYPT');
+  return [
+    { valor: 'aws/s3', etiqueta: 'aws/s3', descripcion: aws?.arn ?? 'AWS managed key', etiquetaDerecha: 'AWS managed key' },
+    ...propias.map((k) => ({ valor: k.id, etiqueta: k.alias ?? k.id, descripcion: k.arn, etiquetaDerecha: 'Customer managed key' }))
+  ];
+}
+
+/** El ARN de la llave de un bucket, para Properties. */
+function textoLlaveS3(estado, c) {
+  if (!c.llaveKms) return llaveAwsS3(estado)?.arn ?? `arn:aws:kms:${REGION.codigo}:${estado.cuenta.id}:alias/aws/s3`;
+  return (estado.kms?.llaves ?? []).find((k) => k.id === c.llaveKms)?.arn ?? c.llaveKms;
+}
+
+/** «Encryption type», «AWS KMS key» y «Bucket Key» (los usa Create bucket y Edit default encryption). */
+function camposCifrado(cx, f, repintar) {
   return h(
     'div',
     { class: 'cx-form' },
@@ -617,8 +647,46 @@ function camposCifrado(f, repintar) {
     f.cifrado !== 'SSE-S3'
       ? ui.campo({
           etiqueta: 'AWS KMS key',
-          descripcion: 'Choose from your AWS KMS keys',
-          control: ui.selector({ opciones: [{ valor: 'aws/s3', etiqueta: 'aws/s3', descripcion: 'AWS managed key' }], valor: 'aws/s3' })
+          info: 's3-llave-kms',
+          cx,
+          control: h(
+            'div',
+            { class: 'cx-form' },
+            ui.radios({
+              valor: f.llaveModo,
+              alCambiar: (v) => {
+                f.llaveModo = v;
+                repintar();
+              },
+              opciones: [
+                { valor: 'elegir', etiqueta: 'Choose from your AWS KMS keys' },
+                { valor: 'arn', etiqueta: 'Enter AWS KMS key ARN' }
+              ]
+            }),
+            f.llaveModo === 'arn'
+              ? ui.campo({
+                  etiqueta: 'AWS KMS key ARN',
+                  restriccion: 'Format: arn:aws:kms:<region>:<account-ID>:key/<key-id>',
+                  control: ui.entrada({ valor: f.llaveArn, placeholder: `arn:aws:kms:${REGION.codigo}:${cx.estado.cuenta.id}:key/…`, etiquetaAccesible: 'AWS KMS key ARN', alCambiar: (v) => (f.llaveArn = v) })
+                })
+              : h(
+                  'div',
+                  { class: 'cx-fila-campos' },
+                  h(
+                    'div',
+                    { style: { flex: '1 1 320px' } },
+                    ui.selector({
+                      opciones: () => opcionesLlaveS3(cx.estado),
+                      valor: f.llaveKms,
+                      filtrar: true,
+                      filtroPlaceholder: 'Find AWS KMS keys',
+                      etiquetaAccesible: 'Available AWS KMS keys',
+                      alCambiar: (v) => (f.llaveKms = v)
+                    })
+                  ),
+                  ui.boton('Create a KMS key', { icono: 'external', alClic: () => cx.ir('kms/crear') })
+                )
+          )
         })
       : null,
     ui.campo({
@@ -671,6 +739,7 @@ function elegirBucketACopiar(cx, f, repintar) {
         f.versionado = b.versionado === 'Enabled';
         f.cifrado = b.cifrado.tipo;
         f.bucketKey = b.cifrado.bucketKey;
+        Object.assign(f, camposLlave(b.cifrado.llaveKms));
         f.etiquetas.splice(0, f.etiquetas.length, ...b.etiquetas.map((e) => ({ ...e })));
       }
       m.cerrar();
@@ -1202,7 +1271,7 @@ function pestanaPropiedades(cx, b) {
     ui.contenedor({
       titulo: 'Tags',
       contador: b.etiquetas.length,
-      acciones: ui.boton('Edit', { desactivado: true, titulo: 'No disponible en este simulador' }),
+      acciones: editar('etiquetas'),
       descripcion: 'You can use bucket tags to track storage costs and organize buckets.',
       sinRelleno: b.etiquetas.length > 0,
       cuerpo: b.etiquetas.length
@@ -1223,9 +1292,10 @@ function pestanaPropiedades(cx, b) {
       cuerpo: ui.pares(
         [
           { etiqueta: 'Encryption type', valor: TEXTO_CIFRADO[b.cifrado.tipo] },
+          b.cifrado.tipo !== 'SSE-S3' ? { etiqueta: 'Encryption key ARN', valor: ui.copiable(textoLlaveS3(cx.estado, b.cifrado)) } : null,
           { etiqueta: 'Bucket Key', valor: b.cifrado.tipo === 'DSSE-KMS' ? '–' : b.cifrado.bucketKey ? 'Enabled' : 'Disabled' }
-        ],
-        { columnas: 2 }
+        ].filter(Boolean),
+        { columnas: b.cifrado.tipo !== 'SSE-S3' ? 3 : 2 }
       )
     }),
     ui.contenedor({ titulo: 'Server access logging', acciones: ui.boton('Edit', { desactivado: true }), descripcion: 'Log requests for access to your bucket.', cuerpo: ui.pares([{ etiqueta: 'Server access logging', valor: 'Disabled' }], { columnas: 1 }) }),
@@ -1314,17 +1384,39 @@ function editarVersionadoPagina(cx, { nombre }) {
 function editarCifradoPagina(cx, { nombre }) {
   const b = bucketDe(cx.estado, nombre);
   if (!b) return sinBucket(cx, nombre);
-  const f = { cifrado: b.cifrado.tipo, bucketKey: b.cifrado.bucketKey };
-  const zona = ui.region(() => camposCifrado(f, () => zona.repintar()));
+  const f = { cifrado: b.cifrado.tipo, bucketKey: b.cifrado.bucketKey, ...camposLlave(b.cifrado.llaveKms) };
+  const zona = ui.region(() => camposCifrado(cx, f, () => zona.repintar()));
   return paginaEditar(cx, b, {
     titulo: 'Edit default encryption',
     pestana: 'propiedades',
     info: 's3-cifrado',
     contenido: ui.contenedor({ titulo: 'Default encryption', info: 's3-cifrado', cx, descripcion: 'Server-side encryption is automatically applied to new objects stored in this bucket.', cuerpo: zona }),
     guardar: () => {
-      const r = cx.hacer({ servicio: 'S3', accion: 'PutBucketEncryption', error: 'Failed to edit default encryption' }, (e) => editarCifrado(e, nombre, { tipo: f.cifrado, bucketKey: f.cifrado === 'DSSE-KMS' ? false : f.bucketKey }));
+      const r = cx.hacer({ servicio: 'S3', accion: 'PutBucketEncryption', error: 'Failed to edit default encryption' }, (e) => editarCifrado(e, nombre, { tipo: f.cifrado, bucketKey: f.cifrado === 'DSSE-KMS' ? false : f.bucketKey, llaveKms: llaveElegida(f) }));
       if (r.ok) {
         cx.flash({ tipo: 'exito', texto: 'Successfully edited default encryption.' });
+        irABucket(cx, nombre, 'propiedades');
+      }
+    }
+  });
+}
+
+function editarEtiquetasPagina(cx, { nombre }) {
+  const b = bucketDe(cx.estado, nombre);
+  if (!b) return sinBucket(cx, nombre);
+  const filas = b.etiquetas.map((e) => ({ llave: e.llave, valor: e.valor }));
+  return paginaEditar(cx, b, {
+    titulo: 'Edit bucket tags',
+    pestana: 'propiedades',
+    contenido: ui.contenedor({
+      titulo: 'Tags',
+      descripcion: 'You can use bucket tags to track storage costs and organize buckets.',
+      cuerpo: ui.editorEtiquetas({ filas })
+    }),
+    guardar: () => {
+      const r = cx.hacer({ servicio: 'S3', accion: 'PutBucketTagging', error: 'Failed to edit bucket tags' }, (e) => editarEtiquetasBucket(e, nombre, filas));
+      if (r.ok) {
+        cx.flash({ tipo: 'exito', texto: 'Successfully edited bucket tags.' });
         irABucket(cx, nombre, 'propiedades');
       }
     }
@@ -1496,6 +1588,7 @@ function editarBloqueoPagina(cx, { nombre }) {
       cx.confirmar({
         titulo: 'Edit Block public access (bucket settings)?',
         palabra: 'confirm',
+        etiquetaPalabra: h('span', {}, 'To confirm the settings, enter ', h('i', {}, 'confirm'), ' in the field.'),
         textoBoton: 'Confirm',
         contenido: [
           h('p', {}, 'Updating the Block Public Access settings for this bucket will affect this bucket and all objects within. This may result in some objects becoming public.'),
@@ -2089,6 +2182,7 @@ export default {
     'buckets/:nombre/subida': subida,
     'buckets/:nombre/versionado': editarVersionadoPagina,
     'buckets/:nombre/cifrado': editarCifradoPagina,
+    'buckets/:nombre/etiquetas': editarEtiquetasPagina,
     'buckets/:nombre/sitio-web': editarSitioPagina,
     'buckets/:nombre/bloqueo': editarBloqueoPagina,
     'buckets/:nombre/politica': editarPoliticaPagina,
@@ -2142,6 +2236,15 @@ export default {
         'El **cifrado** guarda tus archivos revueltos en los discos de AWS: si alguien se robara un disco, no podría leerlos.',
         ['**SSE-S3**: S3 maneja las llaves por ti. Es lo normal y no cuesta extra.', '**SSE-KMS**: las llaves viven en el servicio KMS y puedes controlar quién las usa.', '**DSSE-KMS**: dos capas de cifrado con KMS, para casos muy exigentes.'],
         'Para tus laboratorios basta **SSE-S3**.'
+      ]
+    },
+    's3-llave-kms': {
+      titulo: 'Llave de KMS del bucket',
+      texto: [
+        'Con SSE-KMS eliges **qué llave** cifra los objetos nuevos:',
+        ['**aws/s3**: la llave que AWS crea y administra para S3. No cuesta la llave, pero no decides quién la usa.', '**Una llave tuya** (customer managed key): la creas en KMS, decides en su política quién puede usarla y puedes activarle la rotación.'],
+        'Solo aparecen las llaves **simétricas** y **habilitadas** (Enabled). Si deshabilitas la llave, S3 ya no podrá guardar ni leer los objetos cifrados con ella.',
+        'También puedes pegar el **ARN** de la llave (`arn:aws:kms:us-east-1:…:key/…`).'
       ]
     },
     's3-ciclo': {

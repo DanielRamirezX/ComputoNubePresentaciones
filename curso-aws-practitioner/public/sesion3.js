@@ -61,7 +61,8 @@ export const SESION_3 = {
                   <article class="rol">${icono('flecha')}<h3>NAT Gateway</h3><p>Una salida solo de ida: lo privado sale a internet, pero nadie de afuera puede entrar.</p></article>
                   <article class="rol">${icono('escudo')}<h3>Grupos de seguridad y NACL</h3><p>Los guardias de cada casa y de cada calle (los viste en la sesión 2).</p></article>
                 </div>
-                ${recuadro('recuerda', 'Cada cuenta trae una <strong>VPC por omisión</strong> en cada región, lista para usarse: en ella lanzaste tu servidor de la sesión 1.')}`,
+                ${recuadro('recuerda', 'Cada cuenta trae una <strong>VPC por omisión</strong> en cada región, lista para usarse: en ella lanzaste tu servidor de la sesión 1.')}
+                ${recuadro('tecnico', '¿Quién habló con quién? Los <strong>VPC Flow Logs</strong> registran el tráfico IP que entra y sale de las interfaces de red de tu VPC. Sirven para auditar y para averiguar por qué algo no conecta.')}`,
               notas: 'La analogía del fraccionamiento se usa en todo el laboratorio: la VPC es el terreno, las subredes las calles y el Internet Gateway la puerta.'
             },
             {
@@ -93,7 +94,7 @@ export const SESION_3 = {
                   <div class="carrera__fila carrera__fila--propio"><span class="carrera__quien">Privada aislada</span><ol><li>Solo la ruta local</li><li>Bases de datos</li></ol><span class="carrera__tiempo">ni entra ni sale</span></div>
                 </div>
                 ${recuadro('examen', 'Patrón clásico: el <strong>servidor web</strong> en una subred <strong>pública</strong> y la <strong>base de datos</strong> en una subred <strong>privada</strong>. Para alta disponibilidad, se repite en <strong>dos zonas</strong>.')}`,
-              notas: 'Toda tabla de rutas trae la ruta "local": el tráfico dentro de la VPC siempre fluye entre subredes.'
+              notas: 'Toda tabla de rutas trae la ruta "local": dentro de la VPC siempre hay camino entre subredes (los grupos de seguridad y las NACL deciden si el tráfico pasa).'
             }
           ]
         },
@@ -143,7 +144,7 @@ export const SESION_3 = {
                   </table>
                 </div>
                 ${recuadro('examen', 'VPN y Direct Connect se confunden mucho. <strong>VPN</strong>: viaja cifrada por internet y se arma en minutos. <strong>Direct Connect</strong>: una conexión física privada que tarda semanas en instalarse, pero es estable y no toca internet.')}`,
-              notas: 'Una empresa puede usar VPN como respaldo de Direct Connect.'
+              notas: 'Una empresa puede usar VPN como respaldo de Direct Connect. Ojo: Direct Connect es privado, pero no cifra por omisión; si piden cifrado, se monta una VPN encima de la línea.'
             },
             {
               titulo: 'Llegar a servicios de AWS sin salir a internet',
@@ -151,7 +152,7 @@ export const SESION_3 = {
                 <p class="entrada">Una instancia en una subred privada no tiene salida a internet. ¿Cómo lee S3? Con un <strong>VPC endpoint</strong>: una entrada privada a un servicio de AWS.</p>
                 <div class="rejilla rejilla--3 valores">
                   <div>${icono('disco')}<strong>Gateway endpoint</strong><p>Para S3 y DynamoDB. Es una ruta más en la tabla de rutas, sin costo.</p></div>
-                  <div>${icono('red')}<strong>Interface endpoint</strong><p>Para casi todos los demás servicios, con AWS PrivateLink.</p></div>
+                  <div>${icono('red')}<strong>Interface endpoint</strong><p>Para muchos otros servicios, con AWS PrivateLink. Este sí cobra por hora.</p></div>
                   <div>${icono('escudo')}<strong>Más seguro</strong><p>El tráfico nunca sale de la red de AWS ni pasa por un NAT.</p></div>
                 </div>
                 ${nubi('En el laboratorio vas a ver el asistente de AWS proponiendo un endpoint de S3 para las subredes privadas.', 'nubi-feliz')}`,
@@ -195,12 +196,12 @@ export const SESION_3 = {
                       <tr><th scope="row">Ponderada (weighted)</th><td>A varios, en porcentajes (90&nbsp;% a la versión vieja, 10&nbsp;% a la nueva)</td></tr>
                       <tr><th scope="row">Por latencia</th><td>A la región que le responde más rápido</td></tr>
                       <tr><th scope="row">Conmutación por error (failover)</th><td>Al respaldo si el principal falla</td></tr>
-                      <tr><th scope="row">Por geolocalización</th><td>Según el país desde donde se conecta</td></tr>
+                      <tr><th scope="row">Por geolocalización</th><td>Según el país o el continente desde donde se conecta</td></tr>
                     </tbody>
                   </table>
                 </div>
                 ${recuadro('sabias', 'Se llama 53 porque el DNS usa el puerto 53. Y es de los pocos servicios de AWS con disponibilidad del 100&nbsp;% en su contrato de nivel de servicio.')}`,
-              notas: 'Route 53 y CloudFront son servicios globales: en la consola la región dice "Global". Lo verán en el laboratorio.'
+              notas: 'Route 53 y CloudFront son servicios globales: en la consola la región dice "Global". Lo verán en el laboratorio. Hay más políticas (geoproximidad, respuesta multivalor y basada en IP), pero las cinco de la tabla son las que más salen.'
             },
             {
               titulo: 'CloudFront y Global Accelerator',
@@ -208,10 +209,11 @@ export const SESION_3 = {
                 <div class="rejilla rejilla--3 valores">
                   <div>${icono('nube')}<strong>Amazon CloudFront</strong><p>Red de entrega de contenido (CDN): copia tus fotos, videos y páginas en <strong>ubicaciones de borde</strong> cerca de los usuarios.</p></div>
                   <div>${icono('cohete')}<strong>AWS Global Accelerator</strong><p>Lleva el tráfico por la red privada de AWS desde el borde hasta tu aplicación, con dos IP fijas. Sirve también para tráfico que no es web.</p></div>
-                  <div>${icono('escudo')}<strong>Protección en el borde</strong><p>CloudFront trabaja junto con AWS Shield y AWS WAF para frenar ataques antes de que lleguen a tus servidores.</p></div>
+                  <div>${icono('escudo')}<strong>Protección en el borde</strong><p><strong>AWS Shield Standard</strong> protege gratis a todos contra los ataques DDoS más comunes, y más aún a CloudFront y Route 53. Con <strong>AWS WAF</strong> filtras peticiones web maliciosas.</p></div>
                 </div>
+                ${recuadro('recuerda', 'Route 53 y CloudFront son <strong>globales</strong>: no eliges región para usarlos. La VPC, EC2 y RDS son <strong>regionales</strong>.')}
                 ${recuadro('examen', '<em>“Usuarios de todo el mundo ven lento el contenido estático”</em> → <strong>CloudFront</strong>. <em>“Mejorar la disponibilidad y el rendimiento de una aplicación TCP o UDP global, con IP fijas”</em> → <strong>Global Accelerator</strong>.')}`,
-              notas: 'Conecta con la sesión 1: las ubicaciones de borde son más numerosas que las regiones.'
+              notas: 'Conecta con la sesión 1: las ubicaciones de borde son más numerosas que las regiones. Shield Advanced sí cuesta: agrega protección extra y un equipo de respuesta de AWS disponible 24/7.'
             }
           ]
         },
@@ -661,7 +663,7 @@ export const SESION_3 = {
           fichas: [
             { texto: 'Un servidor web habla con la base de datos de su misma VPC', grupo: 'local', retro: 'Dentro de la VPC el tráfico siempre usa la ruta local.' },
             { texto: 'Clientes de internet entran a la tienda', grupo: 'igw', retro: 'Entrar desde internet solo es posible por un Internet Gateway.' },
-            { texto: 'Una base de datos privada descarga sus parches', grupo: 'nat', retro: 'El NAT Gateway deja salir lo privado sin que nadie de afuera pueda entrar.' },
+            { texto: 'Un servidor privado de reportes descarga sus parches de internet', grupo: 'nat', retro: 'El NAT Gateway deja salir lo privado sin que nadie de afuera pueda entrar.' },
             { texto: 'Una instancia privada lee archivos de S3 sin salir a internet', grupo: 'endpoint', retro: 'El gateway endpoint de S3 es una ruta privada al servicio.' },
             { texto: 'Dos subredes de la misma VPC intercambian datos', grupo: 'local', retro: 'Todas las subredes de una VPC se ven entre sí por la ruta local.' },
             { texto: 'Un servidor público responde a sus visitantes', grupo: 'igw', retro: 'La respuesta vuelve por el mismo Internet Gateway.' },
@@ -711,7 +713,7 @@ export const SESION_3 = {
                   <div class="repaso__capitulo"><span class="repaso__numero">1</span>${lista([
                     '<strong>VPC</strong>: red privada en una región. <strong>Subred</strong>: en una sola zona. <strong>CIDR</strong>: /16 grande, /24 mediana; 0.0.0.0/0 = todo internet.',
                     '<strong>Pública</strong> = ruta 0.0.0.0/0 → <strong>Internet Gateway</strong>. <strong>NAT Gateway</strong>: lo privado sale pero nadie entra.',
-                    'Web en pública, base de datos en privada, y todo repetido en <strong>dos zonas</strong>.'
+                    'Web en pública, base de datos en privada, y todo repetido en <strong>dos zonas</strong>. <strong>VPC Flow Logs</strong>: registran el tráfico de red.'
                   ])}</div>
                   <div class="repaso__capitulo"><span class="repaso__numero">2</span>${lista([
                     '<strong>VPC Peering</strong>: dos VPC. <strong>Transit Gateway</strong>: muchas VPC en un hub.',
@@ -720,7 +722,7 @@ export const SESION_3 = {
                   ])}</div>
                   <div class="repaso__capitulo"><span class="repaso__numero">3</span>${lista([
                     '<strong>Route 53</strong>: DNS, dominios, health checks y políticas (simple, ponderada, latencia, failover, geolocalización).',
-                    '<strong>CloudFront</strong>: CDN en ubicaciones de borde. <strong>Global Accelerator</strong>: red de AWS e IP fijas.',
+                    '<strong>CloudFront</strong>: CDN en ubicaciones de borde. <strong>Global Accelerator</strong>: red de AWS e IP fijas. <strong>Shield Standard</strong>: contra DDoS, gratis.',
                     'Globales: IAM, Route 53, CloudFront. Regionales: VPC, EC2, RDS.'
                   ])}</div>
                 </div>`,

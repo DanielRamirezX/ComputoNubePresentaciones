@@ -3,6 +3,8 @@
 // puntos del laboratorio casi nadie cumplió. Mismo umbral y mismos rangos que
 // la Ruta AWS: debajo de 60 % se pinta en rojo.
 
+import { datosAlumno } from '../public/labs/comun.js';
+
 export const APROBATORIO = 60;
 
 const RANGOS = [
@@ -88,6 +90,47 @@ export function resumirTeoria(entregas, banco) {
   };
 }
 
+const escaparRegex = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * El texto de un punto de la rúbrica sin lo que es de un solo alumno: su
+ * sufijo, su IP, su número de cuenta y su red (10.N.x.x) se cambian por un
+ * rótulo común. Sin esto, el panel mostraría los nombres del primer alumno
+ * que entregó («plantilla-web-a01799321») como si fueran el criterio de todos.
+ */
+export function textoComun(texto, entrega) {
+  let t = String(texto ?? '');
+  const d = datosAlumno(entrega?.identidad ?? { nombre: entrega?.nombre ?? '', matricula: entrega?.matricula ?? '' });
+  const cambiar = (valor, rotulo, bordes = false) => {
+    if (!valor) return;
+    const v = escaparRegex(String(valor));
+    t = t.replace(new RegExp(bordes ? `(?<![a-z0-9])${v}(?![a-z0-9])` : v, 'gi'), rotulo);
+  };
+  cambiar(d.cuentaId, '‹tu cuenta›');
+  cambiar(d.ipCasa, '‹tu IP›');
+  cambiar(`10.${d.octeto}.`, '10.‹N›.');
+  cambiar(d.sufijo, '‹tu sufijo›', true);
+  return t;
+}
+
+/**
+ * Un solo texto para todo el grupo a partir del de cada alumno (ya sin sus
+ * datos propios). Si aún difieren en palabras sueltas (los días de respaldo o
+ * el monto que le tocó a cada quien), esas palabras quedan como «‹varía›»; si
+ * difieren en la forma, gana el más repetido.
+ */
+export function textoDelGrupo(textos) {
+  const distintos = [...new Set(textos)];
+  if (distintos.length <= 1) return distintos[0] ?? '';
+  const partidos = distintos.map((t) => t.split(' '));
+  if (partidos.every((p) => p.length === partidos[0].length)) {
+    return partidos[0].map((palabra, i) => (partidos.every((p) => p[i] === palabra) ? palabra : '‹varía›')).join(' ');
+  }
+  const veces = new Map();
+  for (const t of textos) veces.set(t, (veces.get(t) ?? 0) + 1);
+  return [...veces.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+
 /**
  * La parte práctica: promedio por tarea y, por cada punto de la rúbrica, qué
  * porcentaje del grupo lo cumplió (de lo menos cumplido a lo más).
@@ -104,7 +147,8 @@ export function resumirPractica(entregas) {
       tareas.set(t.id, tarea);
       for (const c of t.checks ?? []) {
         const k = `${t.id}/${c.id}`;
-        const check = checks.get(k) ?? { tarea: t.id, tareaTitulo: t.titulo, ...(t.bono ? { bono: true } : {}), id: c.id, texto: c.texto, puntos: c.puntos, cumplidos: 0, n: 0 };
+        const check = checks.get(k) ?? { tarea: t.id, tareaTitulo: t.titulo, ...(t.bono ? { bono: true } : {}), id: c.id, textos: [], puntos: c.puntos, cumplidos: 0, n: 0 };
+        check.textos.push(textoComun(c.texto, e));
         check.n += 1;
         if (c.ok) check.cumplidos += 1;
         checks.set(k, check);
@@ -118,6 +162,8 @@ export function resumirPractica(entregas) {
       promedio: n ? Math.round((suma / n) * 10) / 10 : 0,
       porcentaje: pct(suma, t.puntos * n)
     })),
-    checks: [...checks.values()].map((c) => ({ ...c, porcentaje: pct(c.cumplidos, c.n) })).sort((a, b) => a.porcentaje - b.porcentaje)
+    checks: [...checks.values()]
+      .map(({ textos, ...c }) => ({ ...c, texto: textoDelGrupo(textos), porcentaje: pct(c.cumplidos, c.n) }))
+      .sort((a, b) => a.porcentaje - b.porcentaje)
   };
 }
