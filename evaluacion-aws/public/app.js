@@ -104,13 +104,14 @@ function barajar(n, texto) {
   return orden;
 }
 
-function aviso(texto, tipo = 'info') {
+/** Un globo que se quita solo. `ms`: cuánto dura (los textos largos necesitan más de 4 s). */
+function aviso(texto, tipo = 'info', ms = 4000) {
   const el = document.createElement('div');
   el.className = `aviso-flotante aviso-flotante--${tipo}`;
   el.setAttribute('role', 'status');
   el.textContent = texto;
   document.body.append(el);
-  setTimeout(() => el.remove(), 4000);
+  setTimeout(() => el.remove(), ms);
 }
 
 async function api(ruta, cuerpo) {
@@ -149,6 +150,50 @@ function copiarALaAntigua(texto) {
   document.execCommand('copy');
   area.remove();
   return Promise.resolve();
+}
+
+// Un archivo del simulador (una cuenta o un avance) de una hora de uso pesa
+// menos de 512 KB; uno mucho más grande no es nuestro.
+const LIMITE_ARCHIVO = 3 * 1024 * 1024;
+
+/** Baja un texto como archivo JSON a las descargas del alumno. */
+function descargarJson(nombre, texto) {
+  const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = nombre;
+  document.body.append(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/**
+ * Pide un archivo JSON. Devuelve { datos } con lo que trae, o null si el
+ * alumno cancela o el archivo no se puede leer (y entonces ya le avisó).
+ */
+function elegirJson() {
+  return new Promise((resolve) => {
+    const entrada = document.createElement('input');
+    entrada.type = 'file';
+    entrada.accept = '.json,application/json';
+    entrada.addEventListener('cancel', () => resolve(null));
+    entrada.addEventListener('change', async () => {
+      const archivo = entrada.files?.[0];
+      if (!archivo) return resolve(null);
+      if (archivo.size > LIMITE_ARCHIVO) {
+        aviso('Ese archivo es demasiado grande para ser del simulador.', 'error');
+        return resolve(null);
+      }
+      try {
+        resolve({ datos: JSON.parse(await archivo.text()) });
+      } catch {
+        aviso('No pude leer ese archivo: no es un JSON válido.', 'error');
+        resolve(null);
+      }
+    });
+    entrada.click();
+  });
 }
 
 /**
@@ -624,6 +669,11 @@ function vistaEvaluacion(ev) {
         else if (p.estado === 'abierta') {
           accion = `<a class="boton boton--primario" href="#/${ev.id}/${n}">${p.empezada ? 'Continuar' : 'Empezar'} ${laParte(ev, n)} ${icono('i-flecha')}</a>`;
         }
+        // Lo que lleva hecho en este equipo se lo puede llevar en un archivo,
+        // también con el laboratorio cerrado (ya no puede entrar a descargarlo).
+        if (n === 'practica' && !p.entrega && conArchivoAvance(ev) && leer(claveLab(ev.id), null)?.estado) {
+          accion += `<button class="boton boton--sutil" type="button" data-descargar-avance>${icono('i-descargar')}<span>Descargar mi avance</span></button>`;
+        }
         return `
           <section class="parte ${p.entrega ? 'parte--entregada' : p.estado === 'abierta' ? 'parte--abierta' : ''}" aria-labelledby="parte-${n}">
             <div class="parte__icono">${icono(n === 'teoria' ? 'i-libro' : 'i-consola')}</div>
@@ -665,6 +715,14 @@ function vistaEvaluacion(ev) {
           : ''
       }
     </main>`;
+
+  // «Descargar mi avance»: las partes se repintan con cada latido, así que el
+  // clic se atiende desde su contenedor.
+  document.getElementById('partes').addEventListener('click', (e) => {
+    if (!e.target.closest('[data-descargar-avance]')) return;
+    const enEquipo = leer(claveLab(ev.id), null);
+    if (enEquipo?.estado) descargarAvance(ev, enEquipo);
+  });
 
   let antes = JSON.stringify(ev);
   alLatido = () => {
@@ -1148,6 +1206,71 @@ function htmlANodo(html) {
 const claveLab = (evId) => `lab-${perfil.id}-${evId}`;
 const clavePanel = 'panel-plegado';
 
+/* -------------------------------------------- el avance, en un archivo */
+
+// En un laboratorio de sesión o una práctica integradora, el alumno se puede
+// llevar su avance en un archivo. Si la clase se acaba antes de terminar, la
+// siguiente vez lo carga y sigue donde se quedó, aunque sea otro equipo o el
+// servidor ya no tenga su copia (Render borra el disco cuando se duerme). Los
+// exámenes (el final y los de octubre) no lo ofrecen: se hacen de una sentada.
+const FORMATO_AVANCE = 'simulador-aws-avance';
+const conArchivoAvance = (ev) => ['laboratorio', 'practica'].includes(tipoDe(ev));
+
+const AVISO_AVANCE_DESCARGADO = 'Tu avance está en tus Descargas. Llévatelo: mándatelo por correo o súbelo a tu nube, y la próxima vez cárgalo con «Cargar un avance».';
+
+/** Baja el avance del laboratorio: la cuenta de la consola, con de qué laboratorio y de quién es. */
+function descargarAvance(ev, { estado, rev = 0 }, identidad = perfil) {
+  const d = new Date();
+  const dos = (n) => String(n).padStart(2, '0');
+  const sello = `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}-${dos(d.getHours())}${dos(d.getMinutes())}`;
+  descargarJson(
+    `avance-${ev.id}-${sello}.json`,
+    JSON.stringify({
+      formato: FORMATO_AVANCE,
+      version: 1,
+      evaluacion: ev.id,
+      titulo: ev.titulo,
+      guardado: d.toISOString(),
+      alumno: identidad.nombre ?? '',
+      matricula: identidad.matricula ?? '',
+      rev,
+      estado
+    })
+  );
+  aviso(AVISO_AVANCE_DESCARGADO, 'exito', 9000);
+}
+
+/**
+ * Lo que trae un archivo de avance, si sirve para este laboratorio y este
+ * alumno: { estado, rev, guardado }. Si no, { error } con la razón en palabras
+ * del alumno. `datos` son los datos del laboratorio (public/labs/comun.js): el
+ * número de cuenta sale de la matrícula, así que el avance de otra persona, o
+ * uno bajado con otros datos, no coincide. Y no serviría: las tareas piden los
+ * nombres y rangos de cada quien.
+ */
+function avanceDeArchivo(a, ev, datos) {
+  if (a?.formato === 'simulador-aws') return { error: 'Ese archivo es una cuenta de la consola libre, no el avance de este laboratorio. Busca el que empieza con «avance-».' };
+  if (a?.formato !== FORMATO_AVANCE) return { error: 'Ese archivo no es un avance del simulador. Usa el que bajaste con «Descargar mi avance».' };
+  if (a.evaluacion !== ev.id) return { error: `Ese avance es de «${a.titulo || a.evaluacion}». Aquí solo sirve uno de «${ev.titulo}».` };
+  const estado = cuentaDeArchivo(a.estado);
+  if (!estado) return { error: 'Ese archivo está incompleto o dañado. Vuelve a bajar tu avance en el equipo donde lo tenías.' };
+  if (String(estado.cuenta.id) !== String(datos.cuentaId)) {
+    const quien = [a.alumno, a.matricula].map((t) => String(t ?? '').trim()).filter(Boolean).join(' · ');
+    return { error: `Ese avance es de otra cuenta${quien ? ` (${quien})` : ''}. Solo sirve el tuyo, y con el mismo nombre y matrícula con que lo bajaste.` };
+  }
+  return { estado, rev: Number.isInteger(a.rev) && a.rev >= 0 ? a.rev : 0, guardado: Number.isFinite(Date.parse(a.guardado)) ? a.guardado : null };
+}
+
+/** Pide el archivo y devuelve el avance que trae; si no sirve, avisa por qué y devuelve null. */
+async function elegirAvance(ev, datos) {
+  const archivo = await elegirJson();
+  if (!archivo) return null;
+  const avance = avanceDeArchivo(archivo.datos, ev, datos);
+  if (!avance.error) return avance;
+  aviso(avance.error, 'error', 9000);
+  return null;
+}
+
 /* El panel de la derecha (instrucciones o ideas) se oculta para darle todo el
    ancho a la consola. Oculto, deja un asa angosta en el borde con un botón
    para desplegarlo y un acceso directo por pestaña. El atajo es Alt+P: la
@@ -1264,6 +1387,7 @@ function reglaEntrega(ev) {
 
 function instruccionesPractica(ev, LAB, labs) {
   const movil = matchMedia('(max-width: 760px)').matches;
+  const conAvance = conArchivoAvance(ev);
   app.innerHTML = `
     ${barra({ volver: { ruta: ev.id, texto: ev.titulo }, titulo: tituloParte(ev, 'practica') })}
     <main class="pagina pagina--angosta">
@@ -1275,14 +1399,33 @@ function instruccionesPractica(ev, LAB, labs) {
         <li>Junto a la consola tienes el <strong>caso</strong>, tus <strong>tareas</strong> con sus puntos y <strong>tus datos</strong> (tu sufijo, tu IP…). Son distintos a los de tu vecino.</li>
         <li>Tienes un máximo de <strong>${LAB.minutos || 60} minutos</strong>. El reloj solo avisa.</li>
         <li>Todo lo que haces se guarda solo, en este equipo y en el servidor.</li>
+        ${conAvance ? '<li>¿No terminas hoy? Antes de irte pulsa <strong>«Descargar mi avance»</strong>: te llevas un archivo y la próxima vez lo cargas para <strong>seguir donde te quedaste</strong>, aunque sea en otro equipo.</li>' : ''}
         ${tipoDe(ev) !== 'evaluacion' && LAB.pistas ? '<li>Cada tarea trae una pista <strong>«¿Dónde se hace?»</strong> por si no sabes por dónde empezar. Ábrela solo si la necesitas.</li>' : ''}
         ${ev.autorrevision ? '<li>Con <strong>«Revisar mi avance»</strong> ves qué llevas bien y qué te falta, sin entregar.</li>' : ''}
         ${ev.asistente ? '<li>Si te atoras, pregúntale al <strong>asistente</strong>: te ayuda a encontrar dónde está el problema, pero <strong>no te da la respuesta</strong>. Tu docente puede leer la conversación.</li>' : ''}
         <li>${reglaEntrega(ev)}</li>
       </ul>
       <button class="boton boton--primario boton--ancho" type="button" id="btn-empezar">Abrir la consola · arranca el reloj ${icono('i-flecha')}</button>
+      ${
+        conAvance
+          ? `<div class="trae-avance">
+              <p><strong>¿Ya lo habías empezado?</strong> Si la vez pasada bajaste tu avance, cárgalo y sigues donde te quedaste.</p>
+              <button class="boton" type="button" id="btn-cargar-avance">${icono('i-subir')}<span>Cargar mi avance</span></button>
+            </div>`
+          : ''
+      }
     </main>`;
   document.getElementById('btn-empezar').addEventListener('click', () => arrancarPractica(ev, LAB, labs));
+  // El avance se deja en este equipo como si se hubiera hecho aquí y el
+  // laboratorio arranca con él (la marca `cargado` le gana a la copia del servidor).
+  document.getElementById('btn-cargar-avance')?.addEventListener('click', async () => {
+    const avance = await elegirAvance(ev, labs.datosAlumno({ nombre: perfil.nombre, matricula: perfil.matricula }));
+    if (!avance) return;
+    if (!guardar(claveLab(ev.id), { estado: avance.estado, rev: avance.rev, hora: new Date().toISOString(), cargado: true })) {
+      return aviso('No pude guardar tu avance en este equipo. Revisa que el navegador no esté en modo privado.', 'error', 7000);
+    }
+    arrancarPractica(ev, LAB, labs);
+  });
   alLatido = (s) => {
     const p = s.evaluaciones.find((x) => x.id === ev.id)?.partes.practica;
     if (p && (p.estado !== 'abierta' || p.entrega)) pintar();
@@ -1371,11 +1514,18 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   // ¿Con qué cuenta se arranca? La más avanzada entre la de este equipo y la
   // copia del servidor (cuenta por número de cambios, no por reloj: los relojes
   // de dos equipos no coinciden). Sin ninguna, la cuenta inicial del laboratorio.
+  // Un avance recién cargado desde su archivo (`cargado`) gana siempre: el
+  // alumno lo eligió a propósito. Sube un cambio para quedar por encima de la
+  // copia del servidor y que esta se reemplace.
   const enEquipo = leer(clave, null);
   const enServidor = intento ? null : datosServidor.copia;
   let cuenta;
   let rev;
-  if (enEquipo?.estado && (!enServidor || (enEquipo.rev ?? 0) >= (enServidor.rev ?? 0))) {
+  if (enEquipo?.estado && enEquipo.cargado) {
+    cuenta = enEquipo.estado;
+    rev = Math.max(enEquipo.rev ?? 0, enServidor?.rev ?? 0) + 1;
+    aviso('Cargué tu avance: sigue donde te quedaste.', 'exito');
+  } else if (enEquipo?.estado && (!enServidor || (enEquipo.rev ?? 0) >= (enServidor.rev ?? 0))) {
     ({ estado: cuenta, rev = 0 } = enEquipo);
   } else if (enServidor?.estado) {
     cuenta = enServidor.estado;
@@ -1395,6 +1545,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   const totalBono = tareas.filter((t) => t.bono).reduce((s, t) => s + t.puntos, 0);
   const requeridas = tareas.filter((t) => !t.bono).length;
   const plegado = leer(clavePanel, false) === true;
+  const conAvance = conArchivoAvance(ev); // se puede llevar el avance en un archivo
   let pestana = 'tareas';
   let revision = null; // el último «Revisar mi avance»
 
@@ -1409,6 +1560,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
         <span class="reloj reloj--oscuro" id="reloj"></span>
         <div class="lab__acciones">
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-panel" aria-controls="panel" aria-expanded="${!plegado}" title="Atajo: ${ATAJO_PANEL}">${icono('i-panel')}<span>${plegado ? 'Mostrar' : 'Ocultar'} instrucciones</span></button>
+          ${conAvance ? `<button class="boton boton--oscuro boton--chico lab__solo-angosta" type="button" data-descargar-avance>${icono('i-descargar')}<span>Descargar mi avance</span></button>` : ''}
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-asistente" ${conAsistente ? '' : 'hidden'}>${icono('i-libro')}<span>Asistente</span></button>
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-revisar" ${autorrevision ? '' : 'hidden'}>${icono('i-lupa')}<span>Revisar mi avance</span></button>
           <button class="boton boton--primario boton--chico" type="button" id="btn-entregar">${intento ? 'Calificar mi intento' : 'Entregar laboratorio'}</button>
@@ -1417,7 +1569,9 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
       ${
         intento
           ? `<div class="aviso-intento">${icono('i-libro')}<span><strong>Intento de práctica:</strong> tu calificación es la de tu primera entrega y no cambia. Esta cuenta se guarda solo en este equipo.</span></div>`
-          : `<div class="aviso-cierre" id="aviso-cierre" hidden role="alert">${icono('i-alerta')} Tu docente cerró ${laParte(ev, 'practica')}. Tu avance quedó guardado; si no alcanzaste a entregar, avísale.</div>`
+          : `<div class="aviso-cierre" id="aviso-cierre" hidden role="alert">${icono('i-alerta')}<span>Tu docente cerró ${laParte(ev, 'practica')}. Tu avance quedó guardado; si no alcanzaste a entregar, avísale.${
+              conAvance ? ' Para seguir otro día, <strong>descarga tu avance antes de salir</strong>.' : ''
+            }</span>${conAvance ? `<button class="boton boton--chico" type="button" data-descargar-avance>${icono('i-descargar')}<span>Descargar mi avance</span></button>` : ''}</div>`
       }
       ${movil ? `<div class="aviso-movil" id="aviso-movil">${icono('i-alerta')}<span>Se recomienda una computadora para el laboratorio. Puedes seguir aquí: las instrucciones están debajo de la consola.</span><button class="boton boton--chico" type="button" id="btn-aviso-movil">Entendido</button></div>` : ''}
       <div class="lab__cuerpo">
@@ -1469,7 +1623,13 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
               </form>
             </section>
           </div>
-          <footer class="lab__pie">
+          <footer class="lab__pie ${conAvance ? 'lab__pie--avance' : ''}">
+            ${
+              conAvance
+                ? `<button type="button" class="boton boton--chico" data-descargar-avance title="Baja un archivo con lo que llevas, para seguir otro día o en otro equipo">${icono('i-descargar')}<span>Descargar mi avance</span></button>
+                   <button type="button" class="enlace-pie" id="btn-cargar-avance" title="Sigue con un avance que bajaste antes">Cargar un avance</button>`
+                : ''
+            }
             <button type="button" class="enlace-peligro" id="btn-reiniciar">Reiniciar mi cuenta</button>
           </footer>
         </aside>
@@ -1865,6 +2025,38 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
     aviso('Tu cuenta volvió a empezar.', 'info');
   });
 
+  /* ------------------------------------- el avance: llevárselo y traerlo */
+
+  // «Descargar mi avance» está en el pie del panel, en el aviso de cierre y,
+  // en pantalla angosta, en la barra de arriba.
+  lab.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-descargar-avance]')) return;
+    guardarEnEquipo();
+    descargarAvance(ev, { estado: cuenta, rev }, identidad);
+  });
+
+  $('btn-cargar-avance')?.addEventListener('click', async () => {
+    const avance = await elegirAvance(ev, datos);
+    if (!avance) return;
+    // Sin cambios todavía no hay nada que perder: no se pregunta.
+    const si =
+      rev === 0 ||
+      (await confirmar({
+        titulo: '¿Cargar este avance?',
+        texto: `<p>${avance.guardado ? `Es tu avance del <strong>${escapar(fechaHora(avance.guardado))}</strong>: reemplaza` : 'Reemplaza'} <strong>todo</strong> lo que tienes ahora en esta consola.</p><p>Si lo de ahora te importa, cancela y primero pulsa «Descargar mi avance».</p>`,
+        si: 'Sí, cargarlo',
+        no: 'Cancelar'
+      }));
+    if (!si) return;
+    // Queda por encima de lo de este equipo y de la copia del servidor.
+    rev = Math.max(rev, avance.rev);
+    alCambiar(avance.estado);
+    revision = null;
+    pintarRevision();
+    montar();
+    aviso('Cargué tu avance: sigue donde te quedaste.', 'exito');
+  });
+
   // En un intento ya hay entrega y no importa si la parte se cierra: nada que vigilar.
   if (!intento) alLatido = (s) => {
     const p = s.evaluaciones.find((x) => x.id === ev.id);
@@ -2209,9 +2401,6 @@ function seccionPractica(r) {
 
 const claveLibre = () => `libre-${perfil.id}`;
 const clavePanelLibre = 'panel-plegado-libre';
-// Una cuenta de una hora de uso pesa menos de 512 KB; un archivo mucho más
-// grande no es una cuenta del simulador.
-const LIMITE_ARCHIVO = 3 * 1024 * 1024;
 
 const cuantos = (x) => (Array.isArray(x) ? x.length : 0);
 
@@ -2506,39 +2695,24 @@ function cuentaDeArchivo(datos) {
 function descargarCuenta(cuenta) {
   const fecha = new Date().toLocaleDateString('en-CA');
   const texto = JSON.stringify({ formato: 'simulador-aws', version: 1, guardada: new Date().toISOString(), alumno: perfil.nombre, estado: cuenta }, null, 1);
-  const enlace = document.createElement('a');
-  enlace.href = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
-  enlace.download = `mi-cuenta-aws-${fecha}.json`;
-  document.body.append(enlace);
-  enlace.click();
-  enlace.remove();
-  setTimeout(() => URL.revokeObjectURL(enlace.href), 10000);
+  descargarJson(`mi-cuenta-aws-${fecha}.json`, texto);
 }
 
 /** Pide un archivo JSON y devuelve la cuenta que trae (o null si el alumno cancela o no sirve). */
-function elegirArchivoCuenta() {
-  return new Promise((resolve) => {
-    const entrada = document.createElement('input');
-    entrada.type = 'file';
-    entrada.accept = '.json,application/json';
-    entrada.addEventListener('change', async () => {
-      const archivo = entrada.files?.[0];
-      if (!archivo) return resolve(null);
-      if (archivo.size > LIMITE_ARCHIVO) {
-        aviso('Ese archivo es demasiado grande para ser una cuenta del simulador.', 'error');
-        return resolve(null);
-      }
-      try {
-        const cuenta = cuentaDeArchivo(JSON.parse(await archivo.text()));
-        if (!cuenta) aviso('Ese archivo no es una cuenta del simulador. Usa uno que hayas descargado con «Descargar mi cuenta».', 'error');
-        resolve(cuenta);
-      } catch {
-        aviso('No pude leer ese archivo: no es un JSON válido.', 'error');
-        resolve(null);
-      }
-    });
-    entrada.click();
-  });
+async function elegirArchivoCuenta() {
+  const archivo = await elegirJson();
+  if (!archivo) return null;
+  const cuenta = cuentaDeArchivo(archivo.datos);
+  if (!cuenta) {
+    aviso(
+      archivo.datos?.formato === FORMATO_AVANCE
+        ? 'Ese archivo es el avance de un laboratorio: se carga dentro de ese laboratorio, con «Cargar un avance».'
+        : 'Ese archivo no es una cuenta del simulador. Usa uno que hayas descargado con «Descargar mi cuenta».',
+      'error',
+      7000
+    );
+  }
+  return cuenta;
 }
 
 const confirmarCarga = () =>

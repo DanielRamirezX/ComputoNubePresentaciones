@@ -61,6 +61,22 @@ truena. En las tarjetas de los laboratorios de sesión y las prácticas, el
 alumno ve «vas en X de Y tareas» (solo si «Revisar mi avance» está prendido);
 la Ruta lo lee de `api/estado` (`partes.practica.avance`).
 
+**Si no terminan en clase, se llevan su avance.** En los laboratorios de sesión
+y las prácticas (no en el final ni en las evaluaciones de octubre), el alumno
+tiene **«Descargar mi avance»**: baja un archivo `avance-<id>-<fecha>-<hora>.json`
+con su cuenta de la consola. La siguiente vez pulsa **«Cargar mi avance»** (en
+la pantalla de «antes de empezar», o «Cargar un avance» al pie del panel de
+instrucciones) y sigue donde se quedó, aunque sea en otro equipo o Render haya
+borrado el disco. El botón de descarga está al pie del panel, en el aviso rojo
+que sale cuando cierras el laboratorio y en la página del laboratorio (también
+cerrado, mientras el avance siga en ese equipo). Todo ocurre en el navegador
+(`public/app.js`, «el avance, en un archivo»): el servidor solo recibe la cuenta
+cargada como una copia más. El archivo solo sirve para **ese** laboratorio y
+para **ese** alumno: el número de cuenta sale de su matrícula, igual que los
+datos de sus tareas, así que el avance de un compañero se rechaza. Pídeles que
+se lo manden por correo o lo suban a su nube: la carpeta de Descargas de un
+equipo del salón no es de fiar.
+
 En el panel, el selector agrupa por tipo y trae **«Resumen del simulador»**:
 todos los laboratorios, prácticas y el final en una tabla (abierto o cerrado,
 cuántos trabajan ahora, empezaron · en curso · entregaron y el promedio). «Ver»

@@ -1290,7 +1290,8 @@ function cajaSimulador({ lab, minutos, nota, tareas, boton }) {
       ${
         EN_PLATAFORMA
           ? `<p class="simulador-caja__avance" data-avance-simulador role="status" aria-live="polite">Buscando tu avance en el simulador…</p>
-             <a class="boton boton--primario" href="${SIMULADOR}#/${encodeURIComponent(lab)}" target="_blank" rel="noopener">${boton} →</a>`
+             <a class="boton boton--primario" href="${SIMULADOR}#/${encodeURIComponent(lab)}" target="_blank" rel="noopener">${boton} →</a>
+             <p class="simulador-caja__nota">¿No terminas en clase? Allá pulsa <strong>«Descargar mi avance»</strong>: te llevas un archivo y la próxima vez lo cargas para seguir donde te quedaste, sin empezar de cero.</p>`
           : '<p class="sutil">El simulador se abre desde la plataforma de la materia (Simulador AWS). Aquí, con el curso suelto, no hay liga.</p>'
       }
     </section>`;

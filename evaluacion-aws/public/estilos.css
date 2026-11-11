@@ -466,6 +466,10 @@ a.idea:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--nar
 
 .reglas { display: grid; gap: 10px; margin: 0 0 24px; padding: 20px 20px 20px 40px; }
 
+/* Antes de empezar un laboratorio: «¿ya lo habías empezado? Carga tu avance». */
+.trae-avance { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-top: 18px; padding: 14px 16px; border: 2px dashed var(--linea); border-radius: 12px; }
+.trae-avance p { flex: 1; min-width: 220px; margin: 0; }
+
 /* ------------------------------------------------------------------ reloj */
 
 .reloj {
@@ -492,6 +496,12 @@ a.idea:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--nar
   border-bottom: 2px solid var(--rojo);
   color: var(--rojo-texto);
   font-weight: 700;
+}
+.aviso-cierre > span { flex: 1; min-width: 0; }
+.aviso-cierre .boton { flex: none; }
+@media (max-width: 640px) {
+  .aviso-cierre { flex-wrap: wrap; }
+  .aviso-cierre > span { flex-basis: 70%; }
 }
 
 /* Intento de práctica: no es un error, solo recuerda que la calificación no cambia. */
@@ -824,6 +834,10 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
 .lab__guardado--bien::before { content: "● "; color: #4ade80; }
 .lab__guardado--mal { color: #ffb4a8; font-weight: 700; }
 .lab__acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+/* «Descargar mi avance» vive en el pie del panel; en pantalla angosta el panel
+   queda hasta abajo de la página, así que ahí el botón sube a la barra (toma el
+   lugar de «Ocultar instrucciones», que en angosto no existe). */
+.lab__solo-angosta { display: none; }
 .reloj--oscuro { background: var(--marino-3); }
 
 .aviso-movil { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 14px; background: var(--ambar-suave); color: var(--tinta); font-size: .93rem; }
@@ -911,6 +925,10 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
 .lab__caso { line-height: 1.55; }
 .lab__pie { padding: 8px 16px; border-top: 1px solid var(--linea); text-align: right; }
 .enlace-peligro { padding: 6px 4px; border: 0; background: none; color: var(--rojo-texto); font-size: .86rem; text-decoration: underline; }
+/* Con «Descargar mi avance» y «Cargar un avance»: a la izquierda lo del avance, a la derecha reiniciar. */
+.lab__pie--avance { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; text-align: left; }
+.lab__pie--avance .enlace-peligro { margin-left: auto; }
+.enlace-pie { padding: 6px 4px; border: 0; background: none; color: var(--tinta); font-size: .86rem; text-decoration: underline; }
 
 .tareas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin: 0; padding: 0; list-style: none; }
 .tarea, .lab__contenido > section { min-width: 0; }
@@ -1009,6 +1027,7 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
   .lab__contenido { overflow: visible; }
   /* Aquí el panel va debajo de la consola: no hay nada que ocultar. */
   #btn-panel, .lab__plegar, .lab--plegado .lab__asa { display: none; }
+  .lab__solo-angosta { display: inline-flex; }
   .lab__panel--entra { animation: none; }
 }
 

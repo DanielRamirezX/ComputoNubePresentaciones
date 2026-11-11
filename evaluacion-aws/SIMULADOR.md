@@ -611,6 +611,28 @@ El **examen final** (`final`) tiene dos partes:
 - **Práctica:** un caso integrador nuevo de 60 minutos, distinto a los cinco
   anteriores.
 
+### 6.5 El avance en un archivo (10 de noviembre de 2026)
+
+El docente pidió que quien no termine en clase no empiece de cero. En los tipos
+`laboratorio` y `practica` (no en `final` ni `evaluacion`) el alumno baja su
+avance y lo vuelve a cargar, en el mismo equipo o en otro:
+
+```js
+{ formato: 'simulador-aws-avance', version: 1, evaluacion: 'practica-1', titulo,
+  guardado: '<ISO>', alumno, matricula, rev, estado /* la cuenta de la consola */ }
+```
+
+- Todo ocurre en `public/app.js` («el avance, en un archivo»). El servidor no
+  cambia: la cuenta cargada le llega por `api/practica/guardar` como una copia
+  más, con un `rev` mayor.
+- Al cargar se exige `evaluacion === ev.id` y `estado.cuenta.id ===
+  datosAlumno(identidad).cuentaId`: el avance de otro laboratorio o de otra
+  persona se rechaza (sus tareas piden otros nombres y rangos).
+- Un avance cargado antes de empezar se deja en `localStorage` con
+  `cargado: true`; esa marca le gana a la copia del servidor al arrancar.
+- Retomar días después no cambia la calificación: las soluciones de los ocho
+  laboratorios dan 100 con el reloj adelantado 2, 7 y 21 días.
+
 ## 7. Verificación
 
 - `evaluacion-aws`: `npm run verificar` corre las pruebas del modelo, las rúbricas

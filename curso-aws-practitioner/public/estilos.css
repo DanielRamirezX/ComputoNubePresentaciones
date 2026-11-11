@@ -2417,6 +2417,7 @@ kbd {
 .simulador-caja__avance[data-tono="hecho"] { border-color: var(--green); background: var(--green-soft); color: var(--green-text); }
 .simulador-caja__avance[data-tono="curso"] { border-color: var(--blue); color: var(--blue-text); }
 .simulador-caja__avance[data-tono="espera"] { color: var(--muted); }
+.simulador-caja__nota { color: var(--muted); font-size: .9rem; }
 
 .lab-referencia { justify-self: start; }
 
