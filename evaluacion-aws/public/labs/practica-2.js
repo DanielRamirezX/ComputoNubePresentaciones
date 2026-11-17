@@ -15,6 +15,7 @@
 // para pasar a Glacier y el tamaño del disco salen de su octeto.
 
 import { anotar, avanzar, crearGrupoSeguridad, crearBucket, crearLlaveAcceso, crearUsuario, crearVpcCompleta, cuentaNueva, lanzarInstancias, reloj, subirObjetos } from '../consola/modelo.js';
+import { esSubredPublica } from '../consola/red.js';
 import { c, scriptApache, vinetas } from './util.js';
 
 export function datosLab(d) {
@@ -259,5 +260,167 @@ export const LAB = {
           'La rotación usa una función de Lambda que cambia la contraseña. En Secrets Manager → tu secreto → pestaña Rotation → Edit rotation: activa «Automatic rotation», pon el calendario (por ejemplo cada 30 días) y en «Rotation function» elige «Create a new Lambda function» (o una que ya hayas creado en Lambda).'
       }
     ];
+  },
+
+  // El diagrama del modal «Arquitectura» (SIMULADOR.md §6.6). Aquí no se
+  // construye una red: la cuenta ya trae la VPC, el servidor, el bucket y los
+  // usuarios. Lo que se marca es lo que el alumno agrega o arregla: personas y
+  // MFA (izquierda), la base en la red (en medio), los datos y su llave
+  // (derecha) y el registro de auditoría (abajo). Las flechas «cifra» salen de
+  // la llave de la clínica hacia todo lo que guarda datos de pacientes.
+  arquitectura(datos) {
+    const x = datosLab(datos);
+    const igual = (a, b) => String(a ?? '').toLowerCase() === String(b ?? '').toLowerCase();
+
+    // IAM (la cuenta inicial trae recepcion, luis-sistemas y app-servidor; ningún grupo ni rol).
+    const usuarios = (e) => e.iam?.usuarios ?? [];
+    const usuario = (e, nombre) => usuarios(e).find((u) => igual(u.nombre, nombre)) ?? null;
+    const activas = (u) => (u?.llavesAcceso ?? []).filter((k) => k.estado === 'Active');
+    const gruposAuditoria = (e) => (e.iam?.grupos ?? []).filter((g) => igual(g.nombre, x.grupoAuditoria) || (g.politicas ?? []).includes(x.politicaAuditoria));
+    const iniciales = [x.compartido, x.admin, x.usuarioApp];
+    const auditora = (e) => {
+      const grupos = gruposAuditoria(e).map((g) => g.nombre);
+      return usuarios(e).some((u) => !iniciales.some((n) => igual(n, u.nombre)) && (igual(u.nombre, x.auditora) || (u.grupos ?? []).some((g) => grupos.includes(g))));
+    };
+
+    // El servidor y la red que ya existen.
+    const app = (e) => (e.instancias ?? []).find((i) => i.nombre === x.app && !['shutting-down', 'terminated'].includes(i.estado)) ?? null;
+    const vpcs = (e) => new Set((e.vpcs ?? []).filter((v) => !v.porDefecto && v.cidr === x.vpcCidr).map((v) => v.id));
+    const cubre = (r, puerto) => r.protocolo === '-1' || (r.protocolo === 'tcp' && r.desde <= puerto && puerto <= r.hasta);
+    const sshAlMundo = (e, i) =>
+      (e.gruposSeguridad ?? []).some((g) => (i.gruposSeguridad ?? []).includes(g.id) && (g.entrada ?? []).some((r) => cubre(r, 22) && ['0.0.0.0/0', '::/0'].includes(r.origen)));
+
+    // KMS: las llaves propias (las aws/… las crea AWS sola).
+    const propias = (e) => (e.kms?.llaves ?? []).filter((k) => !k.administradaPorAws && k.estado !== 'PendingDeletion');
+
+    // S3: el bucket de expedientes ya existe; se mira lo que el alumno le arregla.
+    const expedientes = (e) => (e.buckets ?? []).find((b) => b.nombre === x.bucket) ?? null;
+    const bloqueado = (b) => Boolean(b) && Object.values(b.bloqueoPublico ?? {}).length > 0 && Object.values(b.bloqueoPublico ?? {}).every(Boolean);
+    const GLACIER = ['GLACIER_IR', 'GLACIER', 'DEEP_ARCHIVE'];
+
+    // RDS: cualquier base (instancia o clúster) que no sea réplica ni se esté borrando.
+    const fuera = (o) => ['deleting', 'deleted'].includes(o.estado);
+    const bases = (e) => [
+      ...(e.rds?.instancias ?? []).filter((b) => b.rol !== 'replica' && !b.clusterId && !fuera(b)),
+      ...(e.rds?.clusteres ?? []).filter((b) => !fuera(b) && !b.expres)
+    ];
+
+    // Secrets Manager: un secreto con credenciales de base.
+    const secretos = (e) => (e.secretos?.secretos ?? []).filter((s) => !s.borradoEn && (s.tipo === 'rds' || s.tipo === 'otra-base' || s.base || s.administradoPor === 'rds'));
+
+    // CloudTrail.
+    const trails = (e) => e.cloudtrail?.trails ?? [];
+
+    return {
+      titulo: 'La Clínica San Rafael en AWS',
+      objetivo: 'Una cuenta lista para la auditoría: cada quien entra con lo justo y con MFA, todo lo que guarda datos de pacientes va cifrado con la llave de la clínica, nada privado queda abierto a internet y queda registro de quién hizo qué.',
+      columnas: 10,
+      filas: 7.35,
+      piezas: [
+        // Contenedores: la cuenta, las personas (IAM es de toda la cuenta), la red y la auditoría.
+        { id: 'cuenta', tipo: 'nube', etiqueta: 'Cuenta de la clínica', detalle: 'N. Virginia · us-east-1', col: 0.05, fila: 1, ancho: 9.85, alto: 6.25 },
+        { id: 'iam', tipo: 'grupo', etiqueta: 'Personas y permisos', detalle: 'IAM', en: 'cuenta', col: 0.2, fila: 1.35, ancho: 2.6, alto: 5.75 },
+        { id: 'vpc', tipo: 'vpc', etiqueta: x.vpcNombre, detalle: x.vpcCidr, en: 'cuenta', col: 3.15, fila: 1.35, ancho: 4.05, alto: 3.9 },
+        { id: 'publica', tipo: 'subred-publica', etiqueta: 'Subred pública', en: 'vpc', col: 3.3, fila: 1.7, ancho: 3.75, alto: 1.5 },
+        { id: 'privadas', tipo: 'subred-privada', etiqueta: 'Subredes privadas', en: 'vpc', col: 3.3, fila: 3.6, ancho: 3.75, alto: 1.5,
+          tarea: 'base', checks: ['subredes'],
+          hecho: (e) => {
+            const ids = vpcs(e);
+            return (e.rds?.gruposSubredes ?? []).some((g) => ids.has(g.vpcId) && (g.subredes ?? []).length > 0 && (g.subredes ?? []).every((id) => !esSubredPublica(e, id)));
+          } },
+        { id: 'registro', tipo: 'grupo', etiqueta: 'Registro de auditoría', en: 'cuenta', col: 3.15, fila: 5.6, ancho: 4.05, alto: 1.5 },
+
+        // Afuera: los pacientes usan el portal.
+        { id: 'pacientes', tipo: 'usuarios', etiqueta: 'Pacientes', detalle: 'portal de citas', col: 4.75, fila: 0 },
+
+        // Personas y permisos.
+        { id: 'llaves', tipo: 'iam-usuario', etiqueta: 'Sin llaves de acceso', detalle: x.usuarioApp, en: 'iam', col: 0.35, fila: 2.05,
+          tarea: 'servidor', checks: ['llaves'],
+          hecho: (e) => Boolean(e.iam) && !activas(usuario(e, x.usuarioApp)).length },
+        { id: 'rol', tipo: 'iam-rol', etiqueta: 'Rol del servidor', detalle: x.rol, en: 'iam', col: 1.6, fila: 2.05,
+          tarea: 'servidor', checks: ['rol'],
+          hecho: (e) => (e.iam?.roles ?? []).some((r) => String(r.servicio ?? '').includes('ec2') || igual(r.nombre, x.rol)) },
+        { id: 'recepcion', tipo: 'iam-usuario', etiqueta: 'Sin cuenta compartida', detalle: `${x.compartido}: fuera`, en: 'iam', col: 0.35, fila: 3.35,
+          tarea: 'personas', checks: ['recepcion'],
+          hecho: (e) => {
+            if (!e.iam) return false;
+            const r = usuario(e, x.compartido);
+            return !r || (!(r.politicas ?? []).length && !(r.grupos ?? []).length);
+          } },
+        { id: 'luis', tipo: 'iam-usuario', etiqueta: 'Encargado de sistemas', detalle: x.admin, en: 'iam', col: 1.6, fila: 3.35 },
+        { id: 'mfa-raiz', tipo: 'mfa', etiqueta: 'MFA de la raíz', detalle: 'cuenta raíz', en: 'iam', col: 0.35, fila: 4.65,
+          tarea: 'mfa', checks: ['raiz'], hecho: (e) => Boolean(e.iam?.raizMfa) },
+        { id: 'mfa-personas', tipo: 'mfa', etiqueta: 'MFA de cada persona', detalle: 'luis y paola', en: 'iam', col: 1.6, fila: 4.65,
+          tarea: 'mfa', checks: ['usuarios'], hecho: (e) => usuarios(e).some((u) => u.consola && (u.mfa ?? []).length > 0) },
+        { id: 'grupo-auditoria', tipo: 'iam-grupo', etiqueta: 'Grupo auditoría', detalle: x.grupoAuditoria, en: 'iam', col: 0.35, fila: 5.95,
+          tarea: 'personas', checks: ['grupo'], hecho: (e) => gruposAuditoria(e).length > 0 },
+        { id: 'auditora', tipo: 'iam-usuario', etiqueta: 'Auditora', detalle: x.auditora, en: 'iam', col: 1.6, fila: 5.95,
+          tarea: 'personas', checks: ['paola'], hecho: auditora },
+
+        // La red: el portal (ya existe), su disco nuevo y la base privada.
+        { id: 'app', tipo: 'ec2', etiqueta: 'Portal de citas', detalle: x.app, en: 'publica', col: 4.75, fila: 2.05 },
+        { id: 'disco', tipo: 'ebs', etiqueta: 'Disco de estudios', detalle: `${x.volumenGib} GiB, cifrado`, en: 'publica', col: 5.95, fila: 2.05,
+          tarea: 'servidor', checks: ['disco'],
+          hecho: (e) => { const i = app(e); return Boolean(i) && (e.volumenes ?? []).some((v) => !v.raiz && v.instanciaId === i.id && v.estado === 'in-use'); } },
+        { id: 'base', tipo: 'rds', etiqueta: 'Base de citas', detalle: x.db, en: 'privadas', col: 4.75, fila: 3.95,
+          tarea: 'base', checks: ['existe', 'privada', 'proteccion'], hecho: (e) => bases(e).length > 0 },
+
+        // La auditoría.
+        { id: 'trail', tipo: 'cloudtrail', etiqueta: 'Trail de auditoría', detalle: x.trail, en: 'registro', col: 4.75, fila: 5.95,
+          tarea: 'auditoria', checks: ['trail', 'validacion'], hecho: (e) => trails(e).length > 0 },
+        { id: 'logs', tipo: 's3', etiqueta: 'Bucket de registros', detalle: 'aparte y privado', en: 'registro', col: 5.95, fila: 5.95,
+          tarea: 'auditoria', checks: ['bucket'],
+          hecho: (e) => trails(e).some((t) => t.bucket && t.bucket !== x.bucket && (e.buckets ?? []).some((b) => b.nombre === t.bucket)) },
+
+        // Los datos y su llave.
+        { id: 'expedientes', tipo: 's3', etiqueta: 'Expedientes privados', detalle: x.bucket, en: 'cuenta', col: 7.45, fila: 2.05,
+          tarea: 'expedientes', checks: ['bloqueo', 'versionado'],
+          hecho: (e) => { const b = expedientes(e); return bloqueado(b) || b?.versionado === 'Enabled'; } },
+        { id: 'glacier', tipo: 'glacier', etiqueta: 'Archivo Glacier', detalle: `a los ${x.diasGlacier} días`, en: 'cuenta', col: 8.75, fila: 2.05,
+          tarea: 'expedientes', checks: ['ciclo'],
+          hecho: (e) => (expedientes(e)?.ciclo ?? []).some((r) => r.estado === 'Enabled' && (r.transiciones ?? []).some((t) => GLACIER.includes(t.clase))) },
+        { id: 'llave', tipo: 'kms', etiqueta: 'Llave de la clínica', detalle: `alias/${x.alias}`, en: 'cuenta', col: 7.45, fila: 3.95,
+          tarea: 'llave', checks: ['existe', 'rotacion'], hecho: (e) => propias(e).length > 0 },
+        { id: 'permisos', tipo: 'politica', etiqueta: 'Quién la usa', detalle: 'luis administra', en: 'cuenta', col: 8.75, fila: 3.95,
+          tarea: 'llave', checks: ['permisos'],
+          hecho: (e) => propias(e).some((k) => (k.administradores ?? []).some((a) => String(a).endsWith(`:user/${x.admin}`)) || (k.usuarios ?? []).some((a) => String(a).includes(':role/'))) },
+        { id: 'secreto', tipo: 'secreto', etiqueta: 'Contraseña de la base', detalle: x.secreto, en: 'cuenta', col: 7.45, fila: 5.95,
+          tarea: 'secreto', checks: ['existe'], hecho: (e) => secretos(e).length > 0 },
+        { id: 'rotacion', tipo: 'lambda', etiqueta: 'Rotación automática', detalle: 'cada 30 días', en: 'cuenta', col: 8.75, fila: 5.95,
+          tarea: 'rotacion', bono: true, checks: ['activa', 'cada'], hecho: (e) => secretos(e).some((s) => s.rotacion?.activa) }
+      ],
+      flechas: [
+        // Los pacientes entran al portal por la web; SSH ya no está abierto al mundo.
+        { de: 'pacientes', a: 'app', texto: '80/443, sin SSH',
+          tarea: 'servidor', checks: ['ssh'], hecho: (e) => { const i = app(e); return Boolean(i) && !sshAlMundo(e, i); } },
+        { de: 'rol', a: 'app', texto: 'le da permisos',
+          tarea: 'servidor', checks: ['rol'], hecho: (e) => Boolean(app(e)?.rolIam) },
+        { de: 'app', a: 'disco', tipo: 'apoyo', texto: 'conectado' },
+        // Solo el grupo del portal llega al puerto de la base.
+        { de: 'app', a: 'base', texto: 'solo desde la app',
+          tarea: 'base', checks: ['acceso'],
+          // Una regla de otro grupo cuyo origen es el grupo del portal (el grupo
+          // «default» de la VPC ya se deja entrar a sí mismo: eso no cuenta).
+          hecho: (e) => {
+            const delPortal = new Set(app(e)?.gruposSeguridad ?? []);
+            const puertos = [3306, 5432, ...bases(e).map((b) => b.puerto).filter(Boolean)];
+            return (e.gruposSeguridad ?? []).some((g) => (g.entrada ?? []).some((r) => r.origen !== g.id && delPortal.has(r.origen) && puertos.some((p) => cubre(r, p))));
+          } },
+        // La llave de la clínica cifra todo lo que guarda datos de pacientes.
+        { de: 'llave', a: 'expedientes', tipo: 'apoyo', texto: 'cifra (SSE-KMS)',
+          tarea: 'expedientes', checks: ['cifrado'], hecho: (e) => ['SSE-KMS', 'DSSE-KMS'].includes(expedientes(e)?.cifrado?.tipo) },
+        { de: 'llave', a: 'base', tipo: 'apoyo', texto: 'cifra',
+          tarea: 'base', checks: ['cifrada'], hecho: (e) => bases(e).some((b) => b.cifrada) },
+        { de: 'llave', a: 'secreto', tipo: 'apoyo', texto: 'cifra',
+          tarea: 'secreto', checks: ['llave'], hecho: (e) => { const ids = new Set(propias(e).map((k) => k.id)); return secretos(e).some((s) => ids.has(s.llaveKms)); } },
+        { de: 'permisos', a: 'llave', tipo: 'apoyo' },
+        { de: 'expedientes', a: 'glacier', tipo: 'apoyo', texto: 'ciclo de vida' },
+        { de: 'rotacion', a: 'secreto', tipo: 'apoyo', texto: 'rota' },
+        // La auditoría: Paola revisa lo que el trail guarda.
+        { de: 'grupo-auditoria', a: 'auditora', tipo: 'apoyo', texto: 'hereda' },
+        { de: 'auditora', a: 'trail', tipo: 'apoyo', texto: 'revisa' },
+        { de: 'trail', a: 'logs', tipo: 'apoyo', texto: 'guarda' }
+      ]
+    };
   }
 };

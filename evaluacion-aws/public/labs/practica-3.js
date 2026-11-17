@@ -15,7 +15,7 @@
 // Datos distintos por alumno: el bucket y el dominio llevan su sufijo; los
 // días de retención de la cola y el umbral de la alarma salen de su octeto.
 
-import { anotar, crearBucket, cuentaNueva, editarPolitica, editarSitioWeb, subirObjetos } from '../consola/modelo.js';
+import { anotar, crearBucket, cuentaNueva, editarPolitica, editarSitioWeb, politicaEsPublica, subirObjetos } from '../consola/modelo.js';
 import { c, vinetas } from './util.js';
 
 export function datosLab(d) {
@@ -269,5 +269,130 @@ export const LAB = {
           'Primero crea la cola jacaranda-pedidos-dlq (Standard, como la original). Luego, en SQS → jacaranda-pedidos → Edit → Dead-letter queue: Enabled, elige la cola nueva y escribe Maximum receives.'
       }
     ];
+  },
+
+  // El diagrama del modal «Arquitectura» (SIMULADOR.md §6.6). Sin red: es un
+  // flujo de eventos en tres renglones. Arriba, el visitante llega por el
+  // dominio y CloudFront al sitio en S3; en medio, la compra entra a la cola,
+  // la función la procesa y guarda el boleto; abajo, lo que vigila y avisa
+  // (la alarma, el tema y sus dos destinos) y la regla programada.
+  //  - `hecho(e)` reconoce cada recurso por lo que es (la cola por su nombre o
+  //    su .fifo, la función por su nombre o por leer la cola…) y tolera una
+  //    cuenta sin las colecciones de las extensiones (`e.sqs?.… ?? []`).
+  //  - El bucket ya existe en la cuenta inicial: su pieza se enciende cuando
+  //    el alumno empieza a cerrarlo (bloqueo completo o política sin «*»).
+  arquitectura(datos) {
+    const x = datosLab(datos);
+
+    const plano = (t) => String(t ?? '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
+    const sinPunto = (t) => String(t ?? '').replace(/\.$/, '').toLowerCase();
+    // El sitio
+    const bucket = (e) => (e.buckets ?? []).find((b) => b.nombre === x.bucket) ?? null;
+    const bloqueado = (b) => Boolean(b?.bloqueoPublico) && Object.values(b.bloqueoPublico).every(Boolean);
+    const delBucket = (o) => o?.recurso === x.bucket || String(o?.dominio ?? '').startsWith(`${x.bucket}.`);
+    const origenes = (e) => (e.cloudfront?.distribuciones ?? []).flatMap((d) => (d.origenes ?? []).filter(delBucket));
+    const zonas = (e) => (e.route53?.zonas ?? []).filter((z) => sinPunto(z.nombre) === x.dominio);
+    // Los boletos
+    const tablas = (e) => (e.dynamodb?.tablas ?? []).filter((t) => plano(t.nombre) === plano(x.tabla) || t.pk?.nombre === x.pk);
+    // Los pedidos y su función
+    const colas = (e) => e.sqs?.colas ?? [];
+    const colaPedidos = (e) => colas(e).find((c) => c.nombre === x.cola || c.nombre === `${x.cola}.fifo`) ?? null;
+    const funciones = (e) => e.lambda?.funciones ?? [];
+    const leeLaCola = (e) => {
+      const cola = colaPedidos(e);
+      return cola ? funciones(e).filter((f) => (f.mapeos ?? []).some((m) => m.fuente === cola.arn)) : [];
+    };
+    // Los avisos
+    const subs = (e) => (e.sns?.temas ?? []).flatMap((t) => t.suscripciones ?? []);
+    const alarmas = (e) => (e.cloudwatch?.alarmas ?? []).filter((a) => !a.creadaPor);
+    // La regla programada
+    const invocaLambda = (e) =>
+      (e.eventbridge?.reglas ?? []).some((r) =>
+        (r.destinos ?? []).some((d) => (d.tipo === 'lambda' || String(d.arn ?? '').includes(':lambda:')) && funciones(e).some((f) => f.arn === d.arn || f.nombre === d.arn))
+      );
+
+    return {
+      titulo: 'La taquilla del Festival Jacaranda',
+      objetivo: 'Una taquilla sin servidores que aguanta la hora pico: el sitio sale de CloudFront con su dominio, cada compra se forma en una cola que una función procesa a su ritmo, y si los pedidos se atoran el equipo de guardia se entera.',
+      columnas: 9,
+      filas: 6.7,
+      piezas: [
+        // Afuera de AWS.
+        { id: 'fans', tipo: 'usuarios', etiqueta: 'Fans del festival', detalle: '40 000 a las 10:00', col: 0, fila: 1.3 },
+        { id: 'guardia', tipo: 'correo', etiqueta: 'Equipo de guardia', detalle: x.correo, col: 3, fila: 5.6 },
+
+        // Arriba: el sitio estático.
+        { id: 'zona', tipo: 'route53', etiqueta: 'Zona del dominio', detalle: x.dominio, col: 2, fila: 0.3,
+          tarea: 'dominio', checks: ['zona'], hecho: (e) => zonas(e).length > 0 },
+        { id: 'cdn', tipo: 'cloudfront', etiqueta: 'CloudFront', detalle: x.distribucion, col: 4, fila: 0.3,
+          tarea: 'sitio', checks: ['raiz', 'abre'], hecho: (e) => origenes(e).length > 0 },
+        { id: 'sitio', tipo: 's3', etiqueta: 'Sitio privado', detalle: x.bucket, col: 6, fila: 0.3,
+          tarea: 'sitio', checks: ['privado', 'politica'],
+          hecho: (e) => { const b = bucket(e); return Boolean(b) && (bloqueado(b) || !politicaEsPublica(b.politica)); } },
+
+        // En medio: los pedidos.
+        { id: 'cola', tipo: 'sqs', etiqueta: 'Cola de pedidos', detalle: x.cola, col: 2, fila: 2.3,
+          tarea: 'pedidos', hecho: (e) => Boolean(colaPedidos(e)) },
+        { id: 'procesa', tipo: 'lambda', etiqueta: 'Procesa pedidos', detalle: x.funcion, col: 4, fila: 2.3,
+          tarea: 'procesar', checks: ['funcion', 'timeout', 'rol'],
+          hecho: (e) => funciones(e).some((f) => f.nombre === x.funcion) || leeLaCola(e).length > 0 },
+        { id: 'tabla', tipo: 'dynamodb', etiqueta: 'Tabla de boletos', detalle: x.tabla, col: 6, fila: 2.3,
+          tarea: 'boletos', checks: ['tabla', 'llave', 'demanda'], hecho: (e) => tablas(e).length > 0 },
+        { id: 'indice', tipo: 'dynamodb', etiqueta: 'Índice por correo', detalle: x.gsi, col: 8, fila: 2.3,
+          tarea: 'boletos', checks: ['indice', 'prueba'], hecho: (e) => tablas(e).some((t) => (t.indices ?? []).length > 0) },
+
+        // Abajo: lo que vigila, avisa y corre solo.
+        { id: 'dlq', tipo: 'sqs', etiqueta: 'Mensajes muertos', detalle: x.dlq, col: 0, fila: 4,
+          tarea: 'dlq', bono: true, checks: ['dlq'],
+          hecho: (e) => colas(e).some((c) => c.nombre === x.dlq) || Boolean(colaPedidos(e)?.dlq) },
+        { id: 'alarma', tipo: 'cloudwatch', etiqueta: 'Alarma de cola atorada', detalle: x.alarma, col: 2, fila: 4,
+          tarea: 'alarma', checks: ['umbral'], hecho: (e) => alarmas(e).length > 0 },
+        { id: 'tema', tipo: 'sns', etiqueta: 'Tema de avisos', detalle: x.tema, col: 4, fila: 4,
+          tarea: 'avisos', checks: ['tema'], hecho: (e) => (e.sns?.temas ?? []).length > 0 },
+        { id: 'apartados', tipo: 'lambda', etiqueta: 'Libera apartados', detalle: x.funcionApartados, col: 6, fila: 4,
+          tarea: 'programado', checks: ['destino'],
+          hecho: (e) => funciones(e).some((f) => f.nombre === x.funcionApartados) || invocaLambda(e) },
+        { id: 'regla', tipo: 'eventbridge', etiqueta: 'Regla programada', detalle: x.expresion, col: 8, fila: 4,
+          tarea: 'programado', checks: ['regla', 'cada'], hecho: (e) => (e.eventbridge?.reglas ?? []).length > 0 },
+        { id: 'incidentes', tipo: 'sqs', etiqueta: 'Cola de incidentes', detalle: x.colaIncidentes, col: 5, fila: 5.6,
+          tarea: 'avisos', checks: ['permiso'], hecho: (e) => colas(e).some((c) => c.nombre === x.colaIncidentes) }
+      ],
+      flechas: [
+        // El visitante: abre el sitio por el dominio y compra.
+        { de: 'fans', a: 'zona', texto: 'abre el sitio' },
+        { de: 'zona', a: 'cdn', texto: 'Alias www',
+          tarea: 'dominio', checks: ['alias', 'abre'],
+          hecho: (e) => zonas(e).some((z) => (z.registros ?? []).some((r) => !r.sistema && sinPunto(r.nombre) === x.www)) },
+        { de: 'cdn', a: 'sitio', texto: 'solo con OAC',
+          tarea: 'sitio', checks: ['cdn'], hecho: (e) => origenes(e).some((o) => o.tipo === 's3' && Boolean(o.oacId)) },
+        { de: 'fans', a: 'cola', texto: 'compra' },
+        // La tubería de los pedidos.
+        { de: 'cola', a: 'procesa', texto: 'disparador',
+          tarea: 'procesar', checks: ['disparador', 'prueba'], hecho: (e) => leeLaCola(e).length > 0 },
+        { de: 'procesa', a: 'tabla', texto: 'guarda' },
+        { de: 'tabla', a: 'indice', tipo: 'apoyo', texto: 'busca por correo' },
+        // Vigilar y avisar (punteadas).
+        { de: 'cola', a: 'alarma', tipo: 'apoyo', texto: 'en espera',
+          tarea: 'alarma', checks: ['metrica'],
+          hecho: (e) => {
+            const nombres = [x.cola, `${x.cola}.fifo`];
+            return alarmas(e).some((a) => a.metrica?.namespace === 'AWS/SQS' && nombres.includes(a.metrica?.dimensiones?.QueueName));
+          } },
+        { de: 'alarma', a: 'tema', tipo: 'apoyo', texto: 'avisa',
+          tarea: 'alarma', checks: ['accion', 'llega'],
+          hecho: (e) => alarmas(e).some((a) => (a.acciones?.ALARM ?? []).some((arn) => String(arn).startsWith('arn:aws:sns:'))) },
+        { de: 'tema', a: 'guardia', tipo: 'apoyo', texto: 'correo',
+          tarea: 'avisos', checks: ['correo'], hecho: (e) => subs(e).some((s) => String(s.protocolo ?? '').startsWith('email')) },
+        { de: 'tema', a: 'incidentes', tipo: 'apoyo', texto: 'suscrita',
+          tarea: 'avisos', checks: ['cola'], hecho: (e) => subs(e).some((s) => s.protocolo === 'sqs') },
+        // Lo programado.
+        { de: 'regla', a: 'apartados', tipo: 'apoyo', texto: 'invoca',
+          tarea: 'programado', checks: ['destino'], hecho: invocaLambda },
+        { de: 'apartados', a: 'tabla', tipo: 'apoyo', texto: 'libera asientos' },
+        // Bono: lo que falla una y otra vez se aparta.
+        { de: 'cola', a: 'dlq', tipo: 'apoyo', texto: `tras ${x.intentos} fallos`,
+          tarea: 'dlq', bono: true, checks: ['dlq', 'intentos'], hecho: (e) => Boolean(colaPedidos(e)?.dlq?.arn) }
+      ]
+    };
   }
 };

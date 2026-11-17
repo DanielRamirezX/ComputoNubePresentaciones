@@ -13,9 +13,17 @@
 //  - todo check trae texto y retro (de acierto en la solución, de fallo en la inicial);
 //  - revisar() no muta la cuenta que recibe y sobrevive a JSON;
 //  - las soluciones alternativas razonables dan 100 o casi;
-//  - los errores comunes bajan los puntos correctos y su retro dice algo útil.
+//  - los errores comunes bajan los puntos correctos y su retro dice algo útil;
+//  - el diagrama de arquitectura (si el laboratorio tiene `arquitectura`,
+//    SIMULADOR.md §6.6): valida, cubre cada tarea con checks que existen, nada
+//    hecho en la cuenta inicial y todo «listo» en la solución revisada, y sus
+//    `hecho` no mutan ni lanzan, ni siquiera con una cuenta sin las colecciones
+//    de las extensiones. Antes, una prueba corta del motor (public/arquitectura.js).
 
 import { pathToFileURL } from 'node:url';
+
+import { estadosDe, piezasDe, resumenDe, svgArquitectura, validarArquitectura } from '../../public/arquitectura.js';
+import { EXTENSIONES } from '../../public/consola/modelo/registro.js';
 
 import {
   adjuntarIgw,
@@ -356,12 +364,201 @@ function revisarForma(lab, quien, cuando, r, problemas, { exigirOk } = {}) {
 
 const mapa = (r) => new Map(r.tareas.flatMap((t) => t.checks.map((c) => [`${t.id}/${c.id}`, c])));
 
+/* ================================================ el diagrama (§6.6) */
+
+/** Las colecciones que agregan las extensiones del modelo: una cuenta de octubre no las tiene. */
+function coleccionesDeExtensiones() {
+  const nombres = new Set();
+  for (const ext of EXTENSIONES) {
+    const o = {};
+    try {
+      ext.iniciar?.(o);
+    } catch {
+      // una extensión que necesita más que un objeto vacío: sus colecciones salen igual en las demás pruebas
+    }
+    Object.keys(o).forEach((k) => nombres.add(k));
+  }
+  return [...nombres];
+}
+
+/** Prueba corta del motor: que valide de verdad, que escape y que la tabla de estados sea la del contrato. */
+function probarMotorArquitectura() {
+  const problemas = [];
+  const mal = (m) => problemas.push(`motor del diagrama: ${m}`);
+  const nodo = (id, col, fila, extra = {}) => ({ id, tipo: 'ec2', etiqueta: 'Servidor', col, fila, ...extra });
+
+  // Un diagrama con errores a propósito: validarArquitectura debe reportar cada uno.
+  const roto = {
+    titulo: 'Roto',
+    objetivo: 'Probar.',
+    columnas: 4,
+    filas: 3,
+    piezas: [
+      { id: 'vpc', tipo: 'vpc', etiqueta: 'VPC', col: 0, fila: 0, ancho: 3, alto: 2 },
+      nodo('a', 0.5, 0.5, { en: 'vpc' }),
+      nodo('a', 2, 0.5),
+      nodo('b', 0.9, 0.6),
+      nodo('fuera', 3.5, 1),
+      { id: 'raro', tipo: 'no-existe', etiqueta: 'X', col: 0, fila: 2 },
+      nodo('sin-tarea', 2, 2, { hecho: () => true }),
+      nodo('larga', 3, 2, { etiqueta: 'Una etiqueta larguísima que no cabe en dos renglones de ninguna manera' })
+    ],
+    flechas: [{ de: 'a', a: 'nadie' }]
+  };
+  const esperados = ['repetido', 'no existe', 'no dice su tarea', 'nadie'];
+  const r1 = validarArquitectura(roto).join(' | ');
+  for (const e of esperados) if (!r1.includes(e)) mal(`validarArquitectura no reportó «${e}» en un diagrama roto: ${r1 || '(nada)'}`);
+  const r2 = validarArquitectura({ ...roto, piezas: roto.piezas.filter((p) => !['raro', 'sin-tarea'].includes(p.id) && p.col !== 2), flechas: [] }).join(' | ');
+  for (const e of ['se enciman', 'se sale de la cuadrícula', 'no cabe en dos renglones']) if (!r2.includes(e)) mal(`validarArquitectura no reportó «${e}»: ${r2 || '(nada)'}`);
+
+  // Un diagrama bien hecho: sin problemas, estados como en la tabla y texto escapado.
+  const bien = {
+    titulo: 'Prueba <b>',
+    objetivo: 'Probar el motor.',
+    columnas: 6,
+    filas: 2,
+    piezas: [
+      nodo('si', 0, 0, { etiqueta: '<script>x</script>', detalle: '"&\'<>', tarea: 't', checks: ['uno'], hecho: () => true }),
+      nodo('no', 2, 0, { tarea: 't', hecho: () => false }),
+      nodo('truena', 4, 0, { tarea: 't', hecho: () => { throw new Error('x'); } }),
+      nodo('mal', 0, 1, { tarea: 't', checks: ['dos'], hecho: () => true }),
+      nodo('bono', 2, 1, { tarea: 'b', bono: true, hecho: () => true }),
+      { id: 'deco', tipo: 'usuarios', etiqueta: 'Clientes', col: 4, fila: 1 }
+    ],
+    flechas: [{ de: 'si', a: 'no', texto: 'HTTP' }]
+  };
+  const r3 = validarArquitectura(bien);
+  if (r3.length) mal(`un diagrama bien hecho da problemas: ${r3.join(' | ')}`);
+  const sinRev = estadosDe(bien, {});
+  const esperadoSin = { si: 'creado', no: 'falta', truena: 'falta', mal: 'creado', bono: 'creado', deco: null, 'si>no': null };
+  for (const [id, e] of Object.entries(esperadoSin)) if (sinRev[id] !== e) mal(`sin revisión, «${id}» debía quedar ${e} y quedó ${sinRev[id]}`);
+  const revision = { tareas: [{ id: 't', checks: [{ id: 'uno', ok: true }, { id: 'dos', ok: false }] }, { id: 'b', checks: [{ id: 'x', ok: true }] }] };
+  const conRev = estadosDe(bien, {}, revision);
+  const esperadoCon = { si: 'listo', no: 'falta', mal: 'pendiente', bono: 'listo' };
+  for (const [id, e] of Object.entries(esperadoCon)) if (conRev[id] !== e) mal(`con revisión, «${id}» debía quedar ${e} y quedó ${conRev[id]}`);
+  const todoBien = estadosDe(bien, {}, { tareas: [{ id: 't', checks: [{ id: 'uno', ok: true }, { id: 'dos', ok: true }] }] });
+  if (todoBien.no !== 'listo') mal('con la tarea completa bien, una pieza que no se reconoce debía quedar «listo»');
+  const res = resumenDe(bien, conRev);
+  if (res.total !== 4 || res.hechas !== 2 || res.listas !== 1) mal(`resumenDe dio ${JSON.stringify(res)} (se esperaba total 4, hechas 2, listas 1: sin el bono)`);
+  const svg = svgArquitectura(bien, conRev, { elegida: 'mal' });
+  if (svg.includes('<script>') || svg.includes('<b>') || /"&'/.test(svg)) mal('el SVG no escapa el texto');
+  if (!svg.includes('data-pieza="mal" data-estado="pendiente"') || !svg.includes('arq-elegida')) mal('el SVG no marca data-pieza / data-estado / la pieza elegida');
+  // Todos los selectores del <style> van bajo .arq-svg: el SVG se incrusta en la página.
+  const css = svg.match(/<style>([^<]*)<\/style>/)?.[1] ?? '';
+  const selectores = css.replace(/@media[^{]*\{([^{}]*\{[^}]*\})*\}/g, (m) => m.replace(/@media[^{]*\{/, '').slice(0, -1)).match(/[^{}]+(?=\{)/g) ?? [];
+  for (const s of selectores) for (const parte of s.split(',')) if (!parte.trim().startsWith('.arq-svg')) mal(`el selector «${parte.trim()}» del SVG no va bajo .arq-svg`);
+  return problemas;
+}
+
+/**
+ * El diagrama de un laboratorio con un alumno: valida, cubre las tareas, nada
+ * hecho al inicio, todo listo en la solución revisada, y `hecho` puro.
+ */
+function verificarDiagrama(id, LAB, d, quien, { sol, rSol, ini, rIni }, problemas) {
+  const donde = `${id}/${quien} (diagrama)`;
+  let arq;
+  try {
+    arq = LAB.arquitectura(d);
+  } catch (err) {
+    problemas.push(`${donde}: arquitectura() lanzó: ${err.message}`);
+    return;
+  }
+  for (const p of validarArquitectura(arq)) problemas.push(`${donde}: ${p}`);
+
+  // Las tareas y los checks a los que apunta cada pieza.
+  const tareas = LAB.tareas(d);
+  const deRubrica = new Map(rSol.tareas.map((t) => [t.id, t]));
+  const piezas = piezasDe(arq);
+  for (const p of piezas) {
+    const t = tareas.find((x) => x.id === p.tarea);
+    if (!t) {
+      problemas.push(`${donde}: «${p.id}» dice la tarea «${p.tarea}», que no existe (${tareas.map((x) => x.id).join(', ')})`);
+      continue;
+    }
+    if (Boolean(t.bono) !== p.bono) problemas.push(`${donde}: «${p.id}» es de la tarea ${t.bono ? 'bono' : 'requerida'} «${t.id}»: ${t.bono ? 'debe llevar' : 'no lleva'} bono: true`);
+    const ids = (deRubrica.get(t.id)?.checks ?? []).map((c) => c.id);
+    for (const c of p.checks) if (!ids.includes(c)) problemas.push(`${donde}: «${p.id}» usa el check «${c}», que no existe en la tarea «${t.id}» (${ids.join(', ')})`);
+  }
+  for (const t of tareas) if (!t.bono && !piezas.some((p) => p.tarea === t.id)) problemas.push(`${donde}: la tarea «${t.id}» no tiene ninguna pieza ni flecha en el diagrama`);
+
+  // `hecho` no muta ni lanza, tampoco con una cuenta sin las colecciones de las extensiones.
+  const conHecho = [...(arq.piezas ?? []), ...(arq.flechas ?? [])].filter((p) => typeof p?.hecho === 'function');
+  const nombre = (p) => p.id ?? `${p.de}>${p.a}`;
+  const extensiones = coleccionesDeExtensiones();
+  const sinExtensiones = (c) => {
+    const v = porJson(c);
+    for (const k of extensiones) delete v[k];
+    return v;
+  };
+  const cuentas = [
+    ['inicial', porJson(ini)],
+    ['resuelta', porJson(sol)],
+    ['inicial sin las colecciones de las extensiones', sinExtensiones(ini)],
+    ['resuelta sin las colecciones de las extensiones', sinExtensiones(sol)]
+  ];
+  for (const [cual, cuenta] of cuentas) {
+    const antes = JSON.stringify(cuenta);
+    for (const p of conHecho) {
+      try {
+        p.hecho(cuenta);
+      } catch (err) {
+        problemas.push(`${donde}: el hecho de «${nombre(p)}» lanzó con la cuenta ${cual}: ${err.message}`);
+      }
+    }
+    if (JSON.stringify(cuenta) !== antes) problemas.push(`${donde}: algún hecho mutó la cuenta ${cual}`);
+  }
+
+  // La cuenta inicial: nada hecho y, con su revisión, nada listo.
+  const eIni = estadosDe(arq, ini);
+  const eIniR = estadosDe(arq, ini, rIni);
+  for (const p of piezas) {
+    if (eIni[p.id] !== 'falta') problemas.push(`${donde}: «${p.id}» ya se ve hecha en la cuenta inicial`);
+    if (eIniR[p.id] === 'listo') problemas.push(`${donde}: «${p.id}» sale «listo» con la revisión de la cuenta inicial`);
+  }
+
+  // Solo la red («VPC and more» con el rango del alumno): no enciende nada que
+  // no sea red. El grupo «default» de toda VPC nueva se deja entrar a sí mismo:
+  // un detector de «solo desde otro grupo» que lo cuente se enciende sin que el
+  // alumno haya tocado un grupo de seguridad (pasó en practica-1 y en final).
+  const soloRed = porJson(ini);
+  let conRed = true;
+  try {
+    crearVpcCompleta(soloRed, { prefijo: 'solo-red', cidr: d.vpcCidr, zonas: 2, publicas: 2, privadas: 2 });
+  } catch {
+    conRed = false; // el laboratorio ya trae esa red: no hay nada que probar
+  }
+  if (conRed) {
+    const DE_RED = new Set(['vpc', 'az', 'subred-publica', 'subred-privada', 'igw', 'nat', 'rutas']);
+    const eRed = estadosDe(arq, soloRed);
+    for (const p of piezas) {
+      if (eRed[p.id] !== 'falta' && !(p.clase === 'pieza' && DE_RED.has(p.tipo))) problemas.push(`${donde}: «${p.id}» se ve hecha con solo crear la VPC (¿cuenta el grupo «default», que se deja entrar a sí mismo?)`);
+    }
+  }
+
+  // La solución: todo hecho y, con su revisión, todo listo (el bono, si la solución lo gana).
+  const eSol = estadosDe(arq, sol);
+  const eSolR = estadosDe(arq, sol, rSol);
+  for (const p of piezas) {
+    const t = deRubrica.get(p.tarea);
+    if (p.bono && !(t && t.checks.every((c) => c.ok))) continue;
+    if (eSol[p.id] === 'falta') problemas.push(`${donde}: «${p.id}» no se reconoce en la cuenta resuelta (su hecho da falso)`);
+    else if (eSolR[p.id] !== 'listo') problemas.push(`${donde}: «${p.id}» queda «${eSolR[p.id]}» con la revisión de la solución`);
+  }
+
+  try {
+    const svg = svgArquitectura(arq, eSolR);
+    if (SOSPECHOSO.test(svg.replace(/<style>[^<]*<\/style>/, ''))) problemas.push(`${donde}: el SVG trae undefined, null o NaN`);
+  } catch (err) {
+    problemas.push(`${donde}: svgArquitectura lanzó: ${err.message}`);
+  }
+}
+
 /**
  * Corre todas las pruebas. Devuelve la lista de problemas (vacía si todo
  * está bien). `registrar` recibe líneas informativas (opcional).
  */
 export function verificarLabs({ registrar = () => {} } = {}) {
-  const problemas = [];
+  const problemas = probarMotorArquitectura();
   for (const [id, rubrica] of RUBRICAS) {
     const LAB = LABS.get(id);
     if (!LAB) {
@@ -412,6 +609,9 @@ export function verificarLabs({ registrar = () => {} } = {}) {
         iniciales.push(rIni.obtenidos);
         revisarForma(id, quien, 'inicial', rIni, problemas, { exigirOk: false });
 
+        // El diagrama de arquitectura (solo los laboratorios que lo tienen)
+        if (typeof LAB.arquitectura === 'function') verificarDiagrama(id, LAB, d, quien, { sol, rSol, ini, rIni }, problemas);
+
         // Alternativas y errores comunes
         const [construir, casos] = ESCENARIOS[id] ?? [null, []];
         for (const caso of casos) {
@@ -444,6 +644,13 @@ export function verificarLabs({ registrar = () => {} } = {}) {
       }
     }
     registrar(`${id}: solución 100 · inicial ${iniciales.join('/')} · ${(ESCENARIOS[id]?.[1] ?? []).length} escenarios × ${ALUMNOS.length} alumnos`);
+    if (typeof LAB.arquitectura === 'function') {
+      try {
+        registrar(`  ${id} · diagrama: ${piezasDe(LAB.arquitectura(datosAlumno(ALUMNOS[0]))).length} piezas y flechas con estado`);
+      } catch {
+        // el error ya quedó en problemas (verificarDiagrama)
+      }
+    }
   }
   return problemas;
 }

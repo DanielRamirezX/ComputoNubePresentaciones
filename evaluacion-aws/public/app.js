@@ -1397,6 +1397,7 @@ function instruccionesPractica(ev, LAB, labs) {
       <ul class="reglas hoja">
         <li>Vas a trabajar en una <strong>consola de AWS simulada</strong>: se ve y se usa como la real, pero no cuesta nada y no necesita internet.</li>
         <li>Junto a la consola tienes el <strong>caso</strong>, tus <strong>tareas</strong> con sus puntos y <strong>tus datos</strong> (tu sufijo, tu IP…). Son distintos a los de tu vecino.</li>
+        ${typeof LAB.arquitectura === 'function' ? '<li>Con el botón <strong>«Arquitectura»</strong> ves el diagrama de lo que vas a montar y qué llevas.</li>' : ''}
         <li>Tienes un máximo de <strong>${LAB.minutos || 60} minutos</strong>. El reloj solo avisa.</li>
         <li>Todo lo que haces se guarda solo, en este equipo y en el servidor.</li>
         ${conAvance ? '<li>¿No terminas hoy? Antes de irte pulsa <strong>«Descargar mi avance»</strong>: te llevas un archivo y la próxima vez lo cargas para <strong>seguir donde te quedaste</strong>, aunque sea en otro equipo.</li>' : ''}
@@ -1547,7 +1548,18 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   const plegado = leer(clavePanel, false) === true;
   const conAvance = conArchivoAvance(ev); // se puede llevar el avance en un archivo
   let pestana = 'tareas';
-  let revision = null; // el último «Revisar mi avance»
+  let revision = null; // el último «Revisar mi avance» (con la `rev` de la cuenta que se revisó)
+
+  // El diagrama de la arquitectura (SIMULADOR.md §6.6), solo si el laboratorio
+  // lo tiene. Si dibujarlo falla, el laboratorio sigue igual, sin el botón.
+  let arq = null;
+  if (typeof LAB.arquitectura === 'function') {
+    try {
+      arq = LAB.arquitectura(datos);
+    } catch (e) {
+      console.error('No pude preparar el diagrama de la arquitectura', e);
+    }
+  }
 
   document.body.classList.add('modo-lab');
   const movil = matchMedia('(max-width: 760px)').matches;
@@ -1561,6 +1573,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
         <div class="lab__acciones">
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-panel" aria-controls="panel" aria-expanded="${!plegado}" title="Atajo: ${ATAJO_PANEL}">${icono('i-panel')}<span>${plegado ? 'Mostrar' : 'Ocultar'} instrucciones</span></button>
           ${conAvance ? `<button class="boton boton--oscuro boton--chico lab__solo-angosta" type="button" data-descargar-avance>${icono('i-descargar')}<span>Descargar mi avance</span></button>` : ''}
+          ${arq ? `<button class="boton boton--oscuro boton--chico" type="button" id="btn-arquitectura" aria-haspopup="dialog" title="El diagrama de lo que vas a montar y qué llevas">${icono('i-diagrama')}<span>Arquitectura</span><span class="lab__cuenta-arq" id="cuenta-arq"></span></button>` : ''}
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-asistente" ${conAsistente ? '' : 'hidden'}>${icono('i-libro')}<span>Asistente</span></button>
           <button class="boton boton--oscuro boton--chico" type="button" id="btn-revisar" ${autorrevision ? '' : 'hidden'}>${icono('i-lupa')}<span>Revisar mi avance</span></button>
           <button class="boton boton--primario boton--chico" type="button" id="btn-entregar">${intento ? 'Calificar mi intento' : 'Entregar laboratorio'}</button>
@@ -1594,7 +1607,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
               <ol class="tareas">
                 ${tareas
                   .map(
-                    (t, i) => `<li class="tarea ${t.bono ? 'tarea--bono' : ''}">
+                    (t, i) => `<li class="tarea ${t.bono ? 'tarea--bono' : ''}" data-tarea="${escapar(t.id)}" tabindex="-1">
                       ${t.bono ? '<p class="etiqueta-bono">Bono (opcional)</p>' : ''}
                       <h3><span class="tarea__num">${t.bono ? '+' : i + 1}</span><span class="tarea__titulo">${escapar(t.titulo)}</span><span class="tarea__puntos">${t.bono ? `+${t.puntos} de bono` : `${t.puntos} pts`}</span></h3>
                       <div class="tarea__html">${t.html}</div>
@@ -1705,6 +1718,125 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   const panel = panelPlegable(lab, { clave: clavePanel, nombre: 'instrucciones', plegado, mostrarPestana });
   $('btn-aviso-movil')?.addEventListener('click', () => $('aviso-movil').remove());
 
+  /* ------------------------------------- el diagrama de la arquitectura */
+
+  // El botón «Arquitectura» abre un modal con el diagrama de lo que hay que
+  // montar, marcado con lo que el alumno ya lleva (public/arquitectura-modal.js,
+  // que se carga aparte: si falla, el botón solo avisa). Su contador dice
+  // cuántas piezas lleva hechas o, con una revisión al día, cuántas están listas.
+  let modArq = null; // el módulo del modal, ya cargado
+  let cargaArq = null;
+  let modalArq = null;
+  let esperaContador = null;
+
+  function cargarDiagrama() {
+    cargaArq ??= import('./arquitectura-modal.js')
+      .then((m) => {
+        modArq = m;
+        pintarContador();
+        return m;
+      })
+      .catch((e) => {
+        console.error('No pude cargar el diagrama de la arquitectura', e);
+        cargaArq = null; // el siguiente clic lo vuelve a intentar
+        throw e;
+      });
+    return cargaArq;
+  }
+
+  /** La revisión que todavía describe la cuenta (misma `rev`), o null. */
+  const revisionAlDia = () => (autorrevision && revision && revision.rev === rev ? revision : null);
+
+  function pintarContador() {
+    clearTimeout(esperaContador);
+    esperaContador = null;
+    const el = $('cuenta-arq');
+    if (!el || !modArq || !arq) return;
+    let a;
+    try {
+      a = modArq.avanceDe(arq, cuenta, revisionAlDia());
+    } catch (e) {
+      console.error(e);
+      return;
+    }
+    const alDia = Boolean(revisionAlDia());
+    // Con revisión al día cuenta las listas (con su ✓: no solo el color lo dice).
+    el.textContent = alDia ? `✓ ${a.listas}/${a.total}` : `${a.hechas}/${a.total}`;
+    el.classList.toggle('lab__cuenta-arq--listas', alDia);
+    el.classList.toggle('lab__cuenta-arq--todas', alDia && a.total > 0 && a.listas === a.total);
+    $('btn-arquitectura').setAttribute(
+      'aria-label',
+      `Arquitectura: ${alDia ? `${a.listas} de ${a.total} piezas listas` : `llevas ${a.hechas} de ${a.total} piezas`}`
+    );
+  }
+
+  // Cada cambio de la cuenta lo recalcula, pero con calma: el reloj del
+  // simulador la cambia cada segundo y los detectores no corren en cada tecla.
+  function contadorLuego() {
+    esperaContador ??= setTimeout(pintarContador, 600);
+  }
+
+  /** «Ver la tarea» desde el modal: el panel en Tareas (desplegado) y la tarea a la vista, resaltada un momento. */
+  function verTarea(id) {
+    panel.mostrar('tareas');
+    const li = [...lab.querySelectorAll('[data-tarea]')].find((x) => x.dataset.tarea === id);
+    if (!li) return;
+    li.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    li.focus({ preventScroll: true });
+    li.classList.add('tarea--resaltada');
+    setTimeout(() => li.classList.remove('tarea--resaltada'), 2600);
+  }
+
+  /** La revisión para el modal, con los mismos errores que «Revisar mi avance». */
+  async function revisarDesdeDiagrama() {
+    try {
+      return { revision: await pedirRevision() };
+    } catch (e) {
+      if (e.estado === 403) {
+        actualizarAutorrevision(false);
+        return { apagada: true };
+      }
+      if (e.estado === 409) {
+        pintar(); // ya entregó: el modal se va con el laboratorio
+        return { entregada: true };
+      }
+      return { error: e.estado ? e.message : null }; // sin estado: sin conexión
+    }
+  }
+
+  async function abrirDiagrama() {
+    let m;
+    try {
+      m = await cargarDiagrama();
+    } catch {
+      return aviso('No pude abrir el diagrama. Revisa tu conexión y vuelve a intentarlo: tu cuenta sigue guardada.', 'error', 6000);
+    }
+    if (!lab.isConnected) return;
+    modalArq ??= m.crearModalArquitectura({
+      arq,
+      tareas,
+      examen: ['final', 'evaluacion'].includes(tipoDe(ev)),
+      estado: () => ({ cuenta, rev, revision, autorrevision }),
+      revisar: revisarDesdeDiagrama,
+      irATarea: verTarea,
+      alCerrar: ({ porTarea }) => {
+        pintarContador();
+        if (!porTarea) $('btn-arquitectura')?.focus();
+      }
+    });
+    modalArq.abrir();
+  }
+
+  if (arq) {
+    $('btn-arquitectura').addEventListener('click', abrirDiagrama);
+    cargarDiagrama().catch(() => {});
+    alSalir.push(() => {
+      clearTimeout(esperaContador);
+      modalArq?.destruir();
+      modalArq = null;
+    });
+  }
+
   /* ----------------------------------------- guardar: equipo y servidor */
 
   let pendiente = false;
@@ -1754,6 +1886,10 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   function alCambiar(estado) {
     cuenta = estado;
     rev += 1;
+    if (arq) {
+      contadorLuego();
+      modalArq?.cuentaCambio();
+    }
     if (intento) {
       if (guardarEnEquipo()) textoGuardado('Guardado en este equipo', 'lab__guardado--bien');
       return;
@@ -1831,6 +1967,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
     $('btn-revisar').hidden = !valor;
     lab.querySelectorAll('[data-pestana="avance"], [data-asa="avance"]').forEach((b) => (b.hidden = !valor));
     if (!valor && pestana === 'avance') mostrarPestana('tareas');
+    pintarContador(); // con o sin revisión, el contador cuenta otra cosa
   }
 
   /* ------------------------------------------------------- el asistente */
@@ -1925,15 +2062,50 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
   }
   pintarRevision();
 
+  // La revisión de la rúbrica sin entregar. La piden «Revisar mi avance» y el
+  // diagrama de la arquitectura: la misma llamada y el mismo `revision`, así el
+  // panel y el diagrama nunca se contradicen. Se guarda con qué `rev` de la
+  // cuenta se hizo; dos pedidos de la misma `rev` comparten la respuesta.
+  let revisando = null; // { rev, generacion, promesa }
+  let generacion = 0; // sube al reiniciar la cuenta o cargar un avance: lo que venía en camino ya no vale
+  function pedirRevision() {
+    if (revisando && revisando.rev === rev && revisando.generacion === generacion) return revisando.promesa;
+    const enviada = rev;
+    const suya = generacion;
+    const promesa = api(intento ? 'api/practica/intento/calificar' : 'api/practica/revisar', cuerpoCopia())
+      .then((r) => {
+        if (rev === enviada) pendiente = false;
+        const nueva = { ...(intento ? r.resultado : r.revision), hora: new Date().toISOString(), rev: enviada };
+        if (suya !== generacion) return nueva; // la cuenta se reinició mientras tanto
+        if (!revision || generacion !== revision.generacion || (revision.rev ?? -1) <= enviada) {
+          revision = { ...nueva, generacion: suya };
+          pintarRevision();
+          pintarContador();
+        }
+        return revision;
+      })
+      .finally(() => {
+        if (revisando?.promesa === promesa) revisando = null;
+      });
+    revisando = { rev: enviada, generacion: suya, promesa };
+    return promesa;
+  }
+
+  /** Al reiniciar la cuenta o cargar un avance, la revisión guardada ya no vale. */
+  function olvidarRevision() {
+    generacion += 1;
+    revision = null;
+    pintarRevision();
+    pintarContador();
+    modalArq?.cuentaCambio({ olvidar: true });
+  }
+
   const perdioFoco = (boton) => [null, document.body, boton].includes(document.activeElement);
   $('btn-revisar').addEventListener('click', async () => {
     const boton = $('btn-revisar');
     boton.disabled = true;
     try {
-      const r = await api(intento ? 'api/practica/intento/calificar' : 'api/practica/revisar', cuerpoCopia());
-      pendiente = false;
-      revision = { ...(intento ? r.resultado : r.revision), hora: new Date().toISOString() };
-      pintarRevision();
+      await pedirRevision();
       panel.mostrar('avance');
       $('tp-avance').scrollTop = 0;
       // Al deshabilitarse, el botón soltó el foco (se fue a la página). Pasa a
@@ -2019,8 +2191,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
     if (!si) return;
     const nueva = LAB.estadoInicial(datos);
     alCambiar(nueva);
-    revision = null;
-    pintarRevision();
+    olvidarRevision();
     montar();
     aviso('Tu cuenta volvió a empezar.', 'info');
   });
@@ -2051,8 +2222,7 @@ function laboratorio(ev, LAB, { datosAlumno }, datosServidor, montarConsola, { i
     // Queda por encima de lo de este equipo y de la copia del servidor.
     rev = Math.max(rev, avance.rev);
     alCambiar(avance.estado);
-    revision = null;
-    pintarRevision();
+    olvidarRevision();
     montar();
     aviso('Cargué tu avance: sigue donde te quedaste.', 'exito');
   });

@@ -15,6 +15,7 @@
 // los días de respaldo de la base.
 
 import { anotar, cuentaNueva } from '../consola/modelo.js';
+import { esSubredPublica } from '../consola/red.js';
 import { bloque, c, scriptApache, vinetas } from './util.js';
 
 export function datosLab(d) {
@@ -202,5 +203,136 @@ export const LAB = {
           'Simular hora pico está en EC2 → Auto Scaling Groups → tu grupo. En el simulador cada periodo de una métrica dura 10 segundos: la alarma necesita uno o más periodos arriba del umbral y el grupo crece tras 3 periodos arriba del objetivo. Mira CloudWatch → Alarms, la Bandeja de SNS y la pestaña Activity del grupo. Cuando el grupo crece, la CPU promedio baja y la alarma puede volver a OK: su pestaña History guarda que sí sonó. Si no te llega el correo, revisa que tu suscripción esté Confirmed.'
       }
     ];
+  },
+
+  // El diagrama del modal «Arquitectura» (SIMULADOR.md §6.6). Es el ejemplo de
+  // referencia para los demás laboratorios.
+  //  - Coordenadas en celdas de 120 × 104 px. Un nodo en (col, fila) ocupa esa
+  //    celda; su centro está en (col + 0.5, fila + 0.5). Un contenedor cubre
+  //    (col, fila, ancho, alto) y deja 0.35 arriba para su etiqueta.
+  //  - `hecho(e)` solo dice si el recurso YA SE VE en la cuenta (presencia, no
+  //    calificación) y lo reconoce por lo que es: la VPC por su CIDR, la base
+  //    por su motor y su VPC, el bucket por su nombre exacto… Nunca lanza: las
+  //    colecciones de las extensiones pueden no existir (`e.elb?.… ?? []`).
+  //  - `checks` son los puntos de la rúbrica de esa tarea que revisan la pieza.
+  arquitectura(datos) {
+    const x = datosLab(datos);
+
+    // Lo que se reconoce en la cuenta (todo tolera una cuenta de octubre).
+    const vpcs = (e) => new Set((e.vpcs ?? []).filter((v) => !v.porDefecto && v.cidr === x.vpcCidr).map((v) => v.id));
+    const subredes = (e) => {
+      const ids = vpcs(e);
+      return (e.subredes ?? []).filter((s) => ids.has(s.vpcId));
+    };
+    const publicas = (e) => subredes(e).filter((s) => esSubredPublica(e, s.id));
+    const privadas = (e) => subredes(e).filter((s) => !esSubredPublica(e, s.id));
+    const zonas = (lista) => new Set(lista.map((s) => s.az)).size;
+    const cubre = (r, puerto) => r.protocolo === '-1' || (r.protocolo === 'tcp' && r.desde <= puerto && puerto <= r.hasta);
+    /** ¿Algún grupo de seguridad de la VPC abre ese puerto desde ese origen? */
+    const abre = (e, puerto, origen) => {
+      const ids = vpcs(e);
+      return (e.gruposSeguridad ?? []).some((g) => ids.has(g.vpcId) && (g.entrada ?? []).some((r) => cubre(r, puerto) && origen(String(r.origen ?? ''), g)));
+    };
+    // Desde OTRO grupo: el grupo «default» de toda VPC nueva se deja entrar a sí
+    // mismo, y eso no es encadenar capas (sin esto, crear la VPC ya lo encendía).
+    const deGrupo = (o, g) => o.startsWith('sg-') && o !== g.id;
+    const albs = (e) => {
+      const ids = vpcs(e);
+      return (e.elb?.balanceadores ?? []).filter((b) => b.tipo === 'application' && ids.has(b.vpcId));
+    };
+    const asgs = (e) => {
+      const ids = new Set(subredes(e).map((s) => s.id));
+      return (e.autoscaling?.grupos ?? []).filter((g) => g.estado === 'activo' && (g.subredes ?? []).some((id) => ids.has(id)));
+    };
+    const enServicio = (e) => asgs(e).flatMap((g) => (g.instancias ?? []).filter((m) => m.ciclo === 'InService'));
+    const bases = (e) => {
+      const ids = vpcs(e);
+      return (e.rds?.instancias ?? []).filter((b) => ids.has(b.vpcId) && b.motor === 'mysql' && b.rol !== 'replica' && !['deleting', 'deleted'].includes(b.estado));
+    };
+    const alarmas = (e) => (e.cloudwatch?.alarmas ?? []).filter((a) => a.creadaPor !== 'autoscaling' && !String(a.nombre).startsWith('TargetTracking-'));
+    const conCorreo = (t) => (t.suscripciones ?? []).some((s) => String(s.protocolo).startsWith('email') && s.estado === 'Confirmed');
+
+    return {
+      titulo: 'La tienda Barro y Telar en AWS',
+      objetivo: 'Una tienda de dos capas que no se cae: los clientes entran por un balanceador que reparte entre servidores de dos zonas, y los pedidos viven en una base privada con copia en la otra zona.',
+      columnas: 9,
+      filas: 8,
+      piezas: [
+        // Contenedores: la región, la VPC, las dos zonas y sus cuatro subredes.
+        // Las zonas no dicen «us-east-1a/b»: el alumno elige cuáles usa.
+        { id: 'region', tipo: 'nube', etiqueta: 'Región N. Virginia', detalle: 'us-east-1', col: 0.1, fila: 1, ancho: 8.8, alto: 6.9 },
+        { id: 'vpc', tipo: 'vpc', etiqueta: 'VPC de la tienda', detalle: x.vpcCidr, en: 'region', col: 0.25, fila: 1.4, ancho: 6.7, alto: 6.35,
+          tarea: 'red', hecho: (e) => vpcs(e).size > 0 },
+        { id: 'zona-a', tipo: 'az', etiqueta: 'Zona A', detalle: 'p. ej. us-east-1a', en: 'vpc', col: 0.4, fila: 2.5, ancho: 3.15, alto: 5.1 },
+        { id: 'zona-b', tipo: 'az', etiqueta: 'Zona B', detalle: 'p. ej. us-east-1b', en: 'vpc', col: 3.65, fila: 2.5, ancho: 3.15, alto: 5.1 },
+        // «A» se cumple con una subred de ese tipo; «B», con subredes en dos zonas distintas.
+        { id: 'publica-a', tipo: 'subred-publica', etiqueta: 'Subred pública', en: 'zona-a', col: 0.55, fila: 2.9, ancho: 2.85, alto: 2.9,
+          tarea: 'red', checks: ['publicas'], hecho: (e) => publicas(e).length >= 1 },
+        { id: 'publica-b', tipo: 'subred-publica', etiqueta: 'Subred pública', en: 'zona-b', col: 3.8, fila: 2.9, ancho: 2.85, alto: 2.9,
+          tarea: 'red', checks: ['publicas'], hecho: (e) => zonas(publicas(e)) >= 2 },
+        { id: 'privada-a', tipo: 'subred-privada', etiqueta: 'Subred privada', en: 'zona-a', col: 0.55, fila: 5.95, ancho: 2.85, alto: 1.5,
+          tarea: 'red', checks: ['privadas'], hecho: (e) => privadas(e).length >= 1 },
+        { id: 'privada-b', tipo: 'subred-privada', etiqueta: 'Subred privada', en: 'zona-b', col: 3.8, fila: 5.95, ancho: 2.85, alto: 1.5,
+          tarea: 'red', checks: ['privadas'], hecho: (e) => zonas(privadas(e)) >= 2 },
+        // El grupo de Auto Scaling cruza las dos zonas: es un «grupo» (punteado, sin relleno).
+        { id: 'asg', tipo: 'grupo', etiqueta: 'Grupo de Auto Scaling', detalle: `${x.asg} · mín ${x.min} · máx ${x.max}`, en: 'vpc', col: 1.2, fila: 4.35, ancho: 4.75, alto: 1.35,
+          tarea: 'servidores', checks: ['zonas', 'capacidad', 'escalado'], hecho: (e) => asgs(e).length > 0 },
+
+        // Nodos de afuera de AWS (decorativos, salvo el bono).
+        { id: 'clientes', tipo: 'usuarios', etiqueta: 'Clientes', detalle: 'en internet', col: 3.1, fila: 0 },
+        { id: 'hora-pico', tipo: 'usuarios', etiqueta: 'Hora pico', detalle: 'del Buen Fin', col: 1.5, fila: 0,
+          tarea: 'prueba', bono: true,
+          hecho: (e) => asgs(e).some((g) => (g.actividad ?? []).some((a) => a.tipo === 'lanzar' && /triggered policy/.test(a.causa ?? ''))) },
+        { id: 'correo', tipo: 'correo', etiqueta: 'Tu correo', detalle: 'te llega el aviso', col: 7.6, fila: 0 },
+
+        // La red y la capa web.
+        { id: 'igw', tipo: 'igw', etiqueta: 'Internet Gateway', en: 'vpc', col: 3.1, fila: 1.5,
+          tarea: 'red', checks: ['igw'], hecho: (e) => { const ids = vpcs(e); return (e.igws ?? []).some((g) => ids.has(g.vpcId)); } },
+        { id: 'alb', tipo: 'alb', etiqueta: 'Balanceador', detalle: x.alb, en: 'vpc', col: 3.1, fila: 3.25,
+          tarea: 'balanceador', checks: ['alb', 'pagina'], hecho: (e) => albs(e).length > 0 },
+        { id: 'tg', tipo: 'grupo-destino', etiqueta: 'Grupo de destino', detalle: x.tg, en: 'vpc', col: 4.725, fila: 3.25,
+          tarea: 'balanceador', checks: ['conectado'], hecho: (e) => { const ids = vpcs(e); return (e.elb?.gruposDestino ?? []).some((t) => ids.has(t.vpcId)); } },
+        { id: 'web-a', tipo: 'ec2', etiqueta: 'Servidor web', detalle: 'zona A', en: 'asg', col: 1.475, fila: 4.7,
+          tarea: 'servidores', checks: ['instancias'], hecho: (e) => enServicio(e).length >= 1 },
+        { id: 'plantilla', tipo: 'plantilla', etiqueta: 'Plantilla', detalle: x.plantilla, en: 'asg', col: 3.1, fila: 4.7,
+          tarea: 'servidores', checks: ['plantilla'], hecho: (e) => (e.autoscaling?.plantillas ?? []).length > 0 },
+        { id: 'web-b', tipo: 'ec2', etiqueta: 'Servidor web', detalle: 'zona B', en: 'asg', col: 4.725, fila: 4.7,
+          tarea: 'servidores', checks: ['instancias'], hecho: (e) => zonas(enServicio(e)) >= 2 },
+
+        // La capa de datos.
+        { id: 'base', tipo: 'rds', etiqueta: 'Base principal', detalle: x.db, en: 'privada-a', col: 1.475, fila: 6.35,
+          tarea: 'base', checks: ['existe', 'privada', 'cifrado', 'respaldos'], hecho: (e) => bases(e).length > 0 },
+        { id: 'base-espera', tipo: 'rds-espera', etiqueta: 'Base en espera', detalle: 'Multi-AZ', en: 'privada-b', col: 4.725, fila: 6.35,
+          tarea: 'base', checks: ['multiaz'], hecho: (e) => bases(e).some((b) => b.multiAz) },
+
+        // Fuera de la VPC, en la región.
+        { id: 'tema', tipo: 'sns', etiqueta: 'Tema de avisos', detalle: x.tema, en: 'region', col: 7.6, fila: 1.5,
+          tarea: 'alarma', checks: ['tema'], hecho: (e) => (e.sns?.temas ?? []).length > 0 },
+        { id: 'alarma', tipo: 'cloudwatch', etiqueta: 'Alarma de CPU', detalle: x.alarma, en: 'region', col: 7.6, fila: 3,
+          tarea: 'alarma', checks: ['alarma'], hecho: (e) => alarmas(e).length > 0 },
+        { id: 'fotos', tipo: 's3', etiqueta: 'Fotos', detalle: x.bucket, en: 'region', col: 7.6, fila: 6.35,
+          tarea: 'fotos', hecho: (e) => (e.buckets ?? []).some((b) => b.nombre === x.bucket) }
+      ],
+      flechas: [
+        // El camino de un cliente. Los tres grupos de seguridad encadenados son
+        // las tres flechas con puerto: cada capa solo deja entrar a la anterior.
+        { de: 'clientes', a: 'igw', texto: 'HTTP 80',
+          tarea: 'seguridad', checks: ['alb'], hecho: (e) => abre(e, 80, (o) => o === '0.0.0.0/0') },
+        { de: 'igw', a: 'alb' },
+        { de: 'alb', a: 'tg', texto: 'listener 80',
+          tarea: 'balanceador', checks: ['listener'], hecho: (e) => albs(e).some((b) => (b.oyentes ?? []).some((o) => o.protocolo === 'HTTP' && o.puerto === 80 && o.accion?.tipo === 'forward')) },
+        { de: 'tg', a: 'asg', texto: '80 solo del ALB',
+          tarea: 'seguridad', checks: ['web', 'ssh'], hecho: (e) => abre(e, 80, deGrupo) },
+        { de: 'web-a', a: 'base', texto: '3306 solo web',
+          tarea: 'seguridad', checks: ['db'], hecho: (e) => abre(e, x.puertoDb, deGrupo) },
+        // Apoyo (punteadas): la copia de la base, la vigilancia y el aviso.
+        { de: 'base', a: 'base-espera', tipo: 'apoyo', texto: 'copia' },
+        { de: 'asg', a: 'alarma', tipo: 'apoyo', texto: 'CPU', codo: 'hv' },
+        { de: 'alarma', a: 'tema', tipo: 'apoyo', texto: 'avisa',
+          tarea: 'alarma', checks: ['accion'], hecho: (e) => alarmas(e).some((a) => (a.acciones?.ALARM ?? []).some((arn) => String(arn).startsWith('arn:aws:sns:'))) },
+        { de: 'tema', a: 'correo', tipo: 'apoyo', texto: 'correo',
+          tarea: 'alarma', checks: ['tema'], hecho: (e) => (e.sns?.temas ?? []).some(conCorreo) }
+      ]
+    };
   }
 };

@@ -77,6 +77,19 @@ datos de sus tareas, así que el avance de un compañero se rechaza. Pídeles qu
 se lo manden por correo o lo suban a su nube: la carpeta de Descargas de un
 equipo del salón no es de fiar.
 
+**El diagrama de la arquitectura.** En las prácticas integradoras y el final, la
+barra del laboratorio trae el botón **«Arquitectura»** (con un contador, p. ej.
+`7/23`): abre un modal con el diagrama de lo que el alumno debe montar, marcado
+pieza por pieza con *Falta* / *Hecho, sin revisar* y, si «Revisar mi avance»
+está prendido, *Le falta algo* (con los puntos de la rúbrica que fallan) o
+*Listo*. Con la autorrevisión apagada (así arranca el final) solo marca lo que
+ya existe en la cuenta y lo dice. Cada diagrama es `LAB.arquitectura(datos)` en
+`public/labs/<id>.js`; el núcleo que lo valida y lo dibuja es
+`public/arquitectura.js` y el modal, `public/arquitectura-modal.js`. Un
+laboratorio sin diagrama no muestra el botón. El contrato completo está en
+`SIMULADOR.md` §6.6; para ver un diagrama sin abrir la app:
+`npm run diagrama -- practica-1 --estado solucion --revision`.
+
 En el panel, el selector agrupa por tipo y trae **«Resumen del simulador»**:
 todos los laboratorios, prácticas y el final en una tabla (abierto o cerrado,
 cuántos trabajan ahora, empezaron · en curso · entregaron y el promedio). «Ver»

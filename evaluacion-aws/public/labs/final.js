@@ -30,7 +30,8 @@
 // destino de la guía, el monto del presupuesto y el porcentaje de la alerta
 // cambian con su octeto.
 
-import { cuentaNueva } from '../consola/modelo.js';
+import { cuentaNueva, itemDynamoPlano } from '../consola/modelo.js';
+import { esSubredPublica, salePorNat } from '../consola/red.js';
 import { bloque, c, vinetas } from './util.js';
 
 /** El script que instala la página de rastreo: cada servidor dice en qué zona vive. */
@@ -225,5 +226,159 @@ export const LAB = {
           ])}`
       }
     ];
+  },
+
+  // El diagrama del modal «Arquitectura» (SIMULADOR.md §6.6). Es un EXAMEN:
+  // el diagrama solo dibuja lo que las tareas ya nombran y con sus palabras
+  // (el resultado, no el cómo). No dice qué opción de DynamoDB o de S3 da cada
+  // resultado, ni dónde va el NAT, ni cómo llega el rol a los servidores, ni
+  // qué métrica vigila la alarma. Los detectores son presencia pura («ya hay
+  // algo así en tu cuenta»): la calificación vive solo en el servidor.
+  arquitectura(datos) {
+    const x = datosLab(datos);
+    const { llave } = x.etiqueta;
+
+    // Lo que se reconoce en la cuenta (todo tolera una cuenta de octubre).
+    // La red se busca en las VPC propias: la VPC por omisión nunca cuenta.
+    const propias = (e) => new Set((e.vpcs ?? []).filter((v) => !v.porDefecto).map((v) => v.id));
+    const subredes = (e) => {
+      const ids = propias(e);
+      return (e.subredes ?? []).filter((s) => ids.has(s.vpcId));
+    };
+    const publicas = (e) => subredes(e).filter((s) => esSubredPublica(e, s.id));
+    const privadas = (e) => subredes(e).filter((s) => !esSubredPublica(e, s.id) && salePorNat(e, s.id));
+    const zonas = (lista) => new Set(lista.map((s) => s.az)).size;
+    const cubre = (r, puerto) => r.protocolo === '-1' || (r.protocolo === 'tcp' && r.desde <= puerto && puerto <= r.hasta);
+    /** ¿Algún grupo de seguridad de una VPC propia abre ese puerto desde ese origen? */
+    const abre = (e, puerto, origen) => {
+      const ids = propias(e);
+      return (e.gruposSeguridad ?? []).some((g) => ids.has(g.vpcId) && (g.entrada ?? []).some((r) => cubre(r, puerto) && origen(String(r.origen ?? ''), g)));
+    };
+    // Desde OTRO grupo: el grupo «default» de toda VPC nueva se deja entrar a sí
+    // mismo (sin esto, crear la VPC ya encendía «80 solo del ALB»).
+    const deOtroGrupo = (o, g) => o.startsWith('sg-') && o !== g.id;
+    const albs = (e) => {
+      const ids = propias(e);
+      return (e.elb?.balanceadores ?? []).filter((b) => b.tipo === 'application' && ids.has(b.vpcId));
+    };
+    const asgs = (e) => {
+      const ids = new Set(subredes(e).map((s) => s.id));
+      return (e.autoscaling?.grupos ?? []).filter((g) => g.estado === 'activo' && (g.subredes ?? []).some((id) => ids.has(id)));
+    };
+    const enServicio = (e) => asgs(e).flatMap((g) => (g.instancias ?? []).filter((m) => m.ciclo === 'InService'));
+    const tabla = (e) => (e.dynamodb?.tablas ?? []).find((t) => t.nombre === x.tabla && t.estado !== 'DELETING') ?? null;
+    const bucket = (e) => (e.buckets ?? []).find((b) => b.nombre === x.bucket) ?? null;
+    const alarmas = (e) => (e.cloudwatch?.alarmas ?? []).filter((a) => !a.creadaPor && !String(a.nombre).startsWith('TargetTracking-'));
+    const conLlave = (lista) => (lista ?? []).some((t) => t?.llave === llave);
+    const etiquetado = (e) =>
+      (e.instancias ?? []).some((i) => i.estado !== 'terminated' && conLlave(i.etiquetas)) ||
+      (e.autoscaling?.grupos ?? []).some((g) => conLlave(g.etiquetas)) ||
+      (e.autoscaling?.plantillas ?? []).some((p) => (p.versiones ?? []).some((v) => conLlave(v.datos?.etiquetas))) ||
+      (e.dynamodb?.tablas ?? []).some((t) => conLlave(t.etiquetas)) ||
+      (e.buckets ?? []).some((b) => conLlave(b.etiquetas));
+
+    return {
+      titulo: 'Envíos Huasteca en AWS',
+      objetivo: 'La página de rastreo sigue en línea aunque falle un servidor o una zona; las guías y las fotos de entrega quedan protegidas, TI se entera de los problemas y el gasto está a la vista.',
+      columnas: 10.5,
+      filas: 8.65,
+      piezas: [
+        // La región, la VPC, las dos zonas (el alumno elige cuáles) y sus cuatro subredes.
+        { id: 'region', tipo: 'nube', etiqueta: 'Región N. Virginia', detalle: 'us-east-1', col: 0.1, fila: 1, ancho: 10.3, alto: 5.78 },
+        { id: 'vpc', tipo: 'vpc', etiqueta: 'VPC de la empresa', detalle: x.vpcCidr, en: 'region', col: 0.25, fila: 1.4, ancho: 6.2, alto: 5.26,
+          tarea: 'red', checks: ['vpc'], hecho: (e) => (e.vpcs ?? []).some((v) => !v.porDefecto && v.cidr === x.vpcCidr) },
+        { id: 'zona-a', tipo: 'az', etiqueta: 'Zona A', detalle: 'p. ej. us-east-1a', en: 'vpc', col: 0.4, fila: 2.5, ancho: 2.9, alto: 4.04 },
+        { id: 'zona-b', tipo: 'az', etiqueta: 'Zona B', detalle: 'p. ej. us-east-1b', en: 'vpc', col: 3.4, fila: 2.5, ancho: 2.9, alto: 4.04 },
+        // «A» se cumple con una subred de ese tipo; «B», con subredes en dos zonas distintas.
+        // Pública: sale a internet por un Internet Gateway. Privada: no, pero sale por un NAT.
+        { id: 'publica-a', tipo: 'subred-publica', etiqueta: 'Subred pública', en: 'zona-a', col: 0.55, fila: 2.9, ancho: 2.6, alto: 1.45,
+          tarea: 'red', checks: ['publicas'], hecho: (e) => publicas(e).length >= 1 },
+        { id: 'publica-b', tipo: 'subred-publica', etiqueta: 'Subred pública', en: 'zona-b', col: 3.55, fila: 2.9, ancho: 2.6, alto: 1.45,
+          tarea: 'red', checks: ['publicas'], hecho: (e) => zonas(publicas(e)) >= 2 },
+        { id: 'privada-a', tipo: 'subred-privada', etiqueta: 'Subred privada', en: 'zona-a', col: 0.55, fila: 4.5, ancho: 2.6, alto: 1.92,
+          tarea: 'red', checks: ['privadas'], hecho: (e) => privadas(e).length >= 1 },
+        { id: 'privada-b', tipo: 'subred-privada', etiqueta: 'Subred privada', en: 'zona-b', col: 3.55, fila: 4.5, ancho: 2.6, alto: 1.92,
+          tarea: 'red', checks: ['privadas'], hecho: (e) => zonas(privadas(e)) >= 2 },
+        // El grupo de Auto Scaling cruza las dos zonas (punteado, sin relleno).
+        { id: 'asg', tipo: 'grupo', etiqueta: 'Grupo de Auto Scaling', detalle: `${x.asg} · 2 o más`, en: 'vpc', col: 0.65, fila: 4.85, ancho: 5.45, alto: 1.45,
+          tarea: 'rastreo', checks: ['asg', 'chequeo-elb'], hecho: (e) => asgs(e).length > 0 },
+        // Lo que vive en la cuenta, no en una región.
+        { id: 'global', tipo: 'grupo', etiqueta: 'Toda la cuenta (global)', col: 0.1, fila: 7.1, ancho: 10.3, alto: 1.45 },
+
+        // Fuera de AWS.
+        { id: 'clientes', tipo: 'usuarios', etiqueta: 'Clientes', detalle: 'casa o celular', col: 2.85, fila: 0 },
+        { id: 'correo', tipo: 'correo', etiqueta: 'Correo de TI', detalle: x.correo, col: 6.65, fila: 0 },
+
+        // La entrada. El Internet Gateway y el NAT son de la tarea 1, pero los
+        // marcan las subredes (pública = sale por el IGW; privada = sale por el NAT).
+        // El NAT va a nivel de VPC a propósito: dónde vive es parte del examen.
+        { id: 'igw', tipo: 'igw', etiqueta: 'Internet Gateway', en: 'vpc', col: 2.85, fila: 1.5 },
+        { id: 'nat', tipo: 'nat', etiqueta: 'NAT gateway', detalle: 'salida a internet', en: 'vpc', col: 4.5, fila: 1.5 },
+        { id: 'alb', tipo: 'alb', etiqueta: 'Balanceador', detalle: x.alb, en: 'vpc', col: 2.85, fila: 3.25,
+          tarea: 'rastreo', checks: ['alb', 'pagina'], hecho: (e) => albs(e).length > 0 },
+        { id: 'tg', tipo: 'grupo-destino', etiqueta: 'Grupo de destino', detalle: x.tg, en: 'publica-b', col: 4.5, fila: 3.25,
+          tarea: 'rastreo', checks: ['sanos'], hecho: (e) => { const ids = propias(e); return (e.elb?.gruposDestino ?? []).some((t) => ids.has(t.vpcId)); } },
+
+        // Los servidores (en el grupo) y el bono.
+        { id: 'plantilla', tipo: 'plantilla', etiqueta: 'Launch template', detalle: x.plantilla, en: 'asg', col: 0.8, fila: 5.2,
+          tarea: 'rastreo', checks: ['asg'], hecho: (e) => (e.autoscaling?.plantillas ?? []).length > 0 },
+        { id: 'web-a', tipo: 'ec2', etiqueta: 'Servidor', detalle: 'zona A', en: 'asg', col: 2, fila: 5.2,
+          tarea: 'rastreo', checks: ['privadas', 'sanos'], hecho: (e) => enServicio(e).length >= 1 },
+        { id: 'web-b', tipo: 'ec2', etiqueta: 'Servidor', detalle: 'zona B', en: 'asg', col: 3.65, fila: 5.2,
+          tarea: 'rastreo', checks: ['privadas', 'sanos'], hecho: (e) => zonas(enServicio(e)) >= 2 },
+        { id: 'escala', tipo: 'asg', etiqueta: 'Crece con las visitas', detalle: `~${x.peticiones} pet./servidor`, en: 'asg', col: 4.95, fila: 5.2,
+          tarea: 'escala', bono: true, checks: ['politica', 'maximo'],
+          hecho: (e) => asgs(e).some((g) => (g.politicas ?? []).some((p) => p.tipo === 'TargetTrackingScaling')) },
+
+        // Los servicios de la región, fuera de la VPC.
+        { id: 'tema', tipo: 'sns', etiqueta: 'Tema de avisos', detalle: x.tema, en: 'region', col: 6.65, fila: 1.5,
+          tarea: 'alertas', checks: ['tema'],
+          hecho: (e) => (e.sns?.temas ?? []).some((t) => (t.suscripciones ?? []).some((s) => String(s.protocolo).startsWith('email') && s.estado === 'Confirmed')) },
+        { id: 'alarma', tipo: 'cloudwatch', etiqueta: 'Alarma', detalle: 'servidor enfermo', en: 'region', col: 6.65, fila: 3.25,
+          tarea: 'alertas', checks: ['alarma'], hecho: (e) => alarmas(e).length > 0 },
+        { id: 'tabla', tipo: 'dynamodb', etiqueta: 'Tabla de guías', detalle: x.tabla, en: 'region', col: 6.65, fila: 5.2,
+          tarea: 'guias', checks: ['existe', 'ondemand', 'pitr', 'proteccion'], hecho: (e) => Boolean(tabla(e)) },
+        { id: 'guia', tipo: 'generico', etiqueta: 'Guía de prueba', detalle: x.guia, en: 'region', col: 7.95, fila: 5.2,
+          tarea: 'guias', checks: ['item'],
+          hecho: (e) => (tabla(e)?.items ?? []).some((i) => String(itemDynamoPlano(i)?.[x.pk] ?? '').trim() === x.guia) },
+        { id: 'kms', tipo: 'kms', etiqueta: 'Llave de KMS', en: 'region', col: 9.25, fila: 1.5,
+          tarea: 'evidencias', checks: ['cifrado'], hecho: (e) => String(bucket(e)?.cifrado?.tipo ?? '').includes('KMS') },
+        { id: 'fotos', tipo: 's3', etiqueta: 'Fotos de entrega', detalle: x.bucket, en: 'region', col: 9.25, fila: 3.25,
+          tarea: 'evidencias', checks: ['existe', 'bloqueo', 'versionado'], hecho: (e) => Boolean(bucket(e)) },
+        { id: 'glacier', tipo: 'glacier', etiqueta: 'Glacier Instant Retrieval', detalle: 'se borran a 5 años', en: 'region', col: 9.25, fila: 5.2,
+          tarea: 'evidencias', checks: ['archivo', 'borrado'], hecho: (e) => (bucket(e)?.ciclo ?? []).length > 0 },
+
+        // Lo global: el rol de los servidores y el control del gasto.
+        { id: 'rol', tipo: 'iam-rol', etiqueta: 'Rol de los servidores', detalle: x.rol, en: 'global', col: 2, fila: 7.45,
+          tarea: 'acceso', checks: ['minimo'], hecho: (e) => (e.iam?.roles ?? []).some((r) => r.servicio === 'ec2.amazonaws.com') },
+        { id: 'etiqueta', tipo: 'etiqueta', etiqueta: 'Etiqueta del proyecto', detalle: `${llave} = ${x.etiqueta.valor}`, en: 'global', col: 5.7, fila: 7.45,
+          tarea: 'costos', checks: ['etiquetas-servidores', 'etiquetas-datos'], hecho: etiquetado },
+        { id: 'factura', tipo: 'cost-explorer', etiqueta: 'Factura y Cost Explorer', en: 'global', col: 7.2, fila: 7.45,
+          tarea: 'costos', checks: ['activa'], hecho: (e) => (e.costos?.etiquetasActivas ?? []).includes(llave) },
+        { id: 'presupuesto', tipo: 'presupuesto', etiqueta: 'Presupuesto mensual', detalle: `${x.monto} USD · al ${x.porcentaje} %`, en: 'global', col: 8.9, fila: 7.45,
+          tarea: 'costos', checks: ['monto', 'alerta'], hecho: (e) => (e.costos?.presupuestos ?? []).length > 0 }
+      ],
+      flechas: [
+        // El camino de un cliente. Las dos puertas (grupos de seguridad) son las flechas con puerto.
+        { de: 'clientes', a: 'igw', texto: 'HTTP 80',
+          tarea: 'puertas', checks: ['alb-abierto'], hecho: (e) => abre(e, 80, (o) => o === '0.0.0.0/0') },
+        { de: 'igw', a: 'alb' },
+        { de: 'alb', a: 'tg', texto: 'reparte' },
+        { de: 'tg', a: 'asg', texto: '80 solo del ALB',
+          tarea: 'puertas', checks: ['web-solo-alb', 'sin-ssh'], hecho: (e) => abre(e, 80, deOtroGrupo) },
+        { de: 'asg', a: 'tabla' },
+        // Apoyo (punteadas): el permiso, la vigilancia, el aviso, la llave y el archivo.
+        { de: 'rol', a: 'asg', tipo: 'apoyo', texto: 'lo usan todos',
+          tarea: 'acceso', checks: ['rol'],
+          hecho: (e) => { const ids = new Set(enServicio(e).map((m) => m.id)); return (e.instancias ?? []).some((i) => ids.has(i.id) && i.rolIam); } },
+        { de: 'tg', a: 'alarma', tipo: 'apoyo' },
+        { de: 'alarma', a: 'tema', tipo: 'apoyo', texto: 'avisa',
+          tarea: 'alertas', checks: ['aviso'], hecho: (e) => alarmas(e).some((a) => (a.acciones?.ALARM ?? []).some((arn) => String(arn).startsWith('arn:aws:sns:'))) },
+        { de: 'tema', a: 'correo', tipo: 'apoyo', texto: 'correo' },
+        { de: 'kms', a: 'fotos', tipo: 'apoyo', texto: 'cifra' },
+        { de: 'fotos', a: 'glacier', tipo: 'apoyo', texto: `a los ${x.diasArchivo} días` },
+        { de: 'etiqueta', a: 'factura', tipo: 'apoyo', texto: 'activada' }
+      ]
+    };
   }
 };

@@ -553,6 +553,133 @@ a.idea:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--nar
 .dialogo__texto p { margin: 0 0 10px; }
 .dialogo__acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
+/* ------------------------------------------- el diagrama de la arquitectura */
+
+/* El modal «Arquitectura» del laboratorio (public/arquitectura-modal.js). El
+   SVG trae sus propios estilos bajo .arq-svg; aquí solo va lo de alrededor.
+   Ancho: arriba la cabecera, en medio el diagrama con el detalle a la derecha,
+   abajo los botones. Angosto: todo en una columna que se desplaza. */
+.diagrama {
+  width: min(96vw, 1560px);
+  max-width: none;
+  height: min(94vh, 1040px);
+  height: min(94dvh, 1040px);
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid var(--marino);
+  border-radius: var(--radio);
+  background: var(--papel);
+  box-shadow: 6px 6px 0 var(--marino);
+  color: var(--tinta);
+}
+.diagrama[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.diagrama::backdrop { background: rgba(22, 32, 44, .6); }
+
+.diagrama__cabeza {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px 24px;
+  align-items: start;
+  padding: 14px 18px 14px 20px;
+  border-bottom: 3px solid var(--naranja);
+  background: var(--blanco);
+}
+.diagrama__textos .etiqueta { margin-bottom: 6px; }
+.diagrama__cabeza h2 { margin: 0 0 4px; font-size: 1.45rem; }
+.diagrama__cabeza h2:focus { outline: none; }
+.diagrama__objetivo { max-width: 72ch; margin: 0; color: var(--gris); font-size: .95rem; line-height: 1.4; }
+.diagrama__avance { width: 230px; padding-top: 4px; }
+.diagrama__cifra { margin: 0 0 6px; font-size: .95rem; }
+.diagrama__cifra strong { font-family: var(--display); font-size: 1.55rem; line-height: 1; }
+.diagrama__barra { display: flex; height: 10px; overflow: hidden; border: 1px solid var(--linea); border-radius: 999px; background: var(--papel-hondo); }
+.diagrama__barra span { height: 100%; }
+.diagrama__barra-listo { background: #1d8102; }
+.diagrama__barra-hecho { background: #0972d3; }
+.diagrama__sub { margin: 5px 0 0; color: var(--verde-texto); font-size: .86rem; }
+.diagrama__cerrar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--marino);
+  border-radius: 10px;
+  background: var(--blanco);
+  color: var(--tinta);
+}
+.diagrama__cerrar:hover { background: var(--papel-hondo); }
+
+.diagrama__cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); min-height: 0; }
+.diagrama__principal { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; }
+.diagrama__guia { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--linea); }
+.diagrama__leyenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: .88rem; font-weight: 700; }
+.diagrama__leyenda li { display: inline-flex; gap: 6px; align-items: center; }
+.diagrama__nota { display: flex; gap: 8px; align-items: flex-start; margin: 0; color: var(--gris); font-size: .88rem; }
+.diagrama__nota--aviso { flex-basis: 100%; padding: 8px 12px; border: 2px solid #e2b35c; border-radius: 10px; background: var(--ambar-suave); color: var(--tinta); }
+.diagrama__nota--aviso .icono { margin-top: 2px; color: var(--naranja-texto); }
+.diagrama__nota--mal { color: var(--rojo-texto); }
+.diagrama__lienzo { min-width: 0; min-height: 0; overflow: auto; padding: 12px; background: #fff; }
+.diagrama__lienzo svg { margin: 0 auto; }
+/* El foco de una pieza lo dibuja el SVG (su contorno azul); el del navegador sobra. */
+.diagrama__lienzo [data-pieza]:focus { outline: none; }
+
+.diagrama__lado { display: grid; gap: 14px; align-content: start; min-height: 0; overflow-y: auto; padding: 16px; border-left: 2px solid var(--marino); }
+.diagrama__detalle { padding: 14px 16px; border: 2px solid var(--marino); border-radius: 12px; background: var(--blanco); }
+.diagrama__detalle > :first-child { margin-top: 0; }
+.diagrama__detalle > :last-child { margin-bottom: 0; }
+.diagrama__invita { margin: 0 0 6px; font-weight: 700; }
+.diagrama__detalle kbd { padding: 0 5px; border: 1px solid var(--linea); border-bottom-width: 2px; border-radius: 4px; background: var(--papel); font-family: var(--mono); font-size: .85em; }
+.diagrama__clase { margin: 0 0 2px; color: var(--gris); font-family: var(--mono); font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; }
+.diagrama__pieza { margin: 0 0 6px; font-size: 1.2rem; }
+.diagrama__dato { margin: 0 0 10px; }
+.diagrama__dato code { overflow-wrap: anywhere; }
+.diagrama__estado { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 10px; padding: 8px 10px; border-radius: 9px; background: var(--papel); font-size: .93rem; }
+.diagrama__estado svg { flex: none; margin-top: 1px; }
+.diagrama__estado--listo { background: var(--verde-suave); }
+.diagrama__estado--pendiente { background: var(--ambar-suave); }
+.diagrama__estado--creado { background: #e6f0fb; }
+.diagrama__faltan { display: grid; gap: 8px; margin: 0 0 12px; padding: 0 0 0 1.2em; font-size: .9rem; }
+.diagrama__faltan span { display: block; margin-top: 2px; color: var(--gris); }
+.diagrama__tarea { margin: 0 0 10px; font-size: .9rem; }
+.diagrama__bono { padding: 0 6px; border: 1px solid #8c4fff; border-radius: 999px; color: #6b35d9; font-family: var(--sans); font-size: .78rem; font-weight: 700; letter-spacing: 0; text-transform: none; }
+
+.diagrama__lista { border: 2px solid var(--marino); border-radius: 12px; background: var(--blanco); }
+.diagrama__lista > summary { padding: 10px 14px; font-weight: 700; cursor: pointer; }
+.diagrama__lista[open] > summary { border-bottom: 1px solid var(--linea); }
+.diagrama__grupo h4 { margin: 12px 14px 4px; color: var(--gris); font-size: .84rem; }
+.diagrama__grupo ul { margin: 0; padding: 0 6px 6px; list-style: none; }
+.diagrama__renglon { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; width: 100%; padding: 6px 8px; border: 0; border-radius: 8px; background: none; font-size: .9rem; line-height: 1.3; text-align: left; }
+.diagrama__renglon svg { margin-top: 1px; }
+.diagrama__renglon:hover { background: var(--papel); }
+.diagrama__renglon[aria-current="true"] { background: var(--marino-suave); box-shadow: inset 3px 0 0 var(--azul-foco); }
+.diagrama__renglon-estado { color: var(--gris); font-weight: 400; }
+.diagrama__renglon small { display: block; color: var(--gris); font-family: var(--mono); font-size: .78rem; overflow-wrap: anywhere; }
+
+.diagrama__pie { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; padding: 10px 16px; border-top: 2px solid var(--marino); background: var(--blanco); }
+
+@media (max-width: 900px) {
+  .diagrama__cabeza { grid-template-columns: minmax(0, 1fr) auto; }
+  .diagrama__avance { grid-column: 1 / -1; grid-row: 2; width: auto; max-width: 420px; padding-top: 0; }
+  .diagrama__cuerpo { display: block; overflow-y: auto; }
+  .diagrama__principal { display: block; }
+  .diagrama__lienzo { overflow-x: auto; overflow-y: visible; }
+  .diagrama__lado { overflow: visible; border-top: 2px solid var(--marino); border-left: 0; }
+}
+/* En el teléfono, a pantalla completa y todo se desplaza junto (la cabecera
+   no se come la pantalla); los botones quedan pegados abajo. */
+@media (max-width: 640px) {
+  .diagrama { width: 100%; height: 100%; height: 100dvh; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+  .diagrama[open] { display: block; overflow-y: auto; }
+  .diagrama__cuerpo { overflow: visible; }
+  .diagrama__pie { position: sticky; bottom: 0; z-index: 1; }
+  .diagrama__detalle { scroll-margin-bottom: 76px; }
+  .diagrama__cabeza { padding: 12px 12px 12px 14px; }
+  .diagrama__cabeza h2 { font-size: 1.2rem; }
+  .diagrama__objetivo { font-size: .9rem; }
+  .diagrama__lado { padding: 12px; }
+  .diagrama__pie { padding: 8px 12px; }
+}
+
 /* ---------------------------------------------------------------- teórica */
 
 .casos-nav {
@@ -839,6 +966,11 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
    lugar de «Ocultar instrucciones», que en angosto no existe). */
 .lab__solo-angosta { display: none; }
 .reloj--oscuro { background: var(--marino-3); }
+/* El contador del botón «Arquitectura»: piezas hechas o, con revisión al día, listas (con ✓). */
+.lab__cuenta-arq { padding: 1px 7px; border-radius: 999px; background: var(--marino-3); color: #fff; font-family: var(--mono); font-size: .76rem; font-weight: 700; line-height: 1.4; white-space: nowrap; }
+.lab__cuenta-arq:empty { display: none; }
+.lab__cuenta-arq--listas { box-shadow: inset 0 0 0 1.5px #4ade80; }
+.lab__cuenta-arq--todas { background: #1d8102; box-shadow: none; }
 
 .aviso-movil { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 14px; background: var(--ambar-suave); color: var(--tinta); font-size: .93rem; }
 .aviso-movil span { flex: 1; min-width: 200px; }
@@ -942,6 +1074,11 @@ body.modo-lab { overflow: hidden; background: var(--marino); }
 .tarea__html > :last-child { margin-bottom: 0; }
 .tarea__html ul, .tarea__html ol { padding-left: 1.3em; }
 .tarea--bono { border-style: dashed; background: var(--papel); }
+/* «Ver la tarea» desde el diagrama: la tarea se marca un momento. */
+.tarea { transition: box-shadow .3s ease; }
+.tarea--resaltada { box-shadow: 0 0 0 4px var(--naranja); }
+.tarea:focus { outline: none; }
+.tarea:focus-visible { outline: 3px solid var(--azul-foco); outline-offset: 2px; }
 .tarea--bono .tarea__num { background: var(--marino-3); color: #fff; }
 .tarea--bono .tarea__puntos { background: var(--marino-suave); color: var(--marino-3); }
 /* Lo que cambia respecto a lo que se hizo en la Ruta: que no se pase. */

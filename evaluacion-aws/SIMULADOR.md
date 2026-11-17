@@ -633,6 +633,218 @@ avance y lo vuelve a cargar, en el mismo equipo o en otro:
 - Retomar días después no cambia la calificación: las soluciones de los ocho
   laboratorios dan 100 con el reloj adelantado 2, 7 y 21 días.
 
+### 6.6 El diagrama de arquitectura (17 de noviembre de 2026)
+
+El docente pidió que, desde la sesión 9, el alumno pueda abrir **un modal con la
+arquitectura que va a montar** y que ahí se vaya marcando lo que ya lleva y lo
+que le falta. Vale para `practica-1` … `practica-5` y para `final`. Un
+laboratorio sin `arquitectura` no muestra el botón (los de octubre y `lab-s5` a
+`lab-s7` quedan igual).
+
+**Piezas del código**
+
+| Archivo | Qué es | Dueño |
+|---|---|---|
+| `public/arquitectura.js` | El núcleo, **puro** (sin `window` ni `document`: Node lo importa): catálogo de tipos, `validarArquitectura`, `estadosDe`, `resumenDe`, `svgArquitectura` | núcleo |
+| `src/arquitectura-vista.js` | Vista previa por consola: escribe un HTML con el diagrama de un laboratorio (cuenta inicial o resuelta) para revisarlo con una captura | núcleo |
+| `src/rubricas/verificar-labs.js` | Revisa cada diagrama (abajo, «Verificación») | núcleo |
+| `public/arquitectura-modal.js` | El modal (`<dialog>`): cabecera con el objetivo y el avance, el diagrama, la leyenda, el detalle de la pieza elegida y la lista en texto | modal |
+| `public/app.js`, `public/estilos.css`, `public/index.html` | El botón «Arquitectura» de la barra del laboratorio y su integración | modal |
+| `public/labs/<id>.js` | `LAB.arquitectura(datos)`: el diagrama de cada laboratorio | contenido |
+
+**El contrato: `LAB.arquitectura(datos)`**
+
+Función pura que devuelve el diagrama con los datos del alumno. Va en el objeto
+`LAB`, junto a `tareas(datos)`:
+
+```js
+arquitectura(datos) {
+  const x = datosLab(datos);
+  return {
+    titulo: 'La tienda Barro y Telar en AWS',
+    objetivo: 'Una tienda de dos capas que no se cae: …',   // texto plano, 1 o 2 oraciones
+    columnas: 10, filas: 7,                                   // tamaño de la cuadrícula, en celdas
+    piezas: [
+      // Contenedores (tienen ancho y alto): se dibujan detrás, del más grande al más chico.
+      { id: 'vpc', tipo: 'vpc', etiqueta: x.vpcNombre, detalle: x.vpcCidr, col: 0.4, fila: 1.2, ancho: 7.2, alto: 5.6,
+        tarea: 'red', checks: ['igw'], hecho: (e) => e.vpcs.some((v) => v.cidr === x.vpcCidr) },
+      { id: 'pub-a', tipo: 'subred-publica', etiqueta: 'Subred pública', en: 'az-a', col: 0.8, fila: 2, ancho: 3.2, alto: 2.2,
+        tarea: 'red', checks: ['publicas'], hecho: (e) => … },
+      // Nodos (sin ancho ni alto): un ícono con su etiqueta, centrado en su celda.
+      { id: 'alb', tipo: 'alb', etiqueta: 'Balanceador', detalle: x.alb, en: 'vpc', col: 3.5, fila: 2,
+        tarea: 'balanceador', checks: ['alb', 'listener'], hecho: (e) => (e.elb?.balanceadores ?? []).some(…) },
+      { id: 'clientes', tipo: 'usuarios', etiqueta: 'Clientes', col: 3.5, fila: 0 }   // decorativa: sin `hecho`
+    ],
+    flechas: [
+      { de: 'clientes', a: 'alb', texto: 'HTTP 80' },                       // tipo 'flujo' (continua)
+      { de: 'alarma', a: 'tema', tipo: 'apoyo', texto: 'avisa',             // 'apoyo' (punteada)
+        tarea: 'alarma', checks: ['accion'], hecho: (e) => … }              // una conexión también puede ser «algo por hacer»
+    ]
+  };
+}
+```
+
+- **Coordenadas en celdas**, desde 0 y con decimales. Un **nodo** en
+  `(col, fila)` queda centrado en esa celda (ocupa 1 × 1). Un **contenedor**
+  cubre el rectángulo `(col, fila, ancho, alto)`. Deja libre ~0.35 de fila
+  arriba de cada contenedor (ahí va su etiqueta) y mete cada contenedor hijo al
+  menos 0.12 celdas dentro de su padre. `en` dice quién es el padre y
+  `validarArquitectura` comprueba que quepa. Nada se encima: dos nodos nunca a
+  menos de una celda de distancia en la misma fila.
+- **`tipo` de contenedor:** `nube` (la región), `vpc`, `az`, `subred-publica`,
+  `subred-privada`, `grupo` (cualquier agrupación punteada: el grupo de Auto
+  Scaling, una organización, una OU, una cuenta, una capa).
+- **`tipo` de nodo** (cada uno tiene su ícono y el color de su categoría):
+  - fuera de AWS: `usuarios`, `internet`, `correo`, `oficina`, `persona`;
+  - redes: `igw`, `nat`, `alb`, `grupo-destino` (target group), `rutas`, `sg`, `eip`, `cloudfront`, `route53`;
+  - cómputo: `ec2`, `plantilla`, `asg`, `lambda`;
+  - almacenamiento: `s3`, `ebs`, `snapshot`, `efs`, `glacier`;
+  - bases: `rds`, `rds-espera`, `dynamodb`, `elasticache`;
+  - integración: `sns`, `sqs`, `eventbridge`;
+  - gestión: `cloudwatch`, `cloudtrail`, `organizations`, `ou`, `cuenta`, `scp`,
+    `trusted-advisor`, `well-architected`, `soporte`;
+  - seguridad: `iam-usuario`, `iam-grupo`, `iam-rol`, `politica`, `mfa`, `kms`, `secreto`;
+  - costos: `presupuesto`, `etiqueta`, `calculadora`, `cost-explorer`;
+  - `generico`.
+  Un tipo que no existe es un error de validación. Sin logotipos de AWS: glifos
+  propios, como `CATEGORIAS` en `consola/ui.js`.
+- **`etiqueta`** es corta (qué es, en español: «Balanceador», «Base principal»)
+  y **`detalle`** es el nombre o el dato exacto (`tienda-alb`, `10.37.0.0/16`).
+  El motor parte la etiqueta en dos renglones como máximo y recorta el detalle.
+- **`tarea`** es el id de la tarea del laboratorio a la que pertenece la pieza.
+  Toda pieza con `hecho` lleva `tarea`. **Cada tarea requerida debe tener al
+  menos una pieza o flecha**; las de una tarea bono llevan `bono: true`.
+- **`hecho(estado)`** dice si eso **ya se ve en la cuenta** del alumno: que el
+  recurso existe y se reconoce (o, en una tarea de «arreglar», que ya quedó
+  arreglado). Reglas:
+  - Pura, barata y tolerante: no muta, no lanza (`e.elb?.balanceadores ?? []`),
+    y funciona con una cuenta guardada en octubre (sin las colecciones nuevas).
+    Corre cada vez que la cuenta cambia: nada de `probarPagina` ni de recorrer
+    la red.
+  - Reconoce el recurso **por lo que es, no por cómo se llama**, igual que la
+    rúbrica: los nombres son sugerencias (salvo los que la tarea exige exactos).
+  - Con la cuenta inicial **todas** dan `false`; con la solución de la rúbrica,
+    **todas** dan `true`.
+  - Es presencia, no calificación: no copies la rúbrica. En `final` el
+    diagrama **no revela nada que las tareas no digan ya**.
+- **`checks`** (opcional) son los ids de los puntos de la rúbrica de esa tarea
+  que revisan esta pieza. Sin `checks`, cuentan todos los de la tarea.
+
+**Los estados** (`estadosDe(arq, cuenta, revision)` → `{ [id]: estado }`; una
+flecha sin `id` usa `` `${de}>${a}` ``; una pieza decorativa da `null`):
+
+| | Sin revisión (`revision` nulo) | Con la revisión de la rúbrica |
+|---|---|---|
+| `hecho` es falso | `falta` | `falta` (o `listo` si la tarea completa ya está bien) |
+| `hecho` es cierto | `creado` («Hecho, sin revisar») | `listo` si sus `checks` están bien; si no, `pendiente` («Le falta algo») |
+
+`revision` es lo que responde `api/practica/revisar` (`{ tareas: [{ id, puntos,
+obtenidos, checks: [{ id, ok, texto, retro }] }] }`). Solo existe si el docente
+tiene prendido «Revisar mi avance»: el modal la pide al abrirse cuando la
+cuenta cambió desde la última, y nunca pinta una revisión vieja. En el **examen
+final** (autorrevisión apagada) el diagrama solo distingue `falta` de `creado`
+y lo dice: «creado» no significa «correcto». Una flecha sin `hecho` se enciende
+cuando sus dos extremos ya no están en `falta`. El estado nunca se comunica solo
+con color: cada uno lleva su marca (✓, !, •, contorno punteado).
+
+`resumenDe(arq, estados)` → `{ total, hechas, listas }` cuenta las piezas y
+flechas con `hecho` que no son bono. `svgArquitectura(arq, estados, opciones)` →
+el SVG como texto, **autosuficiente** (sus estilos van dentro: así sale igual
+en el modal y en la vista previa). Cada pieza y cada flecha con estado va en un
+`<g data-pieza="id" data-estado="…" tabindex="0" role="button" aria-label="…">`
+para que el modal la escuche; `opciones.elegida` resalta una.
+
+**Verificación** (`npm run verificar`, en `verificar-labs.js`, con los 5
+alumnos de ejemplo). Por cada laboratorio con `arquitectura`:
+
+- `validarArquitectura` no reporta nada (ids únicos, tipos que existen, todo
+  dentro de la cuadrícula y de su padre, nodos sin encimarse, flechas entre ids
+  que existen, toda pieza con `hecho` tiene `tarea`);
+- cada `tarea` existe en `LAB.tareas(datos)`, cada tarea requerida tiene al
+  menos una pieza y cada id de `checks` existe en la rúbrica de esa tarea;
+- con la cuenta inicial ninguna pieza está hecha, y con la rúbrica de la cuenta
+  inicial ninguna queda en `listo`;
+- con la solución todas están hechas y, con su revisión, todas en `listo`
+  (las de bono, si la solución hace el bono);
+- `hecho` no muta la cuenta y no lanza con una cuenta sin las colecciones de
+  las extensiones;
+- con **solo la red creada** («VPC and more» con el rango del alumno) no se
+  enciende nada que no sea red. El grupo de seguridad `default` de toda VPC
+  nueva se deja entrar a sí mismo: un detector de «solo desde otro grupo» debe
+  exigir que el origen sea **otro** grupo (`o !== g.id`).
+
+**Vista previa:** `node src/arquitectura-vista.js <lab> [--estado inicial|solucion]
+[--revision] [--demo] [--elegida <id>] [--alumno 0..4] [--salida archivo.html]`
+(o `npm run diagrama -- <lab> …`). `--demo` reparte los cuatro estados entre las
+piezas para juzgar el diseño. Sin `--salida`, el HTML va a la carpeta temporal del
+sistema (nunca al repositorio). El HTML se captura con Edge sin ventana y la
+captura se mira con Read: un diagrama no se da por bueno sin verlo.
+
+```sh
+node src/arquitectura-vista.js practica-1 --estado solucion --revision --salida "<tmp>/p1.html"
+"C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" --headless=new --disable-gpu \
+  --hide-scrollbars --user-data-dir="<tmp>/edge-p1" --window-size=1400,1160 \
+  --screenshot="<tmp>/p1.png" "file:///<tmp>/p1.html"
+```
+
+Con Bash hace falta `dangerouslyDisableSandbox: true`. Edge **regresa antes de
+escribir el PNG**: espera a que exista (`while [ ! -s p1.png ]; do sleep 1; done`)
+y usa un `--user-data-dir` distinto por captura (con el mismo, la segunda sale
+vacía). Captura también a 760 px de ancho (`--window-size=760,1000`).
+
+**Precisiones del núcleo** (lo que de verdad hace `public/arquitectura.js`):
+
+- **Celda: 120 × 104 px** (`CELDA`). `columnas` y `filas` pueden llevar
+  decimales (`filas: 8`, `8.15`…). La cuadrícula de `practica-1` es 9 × 8.
+- **Un nodo** dibuja, desde arriba de su celda: 8 px de aire, el cuadro de color
+  de 40 px, la etiqueta (12 px, negritas, hasta **2 renglones de unos 15
+  caracteres**, partida por palabras) y el detalle (10.5 px monoespaciada, **unos
+  19 caracteres**; lo que sobra se corta con «…» y completo va en `<title>` y en
+  la lista del modal). Una etiqueta que no cabe en dos renglones es un error de
+  validación; un detalle largo, no.
+- **Un contenedor** pone etiqueta y detalle en un renglón arriba a la izquierda
+  (la marca de estado va antes). Si la etiqueta no cabe en su ancho, es error.
+- **Texto de una flecha:** unos 20 caracteres como máximo (130 px).
+- **Orden del dibujo:** contenedores con relleno del más grande al más chico;
+  luego los `grupo` (sin relleno, así su borde punteado puede cruzar zonas y
+  subredes); luego las flechas; al final los nodos. Un texto que cruza el borde
+  de un contenedor lleva una placa blanca detrás (así un nodo puede ir sobre la
+  línea entre dos zonas, como el balanceador).
+- **Flechas rectas:** entre nodos van del centro de un ícono al otro (salen por
+  el borde del ícono o, hacia abajo, por debajo del detalle). Hacia un
+  contenedor van **perpendiculares a su borde** si el otro extremo lo mira de
+  frente (está dentro de su rango horizontal o vertical); si no, al centro.
+  **En escuadra:** `codo: 'hv'` sale horizontal y entra vertical (la esquina es
+  `(x del destino, y del origen)`); `'vh'`, al revés. En un contenedor, el codo
+  usa su centro.
+- **La validación también revisa la composición** (y `npm run verificar` falla):
+  un contenedor hijo va a 0.12 de los lados y de abajo de su padre y a **0.3
+  arriba** (se recomienda 0.35); la celda de un nodo cabe en su padre; los
+  contenedores hermanos no se enciman (salvo los `grupo`); ningún nodo tapa la
+  etiqueta de un contenedor; ninguna flecha pasa por encima de un nodo ni
+  atraviesa la etiqueta de un contenedor; el texto de una flecha no queda sobre
+  un nodo, una etiqueta u otro texto; una flecha mide al menos 30 px (16 su
+  último tramo). Una pieza de una tarea bono lleva `bono: true` y al revés.
+- **El SVG** trae `width="100%"` y `min-width` = 80 % de su ancho (en
+  `practica-1`, 864 px): más angosto, el texto ya no se lee. El modal lo pone en
+  una caja con `overflow-x: auto`. Lleva un fondo blanco propio. Cada pieza y
+  flecha con estado es un `<g data-pieza data-estado tabindex="0" role="button"
+  aria-label>` con su `<title>`; la elegida lleva la clase `arq-elegida` y
+  `aria-pressed="true"`. Un `grupo` se elige por su borde o su etiqueta, y una
+  flecha por una franja invisible de 12 px.
+- **Exporta también** `ESTADOS` (`{ falta: { nombre: 'Falta', ayuda }, creado:
+  { nombre: 'Hecho, sin revisar' }, pendiente: { nombre: 'Le falta algo' },
+  listo: { nombre: 'Listo' } }`), `marcaSvg(estado, tamaño)` (la marca suelta,
+  para la leyenda), `piezasDe(arq)` (la lista plana para la lista en texto, en
+  el orden en que se declaró: `{ id, clase: 'pieza'|'flecha', tipo, etiqueta,
+  detalle, tarea, checks, bono }`; en una flecha, `etiqueta` es «A → B» y
+  `detalle` su texto), `CATEGORIAS`, `CELDA` y `anchoTexto`.
+- `estadosDe` acepta la revisión como `{ tareas }` o como `{ resultado: { tareas } }`.
+- `practica-1` es el ejemplo: los tres grupos de seguridad son las flechas con
+  puerto («HTTP 80», «80 solo del ALB», «3306 solo web»), el bono es el nodo
+  «Hora pico» y las zonas dicen «Zona A / Zona B» (los detectores cuentan zonas
+  distintas, no nombres de zona).
+
 ## 7. Verificación
 
 - `evaluacion-aws`: `npm run verificar` corre las pruebas del modelo, las rúbricas

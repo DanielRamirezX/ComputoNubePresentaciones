@@ -35,6 +35,7 @@ import {
   reloj,
   subirObjetos
 } from '../consola/modelo.js';
+import { esSubredPublica } from '../consola/red.js';
 import { bloque, c, vinetas } from './util.js';
 
 /** El script que instala el portal: cada servidor dice en qué zona vive. */
@@ -289,5 +290,163 @@ export const LAB = {
         pista: 'Se hace en EC2 → Auto Scaling Groups → tu grupo: la capacidad en Details (Edit) y la política en Automatic scaling. Con «Simular hora pico» puedes verlo crecer.'
       }
     ];
+  },
+
+  // El diagrama del modal «Arquitectura» (SIMULADOR.md §6.6). Composición:
+  //  - A la izquierda, fuera de la región, lo GLOBAL (IAM y el presupuesto).
+  //  - En la región, a la izquierda de la VPC, lo que guarda datos fuera de la
+  //    red (S3 y Deep Archive, el EFS, el snapshot); a la derecha, la vigilancia
+  //    (alarma → tema de SNS → correo de TI).
+  //  - En medio, la VPC que ya existe: el camino de un alumno de arriba abajo
+  //    (internet → balanceador → servidores privados → base Multi-AZ).
+  // La red, el NAT y el tema de avisos ya vienen hechos: son decorativos. Lo
+  // que el alumno arregla (portal-web-sg, el bucket) se marca cuando ya quedó
+  // arreglado, no porque exista.
+  arquitectura(datos) {
+    const x = datosLab(datos);
+
+    // Lo que se reconoce en la cuenta (todo tolera una cuenta sin las colecciones nuevas).
+    const vpcs = (e) => new Set((e.vpcs ?? []).filter((v) => !v.porDefecto && v.cidr === x.vpcCidr).map((v) => v.id));
+    const subredes = (e) => {
+      const ids = vpcs(e);
+      return (e.subredes ?? []).filter((s) => ids.has(s.vpcId));
+    };
+    const cubre = (r, puerto) => r.protocolo === '-1' || (r.protocolo === 'tcp' && r.desde <= puerto && puerto <= r.hasta);
+    const gruposVpc = (e) => {
+      const ids = vpcs(e);
+      return (e.gruposSeguridad ?? []).filter((g) => ids.has(g.vpcId));
+    };
+    /** ¿Algún grupo de seguridad (de la VPC o de la lista) abre ese puerto desde ese origen? */
+    const abre = (grupos, puerto, origen) => grupos.some((g) => (g.entrada ?? []).some((r) => cubre(r, puerto) && origen(String(r.origen ?? ''), g)));
+    // Desde OTRO grupo: el grupo default de la VPC ya se deja entrar todo a sí mismo.
+    const deGrupo = (o, g) => o.startsWith('sg-') && o !== g.id;
+    const deTodos = (o) => o === '0.0.0.0/0' || o === '::/0';
+    const albs = (e) => {
+      const ids = vpcs(e);
+      return (e.elb?.balanceadores ?? []).filter((b) => b.tipo === 'application' && ids.has(b.vpcId));
+    };
+    const asgs = (e) => {
+      const ids = new Set(subredes(e).map((s) => s.id));
+      return (e.autoscaling?.grupos ?? []).filter((g) => g.estado === 'activo' && (g.subredes ?? []).some((id) => ids.has(id)));
+    };
+    /** Los servidores en servicio de los grupos de Auto Scaling de la VPC. */
+    const servidores = (e) => {
+      const ids = new Set(asgs(e).flatMap((g) => (g.instancias ?? []).filter((m) => m.ciclo === 'InService').map((m) => m.id)));
+      return (e.instancias ?? []).filter((i) => ids.has(i.id));
+    };
+    const bases = (e) => {
+      const ids = vpcs(e);
+      return (e.rds?.instancias ?? []).filter((b) => ids.has(b.vpcId) && b.motor === 'mysql' && b.rol !== 'replica' && !['deleting', 'deleted'].includes(b.estado));
+    };
+    const actas = (e) => (e.buckets ?? []).find((b) => b.nombre === x.bucket) ?? null;
+    const alarmas = (e) => (e.cloudwatch?.alarmas ?? []).filter((a) => !a.creadaPor && !String(a.nombre).startsWith('TargetTracking-'));
+    const rolesEc2 = (e) => (e.iam?.roles ?? []).filter((r) => r.servicio === 'ec2.amazonaws.com');
+
+    return {
+      titulo: 'La Universidad del Altiplano en AWS',
+      objetivo:
+        'El portal escolar sigue en línea aunque se caiga una zona: los alumnos entran por un balanceador que reparte entre servidores privados de dos zonas, que comparten una carpeta en EFS y guardan el kardex en una base Multi-AZ. Alrededor, las actas protegidas y archivadas, una alarma que avisa a TI, el rol mínimo de los servidores y el presupuesto.',
+      columnas: 10.5,
+      filas: 8.5,
+      piezas: [
+        // Lo global (no vive en ninguna región): IAM y el presupuesto.
+        { id: 'global', tipo: 'grupo', etiqueta: 'Global', col: 0.1, fila: 1, ancho: 1.2, alto: 7.4 },
+        { id: 'rol', tipo: 'iam-rol', etiqueta: 'Rol de los servidores', detalle: x.rol, en: 'global', col: 0.2, fila: 1.5,
+          tarea: 'accesos', checks: ['rol'], hecho: (e) => rolesEc2(e).length > 0 },
+        { id: 'presupuesto', tipo: 'presupuesto', etiqueta: 'Presupuesto', detalle: `${x.monto} USD al mes`, en: 'global', col: 0.2, fila: 5.4,
+          tarea: 'presupuesto', checks: ['monto', 'alerta'], hecho: (e) => (e.costos?.presupuestos ?? []).length > 0 },
+
+        // La región y la red que dejó el área de redes (ya existe: decorativa).
+        // Las zonas no dicen «us-east-1a/b»: el alumno elige cuáles usa.
+        { id: 'region', tipo: 'nube', etiqueta: 'Región N. Virginia', detalle: 'us-east-1', col: 1.4, fila: 1, ancho: 9, alto: 7.4 },
+        { id: 'vpc', tipo: 'vpc', etiqueta: 'VPC del campus', detalle: `${x.vpcNombre} · ${x.vpcCidr}`, en: 'region', col: 2.75, fila: 1.4, ancho: 6.4, alto: 6.85 },
+        { id: 'zona-a', tipo: 'az', etiqueta: 'Zona A', detalle: 'p. ej. us-east-1a', en: 'vpc', col: 2.9, fila: 2.5, ancho: 3, alto: 5.62 },
+        { id: 'zona-b', tipo: 'az', etiqueta: 'Zona B', detalle: 'p. ej. us-east-1b', en: 'vpc', col: 6, fila: 2.5, ancho: 3, alto: 5.62 },
+        { id: 'publica-a', tipo: 'subred-publica', etiqueta: 'Subred pública', en: 'zona-a', col: 3.05, fila: 2.9, ancho: 2.7, alto: 1.45 },
+        { id: 'publica-b', tipo: 'subred-publica', etiqueta: 'Subred pública', en: 'zona-b', col: 6.15, fila: 2.9, ancho: 2.7, alto: 1.45 },
+        { id: 'privada-a', tipo: 'subred-privada', etiqueta: 'Subred privada', en: 'zona-a', col: 3.05, fila: 4.7, ancho: 2.7, alto: 3.3 },
+        { id: 'privada-b', tipo: 'subred-privada', etiqueta: 'Subred privada', en: 'zona-b', col: 6.15, fila: 4.7, ancho: 2.7, alto: 3.3 },
+        { id: 'igw', tipo: 'igw', etiqueta: 'Internet Gateway', en: 'vpc', col: 5.45, fila: 1.5 },
+        { id: 'nat', tipo: 'nat', etiqueta: 'NAT gateway', detalle: 'solo de salida', en: 'publica-a', col: 3.6, fila: 3.25 },
+
+        // El portal: balanceador en las públicas y servidores en las privadas.
+        // El grupo de Auto Scaling cruza las dos zonas: es un «grupo» punteado.
+        { id: 'alb', tipo: 'alb', etiqueta: 'Balanceador', detalle: x.alb, en: 'vpc', col: 5.45, fila: 3.25,
+          tarea: 'portal', checks: ['alb', 'pagina'], hecho: (e) => albs(e).length > 0 },
+        { id: 'tg', tipo: 'grupo-destino', etiqueta: 'Grupo de destino', detalle: x.tg, en: 'publica-b', col: 7.3, fila: 3.25,
+          tarea: 'portal', checks: ['sanos'], hecho: (e) => { const ids = vpcs(e); return (e.elb?.gruposDestino ?? []).some((t) => ids.has(t.vpcId)); } },
+        { id: 'asg', tipo: 'grupo', etiqueta: 'Grupo de Auto Scaling', detalle: `${x.asg} · mín 2`, en: 'vpc', col: 3.45, fila: 5.05, ancho: 5, alto: 1.4,
+          tarea: 'portal', checks: ['asg', 'chequeo-elb'], hecho: (e) => asgs(e).length > 0 },
+        { id: 'web-a', tipo: 'ec2', etiqueta: 'Servidor', detalle: 'zona A · privado', en: 'asg', col: 3.6, fila: 5.4,
+          tarea: 'portal', checks: ['privadas'], hecho: (e) => servidores(e).some((i) => !esSubredPublica(e, i.subredId)) },
+        { id: 'plantilla', tipo: 'plantilla', etiqueta: 'Plantilla', detalle: x.plantilla, en: 'asg', col: 5.45, fila: 5.4,
+          tarea: 'portal', checks: ['asg'], hecho: (e) => (e.autoscaling?.plantillas ?? []).length > 0 },
+        { id: 'web-b', tipo: 'ec2', etiqueta: 'Servidor', detalle: 'zona B · privado', en: 'asg', col: 7.3, fila: 5.4,
+          tarea: 'portal', checks: ['sanos'], hecho: (e) => new Set(servidores(e).map((i) => i.az)).size >= 2 },
+
+        // El kardex: la base principal y su copia en espera en la otra zona.
+        { id: 'base', tipo: 'rds', etiqueta: 'Base del kardex', detalle: x.db, en: 'privada-a', col: 3.6, fila: 6.85,
+          tarea: 'base', checks: ['existe', 'privada', 'cifrada', 'retencion'], hecho: (e) => bases(e).length > 0 },
+        { id: 'espera', tipo: 'rds-espera', etiqueta: 'Base en espera', detalle: 'Multi-AZ', en: 'privada-b', col: 7.3, fila: 6.85,
+          tarea: 'base', checks: ['multiaz'], hecho: (e) => bases(e).some((b) => b.multiAz) },
+
+        // En la región, fuera de la VPC: lo que guarda datos.
+        { id: 'actas', tipo: 's3', etiqueta: 'Actas', detalle: x.bucket, en: 'region', col: 1.6, fila: 1.5,
+          tarea: 'actas', checks: ['bloqueo', 'versionado'],
+          hecho: (e) => {
+            const b = actas(e);
+            const p = b?.bloqueoPublico ?? {};
+            return Boolean(b) && ((p.aclsNuevas && p.aclsCualquiera && p.politicasNuevas && p.politicasCualquiera) || b.versionado === 'Enabled');
+          } },
+        { id: 'archivo', tipo: 'glacier', etiqueta: 'Glacier Deep Archive', detalle: `día ${x.diasArchivo}`, en: 'region', col: 1.6, fila: 3.25,
+          tarea: 'actas', checks: ['ciclo'],
+          hecho: (e) => (actas(e)?.ciclo ?? []).some((r) => r.estado === 'Enabled' && (r.transiciones ?? []).some((t) => t.clase === 'DEEP_ARCHIVE')) },
+        { id: 'efs', tipo: 'efs', etiqueta: 'Archivos compartidos', detalle: x.efs, en: 'region', col: 1.6, fila: 5.4,
+          tarea: 'archivos', checks: ['efs', 'zonas'], hecho: (e) => (e.efs?.sistemas ?? []).some((f) => f.estado !== 'deleting') },
+        { id: 'snapshot', tipo: 'snapshot', etiqueta: 'Snapshot manual', detalle: x.snap, en: 'region', col: 1.6, fila: 6.85,
+          tarea: 'base', checks: ['snapshot'],
+          hecho: (e) => { const ids = vpcs(e); return (e.rds?.snapshots ?? []).some((s) => s.tipo === 'manual' && ids.has(s.vpcId)); } },
+
+        // En la región, a la derecha: la vigilancia. El tema ya existe.
+        { id: 'tema', tipo: 'sns', etiqueta: 'Tema de avisos', detalle: x.tema, en: 'region', col: 9.3, fila: 3.25 },
+        { id: 'alarma', tipo: 'cloudwatch', etiqueta: 'Alarma de CPU', detalle: `más de ${x.umbral} %`, en: 'region', col: 9.3, fila: 5.4,
+          tarea: 'alertas', checks: ['alarma'], hecho: (e) => alarmas(e).length > 0 },
+
+        // Fuera de AWS.
+        { id: 'inscripciones', tipo: 'usuarios', etiqueta: 'Inscripciones', detalle: `CPU ${x.objetivoCpu} % · máx ${x.maximo}-10`, col: 4, fila: 0,
+          tarea: 'escala', bono: true, checks: ['politica', 'maximo'],
+          hecho: (e) => asgs(e).some((g) => (g.politicas ?? []).some((p) => p.tipo === 'TargetTrackingScaling')) },
+        { id: 'alumnos', tipo: 'usuarios', etiqueta: 'Alumnos', detalle: 'en internet', col: 5.45, fila: 0 },
+        { id: 'correo', tipo: 'correo', etiqueta: 'Correo de TI', detalle: x.correo, col: 9.3, fila: 0 }
+      ],
+      flechas: [
+        // El camino de un alumno. Las puertas (grupos de seguridad) son las flechas con puerto.
+        { de: 'alumnos', a: 'igw', texto: 'HTTP 80',
+          tarea: 'puertas', checks: ['alb-abierto'],
+          hecho: (e) => {
+            const grupos = gruposVpc(e);
+            return albs(e).some((b) => abre(grupos.filter((g) => (b.gruposSeguridad ?? []).includes(g.id)), 80, deTodos));
+          } },
+        { de: 'igw', a: 'alb' },
+        { de: 'alb', a: 'tg', texto: 'reparte' },
+        { de: 'tg', a: 'asg', texto: '80 solo del ALB',
+          tarea: 'puertas', checks: ['web-solo-alb', 'sin-ssh'], hecho: (e) => abre(gruposVpc(e), 80, deGrupo) },
+        { de: 'web-a', a: 'base', texto: '3306 solo web',
+          tarea: 'base', checks: ['solo-web'], hecho: (e) => abre(gruposVpc(e), x.puerto, deGrupo) },
+        { de: 'asg', a: 'efs', texto: 'NFS 2049',
+          tarea: 'archivos', checks: ['montan'], hecho: (e) => abre(gruposVpc(e), 2049, deGrupo) },
+        // Apoyo (punteadas): copias, permisos, vigilancia y avisos.
+        { de: 'base', a: 'espera', tipo: 'apoyo', texto: 'copia' },
+        { de: 'base', a: 'snapshot', tipo: 'apoyo', texto: 'foto manual' },
+        { de: 'actas', a: 'archivo', tipo: 'apoyo', texto: `a los ${x.diasArchivo} días` },
+        { de: 'rol', a: 'actas', tipo: 'apoyo', texto: 'solo lectura',
+          tarea: 'accesos', checks: ['minimo'], hecho: (e) => rolesEc2(e).some((r) => (r.politicas ?? []).includes(x.politica)) },
+        { de: 'asg', a: 'alarma', tipo: 'apoyo', texto: 'CPU' },
+        { de: 'alarma', a: 'tema', tipo: 'apoyo', texto: 'avisa',
+          tarea: 'alertas', checks: ['aviso'],
+          hecho: (e) => alarmas(e).some((a) => (a.acciones?.ALARM ?? []).some((arn) => String(arn).startsWith('arn:aws:sns:'))) },
+        { de: 'tema', a: 'correo', tipo: 'apoyo', texto: 'correo' }
+      ]
+    };
   }
 };

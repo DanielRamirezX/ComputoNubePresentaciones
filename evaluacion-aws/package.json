@@ -11,6 +11,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "verificar": "node src/verificar.js"
+    "verificar": "node src/verificar.js",
+    "diagrama": "node src/arquitectura-vista.js"
   }
 }

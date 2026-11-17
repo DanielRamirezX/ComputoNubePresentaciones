@@ -306,5 +306,125 @@ export const LAB = {
           'En Budgets → Create budget → Customize (advanced) → Cost budget, en Budget scope elige «Filter specific AWS cost dimensions» → Tag. La llave solo aparece ahí si ya la activaste en Cost allocation tags.'
       }
     ];
+  },
+
+  // El diagrama del modal «Arquitectura» (SIMULADOR.md §6.6): el mapa de la
+  // cuenta ya ordenada. Aquí casi nada se «construye»: la cuenta empieza con
+  // cosas mal puestas, así que en las piezas de «arreglar» `hecho(e)` quiere
+  // decir «ya quedó arreglado» (con la cuenta inicial todas dan false). Tres
+  // zonas: la organización (OU, cuentas y la SCP), lo que marcó Trusted Advisor
+  // (seguridad y ahorro) y los costos y buenas prácticas. El detalle del plan
+  // de soporte y del tamaño nuevo no dice cuál elegir: eso lo decide el alumno.
+  arquitectura(datos) {
+    const x = datosLab(datos);
+
+    // Lo que se reconoce en la cuenta (todo tolera una cuenta de octubre).
+    const sinAcentos = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const mismo = (a, b) => sinAcentos(a) === sinAcentos(b);
+    const alMundo = (r) => r.origen === '0.0.0.0/0' || r.origen === '::/0';
+    const cubre = (r, puerto) => r.protocolo === '-1' || (r.protocolo === 'tcp' && r.desde <= puerto && puerto <= r.hasta);
+    const snapshots = (e) => e.rds?.snapshots ?? [];
+    /** La instancia de las cajas que venía en la cuenta: la más antigua con ese nombre. */
+    const api = (e) => (e.instancias ?? []).filter((i) => i.nombre === x.instancia).sort((a, b) => String(a.lanzada).localeCompare(String(b.lanzada)))[0] ?? null;
+    const org = (e) => e.organizations ?? null;
+    const ou = (e, nombre) => (org(e)?.ous ?? []).find((o) => mismo(o.nombre, nombre)) ?? null;
+    const miembro = (e, nombre, correo, palabra) => {
+      const cuentas = (org(e)?.cuentas ?? []).filter((c) => !c.admin && c.estado !== 'SUSPENDED');
+      return cuentas.some((c) => mismo(c.nombre, nombre) || String(c.correo ?? '').toLowerCase() === correo.toLowerCase() || sinAcentos(c.nombre).includes(palabra));
+    };
+    const scpPropias = (e) => (org(e)?.politicas ?? []).filter((p) => !p.administradaPorAws);
+    const presupuestos = (e) => (e.costos?.presupuestos ?? []).filter((b) => b.tipo === 'COST');
+    const filtrado = (b) => Boolean(b.filtros?.servicios?.length || b.filtros?.etiquetas?.length);
+    const generales = (e) => presupuestos(e).filter((b) => !filtrado(b));
+    const porEtiqueta = (e) => presupuestos(e).filter((b) => (b.filtros?.etiquetas ?? []).length > 0);
+    const conCorreo = (b) => (b.alertas ?? []).some((a) => (a.correos ?? []).length > 0);
+    const ADVISOR = ['rds-snapshots-publicos', 'sg-puertos', 'mfa-raiz'];
+
+    return {
+      titulo: 'Café del Bajío, ya en orden',
+      objetivo: 'Una cuenta sin riesgos ni gastos de más, separada en Producción y Pruebas bajo una organización, y con etiquetas, presupuesto y alertas para saber en qué se va el dinero antes de pasarse.',
+      columnas: 10,
+      filas: 7.75,
+      piezas: [
+        // ───────── La organización: Root, las dos OU con su cuenta y la SCP.
+        { id: 'organizacion', tipo: 'grupo', etiqueta: 'Organización', detalle: 'tu cuenta la administra', col: 0.1, fila: 0.1, ancho: 4.7, alto: 3.65 },
+        { id: 'root', tipo: 'organizations', etiqueta: 'Root', detalle: 'una sola factura', en: 'organizacion', col: 1.45, fila: 0.45,
+          tarea: 'cuentas', checks: ['org'], hecho: (e) => Boolean(org(e)) },
+        { id: 'scp', tipo: 'scp', etiqueta: 'SCP de regiones', detalle: x.scp, en: 'organizacion', col: 3.7, fila: 0.45,
+          tarea: 'scp', checks: ['adjunta'], hecho: (e) => Boolean(org(e)?.scpHabilitadas) && scpPropias(e).length > 0 },
+        { id: 'ou-produccion', tipo: 'grupo', etiqueta: 'OU Producción', en: 'organizacion', col: 0.25, fila: 1.85, ancho: 2.15, alto: 1.5,
+          tarea: 'cuentas', checks: ['ous'], hecho: (e) => Boolean(ou(e, x.ouProduccion)) },
+        { id: 'ou-pruebas', tipo: 'grupo', etiqueta: 'OU Pruebas', en: 'organizacion', col: 2.5, fila: 1.85, ancho: 2.15, alto: 1.5,
+          tarea: 'cuentas', checks: ['ous'], hecho: (e) => Boolean(ou(e, x.ouPruebas)) },
+        { id: 'cuenta-produccion', tipo: 'cuenta', etiqueta: 'Cuenta Producción', detalle: x.cuentaProduccion, en: 'ou-produccion', col: 0.825, fila: 2.25,
+          tarea: 'cuentas', checks: ['produccion'], hecho: (e) => miembro(e, x.cuentaProduccion, x.correoProduccion, 'produc') },
+        { id: 'cuenta-pruebas', tipo: 'cuenta', etiqueta: 'Cuenta Pruebas', detalle: x.cuentaPruebas, en: 'ou-pruebas', col: 3.075, fila: 2.25,
+          tarea: 'cuentas', checks: ['pruebas'], hecho: (e) => miembro(e, x.cuentaPruebas, x.correoPruebas, 'prueba') },
+
+        // ───────── Lo que marcó Trusted Advisor: cada pieza es «ya quedó arreglado».
+        { id: 'arreglar', tipo: 'grupo', etiqueta: 'Lo que hay que arreglar', detalle: 'en tu cuenta', col: 4.95, fila: 0.1, ancho: 4.95, alto: 3.65 },
+        { id: 'zona-seguridad', tipo: 'grupo', etiqueta: 'Seguridad: lo urgente', en: 'arreglar', col: 5.1, fila: 0.45, ancho: 4.65, alto: 1.5 },
+        { id: 'snapshot', tipo: 'snapshot', etiqueta: 'Respaldo privado', detalle: x.snapshot, en: 'zona-seguridad', col: 5.4, fila: 0.85,
+          tarea: 'seguridad', checks: ['snapshot'],
+          hecho: (e) => snapshots(e).some((s) => s.id === x.snapshot && !s.publico) && !snapshots(e).some((s) => s.publico) },
+        { id: 'ssh', tipo: 'sg', etiqueta: 'SSH cerrado', detalle: x.sg, en: 'zona-seguridad', col: 6.95, fila: 0.85,
+          tarea: 'seguridad', checks: ['ssh'],
+          hecho: (e) => !(e.gruposSeguridad ?? []).some((g) => (g.entrada ?? []).some((r) => alMundo(r) && cubre(r, 22))) },
+        { id: 'mfa', tipo: 'mfa', etiqueta: 'Raíz con MFA', detalle: 'root user', en: 'zona-seguridad', col: 8.5, fila: 0.85,
+          tarea: 'seguridad', checks: ['mfa'], hecho: (e) => Boolean(e.iam?.raizMfa) },
+        { id: 'zona-ahorro', tipo: 'grupo', etiqueta: 'Ahorro: lo que sobra', en: 'arreglar', col: 5.1, fila: 2.1, ancho: 3.1, alto: 1.5 },
+        { id: 'eip', tipo: 'eip', etiqueta: 'IP liberada', detalle: x.eip, en: 'zona-ahorro', col: 5.4, fila: 2.5,
+          tarea: 'ahorro', checks: ['eip'], hecho: (e) => !(e.eips ?? []).some((p) => !p.instanciaId && !p.natId) },
+        { id: 'tamano', tipo: 'ec2', etiqueta: 'Tamaño justo', detalle: x.instancia, en: 'zona-ahorro', col: 6.95, fila: 2.5,
+          tarea: 'ahorro', checks: ['tipo', 'encendida'],
+          hecho: (e) => { const i = api(e); return Boolean(i && !['terminated', 'shutting-down'].includes(i.estado) && i.tipo !== x.tipoViejo); } },
+        { id: 'advisor', tipo: 'trusted-advisor', etiqueta: 'Advisor en verde', detalle: 'Refresh all checks', en: 'arreglar', col: 8.5, fila: 2.5,
+          tarea: 'seguridad', checks: ['advisor'],
+          hecho: (e) => { const r = e.costos?.advisor?.resultados ?? {}; return ADVISOR.every((id) => r[id]?.estado === 'ok'); } },
+
+        // ───────── Costos y buenas prácticas.
+        { id: 'costos', tipo: 'grupo', etiqueta: 'Costos y buenas prácticas', col: 0.1, fila: 3.95, ancho: 9.8, alto: 3.65 },
+        { id: 'zona-etiquetas', tipo: 'grupo', etiqueta: 'Saber en qué se va el dinero', en: 'costos', col: 0.25, fila: 4.3, ancho: 4.55, alto: 1.5 },
+        { id: 'tabla', tipo: 'dynamodb', etiqueta: 'Tabla de Pruebas', detalle: x.tablaPruebas, en: 'zona-etiquetas', col: 0.55, fila: 4.7,
+          tarea: 'etiquetas', checks: ['tabla'],
+          hecho: (e) => (e.dynamodb?.tablas ?? []).some((t) => t.nombre === x.tablaPruebas && (t.etiquetas ?? []).some((g) => mismo(g.llave, x.etiqueta) && mismo(g.valor, x.valorPruebas))) },
+        { id: 'etiqueta', tipo: 'etiqueta', etiqueta: 'Etiqueta de costos', detalle: `${x.etiqueta} (activa)`, en: 'zona-etiquetas', col: 2.025, fila: 4.7,
+          tarea: 'etiquetas', checks: ['activa'], hecho: (e) => (e.costos?.etiquetasActivas ?? []).some((k) => mismo(k, x.etiqueta)) },
+        { id: 'reporte', tipo: 'cost-explorer', etiqueta: 'Gasto por ambiente', detalle: x.reporte, en: 'zona-etiquetas', col: 3.5, fila: 4.7,
+          tarea: 'etiquetas', checks: ['reporte'], hecho: (e) => (e.costos?.reportes ?? []).some((r) => r.parametros?.agrupar === 'TAG') },
+        { id: 'zona-presupuesto', tipo: 'grupo', etiqueta: 'Avisar antes de pasarse', en: 'costos', col: 4.95, fila: 4.3, ancho: 4.8, alto: 1.5 },
+        { id: 'presupuesto', tipo: 'presupuesto', etiqueta: 'Presupuesto', detalle: `$${x.monto} al mes`, en: 'zona-presupuesto', col: 5.25, fila: 4.7,
+          tarea: 'presupuesto', checks: ['monto'], hecho: (e) => generales(e).length > 0 },
+        { id: 'lupita', tipo: 'correo', etiqueta: 'Lupita', detalle: x.correo, en: 'zona-presupuesto', col: 6.85, fila: 4.7 },
+        { id: 'tope-pruebas', tipo: 'presupuesto', etiqueta: 'Tope de Pruebas', detalle: `$${x.montoPruebas} al mes`, en: 'zona-presupuesto', col: 8.45, fila: 4.7,
+          tarea: 'bono', bono: true, checks: ['filtro', 'alerta'], hecho: (e) => porEtiqueta(e).length > 0 },
+        { id: 'zona-planear', tipo: 'grupo', etiqueta: 'Planear y revisar', en: 'costos', col: 0.25, fila: 5.95, ancho: 9.5, alto: 1.5 },
+        { id: 'calculadora', tipo: 'calculadora', etiqueta: 'Estimación', detalle: x.estimacion, en: 'zona-planear', col: 1.2, fila: 6.35,
+          tarea: 'calculadora', checks: ['estimacion', 'ondemand', 'sp'], hecho: (e) => (e.costos?.estimaciones ?? []).length > 0 },
+        { id: 'soporte', tipo: 'soporte', etiqueta: 'Plan de soporte', detalle: '24/7 · menos de 1 h', en: 'zona-planear', col: 4.5, fila: 6.35,
+          tarea: 'soporte', checks: ['plan'], hecho: (e) => (e.costos?.planSoporte ?? 'basic') !== 'basic' },
+        { id: 'wa', tipo: 'well-architected', etiqueta: 'Revisión Well-Architected', detalle: x.carga, en: 'zona-planear', col: 7.8, fila: 6.35,
+          tarea: 'wa', checks: ['carga', 'respuestas', 'practicas', 'hito'], hecho: (e) => (e.wellarchitected?.cargas ?? []).length > 0 }
+      ],
+      flechas: [
+        // La organización como árbol: Root reparte en sus dos OU.
+        { de: 'root', a: 'ou-produccion', codo: 'hv' },
+        { de: 'root', a: 'ou-pruebas', codo: 'hv' },
+        // La SCP va en la OU (no en la cuenta ni en Root): la heredan todas sus cuentas.
+        { de: 'scp', a: 'ou-pruebas', tipo: 'apoyo', texto: 'solo us-east-1',
+          tarea: 'scp', checks: ['fuera', 'dentro', 'produccion'],
+          hecho: (e) => { const o = ou(e, x.ouPruebas); return Boolean(o && org(e)?.scpHabilitadas && scpPropias(e).some((p) => (p.objetivos ?? []).includes(o.id))); } },
+        // Trusted Advisor vuelve a revisar cuando ya se arregló.
+        { de: 'advisor', a: 'zona-seguridad', tipo: 'apoyo', texto: 'vuelve a revisar' },
+        // Del recurso etiquetado al reporte.
+        { de: 'tabla', a: 'etiqueta', tipo: 'apoyo', texto: x.valorPruebas },
+        { de: 'etiqueta', a: 'reporte', tipo: 'apoyo', texto: 'agrupa' },
+        // Los presupuestos le avisan a Lupita.
+        { de: 'presupuesto', a: 'lupita', tipo: 'apoyo', texto: `${x.umbralReal} % y ${x.umbralPronostico} %`,
+          tarea: 'presupuesto', checks: ['real', 'pronostico', 'correo'], hecho: (e) => generales(e).some(conCorreo) },
+        // (La del bono es decorativa: su alerta la revisa el nodo, así no se enciman las dos marcas de bono.)
+        { de: 'tope-pruebas', a: 'lupita', tipo: 'apoyo', texto: 'alerta' }
+      ]
+    };
   }
 };
