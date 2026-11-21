@@ -166,7 +166,10 @@ export const EVALUACIONES = [
     fecha: null,
     fechaTexto: 'Sesión 9 de la Ruta AWS',
     resumen: 'La tienda vende en línea: una web de dos capas que no se cae, con balanceador, Auto Scaling, una base Multi-AZ y alertas.',
-    lab: 'practica-1'
+    lab: 'practica-1',
+    // Abierta de arranque (lo pidió el docente el 2026-11-20), aunque Render
+    // reinicie. El docente aún puede cerrarla en el panel.
+    abierta: { practica: true }
   },
   {
     ...PRACTICA,
@@ -176,7 +179,9 @@ export const EVALUACIONES = [
     fecha: null,
     fechaTexto: 'Sesión 10 de la Ruta AWS',
     resumen: 'Seguridad y cumplimiento: mínimo privilegio, llaves de cifrado, secretos, una base cifrada y quién hizo qué en CloudTrail.',
-    lab: 'practica-2'
+    lab: 'practica-2',
+    // Abierta de arranque, igual que la Práctica 1 (2026-11-20).
+    abierta: { practica: true }
   },
   {
     ...PRACTICA,

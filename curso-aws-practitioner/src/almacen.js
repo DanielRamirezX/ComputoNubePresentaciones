@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { SESIONES } from '../public/contenido.js';
 import { fallo } from './servidor.js';
 
 // La carpeta del curso, no la de quien lo arrancó: montado en la plataforma,
@@ -91,9 +92,17 @@ const normal = (t) =>
 const llave = (a) => (a.matricula ? `m:${normal(a.matricula)}` : `n:${normal(a.nombre)}|${a.grupo}`);
 const delGrupo = (grupo) => (x) => !grupo || x.grupo === grupo;
 
+// Cómo arranca el examen de cada sesión: cerrado, salvo las sesiones cuyo
+// archivo dice `practica: { abierta: true }`. Lo que el docente cambia en el
+// panel se guarda y manda; pero en Render el disco se borra al reiniciar y el
+// examen vuelve a este valor de arranque.
+const ABIERTAS_DE_ARRANQUE = new Set(SESIONES.filter((s) => s.practica?.abierta === true).map((s) => s.numero));
+const abiertaDeArranque = (sesion) => ABIERTAS_DE_ARRANQUE.has(Number(sesion));
+const estaAbierta = (sesion) => Boolean(estado.practicas[sesion]?.abierta ?? abiertaDeArranque(sesion));
+
 /** El examen de una sesión, creándolo si todavía no existe. */
 function practica(sesion) {
-  estado.practicas[sesion] ??= { abierta: false, entregas: {} };
+  estado.practicas[sesion] ??= { abierta: abiertaDeArranque(sesion), entregas: {} };
   return estado.practicas[sesion];
 }
 const todasLasEntregas = () => Object.values(estado.practicas).flatMap((p) => Object.values(p.entregas));
@@ -102,10 +111,10 @@ export const almacen = {
   motor: 'archivo JSON',
   archivo: ARCHIVO,
 
-  practicaAbierta: (sesion) => Boolean(estado.practicas[sesion]?.abierta),
+  practicaAbierta: estaAbierta,
 
   /** { 1: true, 2: false, … } para las sesiones que se piden. */
-  practicasAbiertas: (sesiones) => Object.fromEntries(sesiones.map((n) => [n, Boolean(estado.practicas[n]?.abierta)])),
+  practicasAbiertas: (sesiones) => Object.fromEntries(sesiones.map((n) => [n, estaAbierta(n)])),
 
   existe: (id) => Object.hasOwn(estado.alumnos, id),
 

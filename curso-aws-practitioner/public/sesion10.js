@@ -102,7 +102,9 @@ export const SESION_10 = {
     corto: 'Examen de práctica',
     resumen: '20 preguntas de seguridad y cumplimiento al estilo del examen de certificación, dos de respuesta múltiple, en unos 15 minutos y una sola entrega.',
     plegable: 'Ver cómo es el examen real',
-    sobre: 'la seguridad de la clínica y los servicios de seguridad de AWS'
+    sobre: 'la seguridad de la clínica y los servicios de seguridad de AWS',
+    // Abierto de arranque, igual que la Práctica 2 del simulador (2026-11-20).
+    abierta: true
   },
 
   capitulos: [
@@ -269,7 +271,6 @@ export const SESION_10 = {
             'Dejar la cuenta de la clínica lista para una auditoría: cada persona con lo justo y con MFA, los datos de los pacientes cifrados con una llave propia, nada privado expuesto a internet y un registro de quién hizo qué.',
           necesitas: [
             'Tu perfil de la Ruta: el simulador lo reconoce y le muestra tu avance a tu docente.',
-            'Que tu docente abra la Práctica 2 en su panel.',
             'Una computadora o tableta: la consola en el celular es incómoda.',
             'No necesitas DataCamp ni tarjeta: todo es simulado y no cuesta nada.'
           ],

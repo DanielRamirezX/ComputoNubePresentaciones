@@ -35,7 +35,10 @@ export const SESION_8 = {
     corto: 'Simulacro',
     resumen: '65 preguntas de los cuatro dominios en 90 minutos, con puntaje estimado de 1000 y reporte por dominio. Una sola entrega.',
     plegable: 'Ver cómo es el examen real',
-    sobre: 'los cuatro dominios del examen CLF-C02'
+    sobre: 'los cuatro dominios del examen CLF-C02',
+    // Abierto de arranque (lo pidió el docente el 2026-11-20), aunque Render
+    // reinicie. El docente aún puede cerrarlo en el panel.
+    abierta: true
   },
 
   capitulos: [
